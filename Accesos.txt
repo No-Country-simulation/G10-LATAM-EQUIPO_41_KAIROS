@@ -1,7 +1,0 @@
-Namespace: axrdqvxzraqd
-[DEFAULT]
-user=ocid1.user.oc1..aaaaaaaan62jx3fmpp7umlf4gmhlgytkq3ueq45bkhehk2gspmywupumbrna
-fingerprint=0d:b3:55:48:4c:3b:a3:d2:40:33:ce:73:b1:04:e2:f8
-tenancy=ocid1.tenancy.oc1..aaaaaaaavtav4d6vryxnioxs5gzpidexgugwwtjbjbf432m3zigosdf3soka
-region=sa-valparaiso-1
-key_file=<path to your private keyfile> # TODO
