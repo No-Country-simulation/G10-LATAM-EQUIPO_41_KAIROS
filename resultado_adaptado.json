@@ -1,0 +1,17 @@
+{
+    "tema": "procedimientos de seguridad",
+    "perfil_audiencia": "Principiante",
+    "formato": "Flashcards",
+    "contenido": [
+        {
+            "titulo": "¿Qué es un registro de auditoría en el sistema?",
+            "concepto": "Es una función de seguridad muy importante que sirve para guardar un registro o historial automático cada vez que alguien modifica o elimina información delicada dentro de las tablas de datos.",
+            "detalle_adicional": "Por ejemplo, en el módulo de Cajas de Seguridad se utiliza el procedimiento especial llamado PRQ_INS_CS_AUDITORIA para vigilar estos cambios y mantener la seguridad de la información."
+        },
+        {
+            "titulo": "¿Cuándo se debe aplicar la auditoría en los programas?",
+            "concepto": "La auditoría se aplica exclusivamente en aquellos programas o pantallas donde los usuarios pueden modificar (actualizar) o borrar información ya existente.",
+            "detalle_adicional": "No es necesario aplicarla en programas transaccionales que solo generan reportes, archivos de texto (.txt) o que únicamente guardan datos nuevos por primera vez (inserts)."
+        }
+    ]
+}
