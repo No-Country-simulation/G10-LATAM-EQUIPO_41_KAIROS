@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kairos</title>
+  <meta name="description" content="Convierte documentos técnicos en material de estudio adaptado a cada persona.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>
+    // Aplica el tema guardado antes de pintar, para evitar un parpadeo claro/oscuro.
+    try {
+      const tema = localStorage.getItem("nuevamente.tema");
+      if (tema === "light" || tema === "dark") document.documentElement.dataset.theme = tema;
+    } catch {}
+  </script>
+</head>
+<body>
+  <header class="navbar">
+    <nav class="navbar-interior" aria-label="Principal">
+      <a class="marca" href="#inicio" aria-label="Kairos, ir al inicio">
+        <span class="marca-logo" aria-hidden="true">🎓</span>
+        <span class="marca-texto">
+          <strong>Kairos</strong>
+          <small>Aprende de tus documentos</small>
+        </span>
+      </a>
+
+      <button type="button" id="btn-menu" class="btn-menu" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div id="menu" class="menu">
+        <ul class="menu-enlaces">
+          <li><a href="#inicio" data-seccion="inicio" class="activo" aria-current="true"><span aria-hidden="true">✨</span> Crear</a></li>
+          <li><a href="#resultado" data-seccion="material" aria-disabled="true"><span aria-hidden="true">📖</span> Mi material</a></li>
+          <li><a href="#historial-caja" data-seccion="historial" aria-disabled="true"><span aria-hidden="true">🕘</span> Historial <span id="contador-historial" class="insignia" hidden></span></a></li>
+          <li><button type="button" id="btn-como"><span aria-hidden="true">💡</span> Cómo funciona</button></li>
+        </ul>
+
+        <div class="menu-acciones">
+          <span id="estado-oci" class="estado" title="Dónde se guarda el material">
+            <span class="punto" aria-hidden="true"></span><span class="estado-texto">Conectando…</span>
+          </span>
+          <a class="btn-api" href="/docs" target="_blank" rel="noopener">API ↗</a>
+          <button type="button" id="btn-tema" class="btn-icono" aria-label="Cambiar a modo oscuro" title="Cambiar tema">🌙</button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <dialog id="dialogo-como" class="dialogo" aria-labelledby="como-titulo">
+    <form method="dialog">
+      <button class="dialogo-cerrar" aria-label="Cerrar">✕</button>
+    </form>
+    <h2 id="como-titulo">💡 Cómo funciona Kairos</h2>
+    <ol class="como-pasos">
+      <li><strong>📥 Lee tu documento</strong><span>Lo divide en fragmentos por sección, conservando de dónde sale cada uno.</span></li>
+      <li><strong>🔎 Busca evidencia</strong><span>Recupera los fragmentos más relevantes de cada sección, no solo de una búsqueda global.</span></li>
+      <li><strong>✍️ Redacta el material</strong><span>Lo adapta al perfil, formato y nivel de detalle elegidos, citando el fragmento de origen.</span></li>
+      <li><strong>✅ Verifica cada afirmación</strong><span>Compara cada afirmación con su fragmento. Si no alcanza el umbral (90% en Salud), el Crítico lo marca.</span></li>
+    </ol>
+    <p class="nota">El contenido se basa solo en el documento que proporcionas y se guarda en OCI Object Storage, o en un respaldo local si OCI no está configurado.</p>
+  </dialog>
+
+  <main id="inicio" class="layout">
+    <!-- ===== Panel de configuración ===== -->
+    <form id="form" class="panel" novalidate>
+      <section class="paso">
+        <h2><span class="num">1</span> Tu documento</h2>
+
+        <div class="segmentado" role="tablist" aria-label="Fuente del documento">
+          <button type="button" role="tab" class="seg activo" data-modo="texto" aria-selected="true">✍️ Pegar texto</button>
+          <button type="button" role="tab" class="seg" data-modo="archivo" aria-selected="false">📎 Subir archivo</button>
+        </div>
+
+        <div id="modo-texto">
+          <label class="campo">
+            <span>Título</span>
+            <input id="titulo" type="text" maxlength="300" placeholder="Ej.: Protocolo de bioseguridad">
+          </label>
+          <label class="campo">
+            <span>Contenido</span>
+            <textarea id="contenido" rows="9" placeholder="Pega aquí el texto del documento (Markdown o texto plano)…"></textarea>
+          </label>
+          <button type="button" id="btn-ejemplo" class="enlace">✨ Usar un documento de ejemplo</button>
+        </div>
+
+        <div id="modo-archivo" hidden>
+          <label id="zona-archivo" class="zona-archivo">
+            <input id="archivo" type="file" accept=".txt,.md,.markdown,.pdf">
+            <span class="zona-icono" aria-hidden="true">📄</span>
+            <strong id="zona-texto">Arrastra tu archivo aquí o haz clic para elegirlo</strong>
+            <small id="zona-ayuda">PDF, Markdown o texto</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="paso">
+        <h2><span class="num">2</span> ¿Para quién es?</h2>
+        <div id="perfiles" class="chips" role="radiogroup" aria-label="Perfil del destinatario"></div>
+      </section>
+
+      <section class="paso">
+        <h2><span class="num">3</span> ¿Cómo quieres aprenderlo?</h2>
+        <div id="formatos" class="tarjetas-formato" role="radiogroup" aria-label="Formato de salida"></div>
+      </section>
+
+      <section class="paso paso-fila">
+        <label class="campo">
+          <span>Sector</span>
+          <select id="nicho"></select>
+        </label>
+        <label class="campo">
+          <span>Nivel de detalle</span>
+          <select id="nivel"></select>
+        </label>
+      </section>
+
+      <p id="aviso-salud" class="aviso" hidden>
+        ⚕️ <strong>Material de apoyo educativo.</strong> Se genera solo a partir del documento que
+        proporcionas y no reemplaza el criterio de un profesional de salud ni las indicaciones oficiales vigentes.
+      </p>
+
+      <p id="error-form" class="error" role="alert" hidden></p>
+
+      <button id="btn-generar" type="submit" class="btn-principal">
+        <span class="btn-texto">Crear mi material</span>
+        <span class="btn-cargando" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <!-- ===== Resultados ===== -->
+    <section class="resultados" aria-live="polite">
+      <div id="vacio" class="vacio">
+        <div class="vacio-ilustracion" aria-hidden="true">📚✨</div>
+        <h2>Aquí aparecerá tu material</h2>
+        <p>Elige un documento, para quién es y el formato. Kairos lo adapta y
+          comprueba cada afirmación contra el texto original.</p>
+        <ol class="vacio-pasos">
+          <li>📥 Lee y divide tu documento</li>
+          <li>🔎 Busca la evidencia de cada sección</li>
+          <li>✍️ Redacta el material</li>
+          <li>✅ Verifica que todo esté en la fuente</li>
+        </ol>
+      </div>
+
+      <div id="progreso" class="progreso" hidden>
+        <h2>Preparando tu material…</h2>
+        <ol id="etapas" class="etapas"></ol>
+      </div>
+
+      <div id="resultado" hidden>
+        <div class="resultado-cabecera">
+          <div>
+            <p id="res-etiqueta" class="etiqueta"></p>
+            <h2 id="res-titulo"></h2>
+          </div>
+          <div class="descargas">
+            <button type="button" class="btn-secundario" data-exportar="markdown">⬇️ Markdown</button>
+            <button type="button" class="btn-secundario" data-exportar="anki_csv">⬇️ Anki</button>
+          </div>
+        </div>
+
+        <div id="metricas" class="metricas"></div>
+
+        <div class="pestanas" role="tablist">
+          <button type="button" role="tab" class="pestana activa" data-pestana="contenido" aria-selected="true">📖 Material</button>
+          <button type="button" role="tab" class="pestana" data-pestana="calidad" aria-selected="false">🔍 Fidelidad</button>
+          <button type="button" role="tab" class="pestana" data-pestana="almacenamiento" aria-selected="false">☁️ Guardado</button>
+          <button type="button" role="tab" class="pestana" data-pestana="json" aria-selected="false">🧾 JSON</button>
+        </div>
+
+        <div id="p-contenido" class="panel-pestana"></div>
+        <div id="p-calidad" class="panel-pestana" hidden></div>
+        <div id="p-almacenamiento" class="panel-pestana" hidden></div>
+        <div id="p-json" class="panel-pestana" hidden><pre id="json"></pre></div>
+      </div>
+
+      <aside id="historial-caja" class="historial" hidden>
+        <h3>🕘 Generados recientemente</h3>
+        <ul id="historial"></ul>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="pie">Kairos · Equipo Kairos G10 · Hackathon ONE G10</footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
