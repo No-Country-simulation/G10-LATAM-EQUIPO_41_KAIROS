@@ -66,7 +66,7 @@ flowchart LR
 
 | Persona | Rol |
 |---|---|
-| Juan Pablo Calla (PM) | Project Manager |
+| Juan Pablo Calla | Project Manager |
 | Gaspar Martinez Paiva | Data Engineer |
 | Bryan Infante | AI Engineer |
 | Adrian Gil | ML Engineer |
