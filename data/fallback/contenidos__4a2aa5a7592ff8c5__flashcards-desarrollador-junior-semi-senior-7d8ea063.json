@@ -1,0 +1,55 @@
+{
+  "status": "exito",
+  "request_id": "7d8ea063-dca3-49c4-8823-0219c580e826",
+  "metadatos": {
+    "perfil_aplicado": "Desarrollador Junior/Semi Senior",
+    "formato_generado": "Flashcards",
+    "tiempo_estimado_estudio_minutos": 2,
+    "conceptos_clave": [
+      "Documento completo"
+    ],
+    "prerrequisitos": [],
+    "tiempo_generacion_segundos": 0.463,
+    "modelo_llm": "template-extractivo-v1",
+    "desde_cache": false
+  },
+  "contenido_adaptado": {
+    "formato": "Flashcards",
+    "titulo": "Guía rápida: tmpgxxbsv0t",
+    "introduccion_contextualizada": "Este material resume, en tarjetas de estudio, los puntos clave de \"tmpgxxbsv0t\", adaptado para el perfil Desarrollador Junior/Semi Senior.",
+    "items": [
+      {
+        "frente": "¿Qué debes saber sobre \"Documento completo\"?",
+        "dorso": "No obstante NEW_FORM implica que se pregunte al usuario si quiere validar el contenido de los módulos anteriores por si quiere guardar las modificaciones o no, además es conveniente que en el modulo destino incluyamos un EXIT_FORM en un botón por si acaso. Podemos ejecutar de dos maneras este Buitl In: a) Básica: NEW_FORM(‘RUTA_DEL_MODULO’); b) Avanzada: NEW_FORM(‘RUTA’, MODO_ROLLBACK, MODO_QUERY, D A T O S , LISTA_PARAMETROS); Modo_rollback: Full_rollback: ejecuta un rollback completo de la transacción(por d e f e c t o ) No_rollback:no restaura y por tanto es como el commit To_savepoint ejecuta un rollback hasta el ultimo punto de ruptura Modo_query (se sitúa en el nuevo modulo solo en",
+        "pista_didactica": "Piénsalo como una regla práctica que evita errores costosos.",
+        "fuentes": [
+          "4a2aa5a7592ff8c5-c164"
+        ]
+      },
+      {
+        "frente": "¿Qué debes saber sobre \"Documento completo\"?",
+        "dorso": "Manual de Oracle Forms 6i Red Software House - Publiguías Autor: Francisco Espinoza R. Fecha: Marzo 2003.",
+        "pista_didactica": "Piénsalo como una regla práctica que evita errores costosos.",
+        "fuentes": [
+          "4a2aa5a7592ff8c5-c000"
+        ]
+      }
+    ]
+  },
+  "evaluacion_calidad": {
+    "anclaje_fuente_score": 1.0,
+    "claridad_pedagogica": "Alta",
+    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 2,
+    "afirmaciones_sustentadas": 2,
+    "afirmaciones_no_sustentadas": [],
+    "umbral_aplicado": 0.85,
+    "aprobado_por_critico": true
+  },
+  "almacenamiento_oci": {
+    "bucket": "",
+    "objeto_id": "",
+    "objeto_documento_original": "",
+    "status_upload": "pendiente"
+  }
+}

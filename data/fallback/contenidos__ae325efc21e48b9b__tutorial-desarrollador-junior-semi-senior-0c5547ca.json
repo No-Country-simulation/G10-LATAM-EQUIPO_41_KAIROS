@@ -1,0 +1,63 @@
+{
+  "status": "exito",
+  "request_id": "0c5547ca-dd6c-49e5-bc37-eda659462ce2",
+  "metadatos": {
+    "perfil_aplicado": "Desarrollador Junior/Semi Senior",
+    "formato_generado": "Tutorial",
+    "tiempo_estimado_estudio_minutos": 1,
+    "conceptos_clave": [
+      "Documento completo"
+    ],
+    "prerrequisitos": [],
+    "tiempo_generacion_segundos": 0.172,
+    "modelo_llm": "template-extractivo-v1",
+    "desde_cache": false
+  },
+  "contenido_adaptado": {
+    "formato": "Tutorial",
+    "objetivo": "Aplicar correctamente los pasos descritos en \"tmpyehburx6\".",
+    "prerrequisitos": [],
+    "pasos": [
+      {
+        "orden": 1,
+        "titulo": "Documento completo",
+        "instruccion": "Oracle Developer 2000 Report 6i Report Developer Reports Developer is a powerful enterprise reporting tool used to build reports that dynamically retrieve, format, and distribute information stored in the database.",
+        "resultado_esperado": "Reports Developer enables you to: • Web publish high quality reports.",
+        "fuentes": [
+          "ae325efc21e48b9b-c000"
+        ]
+      },
+      {
+        "orden": 2,
+        "titulo": "Documento completo",
+        "instruccion": "You can create reports in a combination of styles and publish them in a variety of widely used formats, including HTML and PDF.",
+        "resultado_esperado": "Report Server: Use the Reports Server to securely publish production-quality reports.",
+        "fuentes": [
+          "ae325efc21e48b9b-c001"
+        ]
+      }
+    ],
+    "errores_comunes": [
+      "Omitir un paso porque parece obvio. Un error aquí puede generar pérdidas económicas o incumplimiento regulatorio."
+    ],
+    "checklist_final": [
+      "Verificado: Documento completo"
+    ]
+  },
+  "evaluacion_calidad": {
+    "anclaje_fuente_score": 1.0,
+    "claridad_pedagogica": "Alta",
+    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 2,
+    "afirmaciones_sustentadas": 2,
+    "afirmaciones_no_sustentadas": [],
+    "umbral_aplicado": 0.85,
+    "aprobado_por_critico": true
+  },
+  "almacenamiento_oci": {
+    "bucket": "",
+    "objeto_id": "",
+    "objeto_documento_original": "",
+    "status_upload": "pendiente"
+  }
+}

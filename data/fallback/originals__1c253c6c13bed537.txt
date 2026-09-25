@@ -1,0 +1,1288 @@
+Oracle Developer 2000 
+Report 6i
+
+ 
+Report Developer
+Reports Developer is a powerful enterprise reporting tool used to build reports that dynamically
+retrieve, format, and distribute information stored in the database.
+Reports Developer enables you to:
+• Web publish high quality reports.
+• Perform unlimited data formatting.
+• Take advantage of application server based reporting.
+• Meet us er needs with an integrated business intelligence solution.
+Reports Developer Tools 
+Reports Developer provides a builder that enables you to easily construct sophisticated reports
+and a server that enables you to securely publish reports to your users.
+• Report Builder 
+• Reports Server 
+Report Builder: 
+Use Report Builder to design professional, production-quality reports . You can create reports in
+a combination of styles and publish them in a variety of widely used formats, including HTML and
+PDF. 
+Report Server: 
+Use the Reports Server to securely publish production-quality reports. Using the Reports Server
+in conjunction with Oracle Web DB, you can control access to reports and administer your
+Reports Servers from a Web interface. You can also use the Reports Server to distribute reports
+through CGI-compatible Web servers.
+Supporting Reports Developer Tools
+Reports Developer includes additional tools to automate and manage application development
+tasks . 
+• Graphics Builder
+• Project Builder
+• Proc edure Builder
+• Schema Builder
+• Query Builder 
+• Translation Builder
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+
+ 
+Graphic Builder: 
+Use Graphics Builder to build applications that enable end users to visualize data and interact
+graphically with a database. 
+Project Builder:
+Use Graphics Builder to build applications that enable end users to visualize data and interact
+graphically with a database. 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+
+ 
+Procedure Builder:
+Use Procedure Builder to edit, compile, test, and debug PL/SQL.
+Schema Builder: 
+Use Schema Builder to create, copy, modify, and remove database objects and their
+relationships. 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Query Builder: 
+Use Query Builder to build database queries to use in your applications. 
+Translate Builder: 
+Use Translation Builder to translate your applications into over 40 languages.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Fea tures & Benefits 
+• Administering Reports Security through WebDB
+• XML Output
+• Integration with Oracle Express
+• Runtime Customization Using XML
+• Reports Server Database Queue
+Building application 
+With Reports Developer, you can write an application once, and deploy it unchanged in a two-, or
+three-tier environment. Bec ause the Reports Server provides the the necessary application
+foundation services (e.g., database and transaction management, exception handling, load
+balancing, and record caching and lock ing), you can confidently deliver highly secure, reliable,
+and scalable business-critical applications to the Internet.
+To benefit from the latest Reports Server performance enhancements, you simply redeploy with
+the latest Reports Server – you don't need to rewrite your applications, or even update them.
+Reports Server Web-based Configuration
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Graphics Server Web-based Configuration
+Benefits of Productivity Features
+In order to meet competition, avoid obsolescence, and seize opportunities, a business mus t be
+able to: 
+• Respond rapidly to new or changing information needs.
+• Produce applications that end users can learn quickly.
+• Develop and maintain applications at reas onable cost.
+Reports Developer provides many features that help new developers become productive right
+away. Experienced developers benefit from these features too.
+Visual Design 
+Advancing computer technology has placed enormous power on desk tops. Reports Developer
+uses this power to let you work the way you think.
+• Object navigators 
+• Layout editors and prev iewers.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Object navigators: 
+Object navigators give you the "big picture" of your projects, reports, charts, and database
+items. An outline format lets you expand or collapse individual areas.
+Layout editors and previewers:
+Layout editors and previewers show you what your des igns look like as you make them.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Wizards 
+Wizards help you build reports and charts by asking you for all the basic information needed in an
+easy-to-understand format. You can then use these components as they are or customize them.
+You can also use some wizards to change existing components.
+Templates 
+A template is a report or chart that you can use as a starting point for your own applications. The
+applications you create from a template inherit the template's characteristics.
+Templates promote a consistent look and feel by assuring that all items of a given kind start from
+the same point. 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Data model
+Data Definition objects in data model:
+Queries:
+A query contains a SQL SELECT statement that retrieves data from the database
+for your report.
+Non-linkable queries:
+A non-linkable query is a detail query that contains column objects that prevent
+the query from being linked to via a column-to-column link. If you attempt to
+create such a link, a message dialo g box displays, which prompts you to choose
+whether to create a group-to-group quer y (using the parent groups), or to cancel
+the operation. A non-linkable query displays in its title bar.
+Instead, you can create a group-to-group link between the two queries and add a
+WHERE clause to the child query’s SELECT statement, using a bind variable to
+reference the parent column.
+Groups: 
+Groups are created to organize the columns in your report. When you create a
+query, Report Builder automatically creates a group that contains the columns
+selected by the query. You create additional groups to produce br eak levels in the
+report, either manually or by using the Report Wizard to create a group above or
+group left report.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Columns:
+Database columns:
+A database column represents a column that is selected b y the query. For each
+column that you select in your qu ery, Report Builder automatically creates a
+column in the data model of your report.
+Formula columns:
+A formula column performs a user-defined computation on another column(s)
+data, including placeholder columns.
+Formula columns should not be used to set values for parameters.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Report Level
+Group Level
+Placeholder columns:
+A placeholder is a column for which you set the datatyp e and value in PL/SQL
+that you define. You can set the value of a placeholder column in the following
+places:
+* The Before Report Trigger, if the placeholder is a report-level column
+* A report-level formula column, if the placeholder is a report-level column
+* A formula in the placeholder's group or a group below it (the value is set once
+for each record of the group)
+sort columns: 
+A sort column is used in an Express Report to sort Express dimension values. For
+each dimension selected in the Express query, Report Builder automatically
+inserts a corresponding sort column in the data model of your report. A sort
+column contains the Express index to the corresponding dimension value.
+Summary columns: 
+A summary column performs a computation on another column's data. Using the
+Report Wizard or Data Wizard, you can create the following summaries: sum,
+average, count, minimum, maximum, % total. You can also create a summary
+column manually in the Data Model view, and use the Property Palette to create
+the following additional summaries: first, last, standard deviation, variance.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Note: For group reports, the Report Wizard and Data Wizard create n summary
+fields in the data model for each summary column you define: one at each group
+level above the column being summarized, and one at the report level. For
+example, if a report is grouped by division, and further grouped by department,
+then a summary column defined for a salary total would create fields for th e sum
+of salaries for each division and each department group (group-level summaries),
+and the sum of all salaries (report-level summary).
+Report Level
+Group Level
+Para meters: 
+Referencing columns and parameters:
+You can reference user parameters, system parameters and columns as either bind
+references or lexical references .
+Bind references: 
+Bind references (or bind variables) are used to rep lace a single value in SQL or
+PL/SQL, such as a character string, number, or date. Specifically, bind references
+may be used to replace expressions in SELECT, WHERE, GROUP BY, ORDER
+BY, HAVING, CONNECT BY, and START WITH clauses of queries. Bind
+references may not be r eferenced in FROM clauses or in place of reserved words
+or clauses.
+You create a bind reference b y entering a colon (:) followed immediately by the
+column or parameter name. If you do not cr eate a column or parameter before
+making a bind referen ce to it in a SELECT statement, Report Builder will create a
+parameter for you by default.
+Eg: SELECT ORDID, TOTAL FROM ORD WHERE CUSTID = :CUST
+SELECT NVL(COMMPLAN, :DFLTCOMM) COMMPLAN,
+SUM(TOTAL) TOTAL FROM ORD GROUP BY NVL(COMMPLAN,
+:DFLTCOMM)
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Lexical references: 
+Lex ical references ar e placeholders for text that you embed in a SELECT
+statement. You can use lexical references to replace the clauses appearing after
+SELECT, FROM, WHERE, GROUP BY, ORDER BY, HAVING, CONNECT
+BY, and START WITH.
+You cannot make lexical references in a PL/SQL statement. You can, however,
+use a bind reference in PL/SQL to set the value of a parameter that is then
+referenced lexically in SQL. Look at the example below.
+You create a lexical reference by enterin g an ampersand (&) followed
+immediately by the column or parameter name. A default definition is not
+provided for lexical references. Therefore, you must do the following:
+Before you create your query, define a column or parameter in the data model for
+each lex ical refer ence in the query. For columns, you must enter Value if Null,
+and, for parameters, you must enter Initial Value. Report Builder uses these
+values to validate a query with a lexical reference.
+Eg:
+SELECT &P_ENAME NAME, &P_EMPNO ENO, &P_JOB ROLE FROM
+EMP 
+P_ENAME, P_EMPNO, and P_JOB can be used to change the columns selected
+at runtime. For example, you could enter DEPTNO as the value for P_EMPNO
+on the Runtime Parameter Form. Note that in this case, you should use aliases for
+your columns. Otherwise, if you change the columns selected at runtime, the
+column names in the SELECT list will not match the Report Builder columns and
+the report will not run
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Data links: 
+Data links relate the results of multiple queries. A data link (or parent-child
+relationship) causes the child query to be executed once for each instance of its
+parent group. When you create a data link in the Data Model view o f your report,
+Report Builder constructs a clause (as specified in the link's Property Palette) that
+will be added to the child query's SELECT statement at runtime. You can view
+the SELECT statements for the individual parent and child queries in the Builder,
+but can not view the SELECT statement that includes the clause created b y the
+data link you define.
+Note:
+Oracle Reports does not support data links between queries that contain column
+objects. If you attempt to create such a link, a message dialog box displays,
+which enables you to choose whether to tell Repor ts to create a group-to-group
+query instead (using the parent groups), o r to can cel the operation. If you want to
+create a link between any type of column and a column object, you can manually
+type the SQL statement using the appropriate column alias(es).
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Layout Model
+Layout Objects in reports:
+Fra mes: 
+Frames are used to surround other objects and protect them from being
+overwritten or pushed by other objects. For example, a frame might b e used to
+surround all objects owned by a group, to surround column headings, or to
+surround summaries.
+When you default the layout for a report, Report Builder creates frames aro und
+report objects as n eeded; you can also create a frame manually in the Layout
+Model view. 
+Note: 
+Frame n ame always starts with ‘ M_’.
+Repeating frames: 
+Repeating frames surround all of the fields that ar e created for a group’s columns.
+The repeating frame prints (is fired) once for each record of the group.
+When you default the layout for a report, Report Builder creates r epeating frames
+around fields as needed; you can also create a rep eating frame manually in the
+Layout Model view.
+For your understanding, consider there are more than 50 records in a table. Now
+when you have only the frame you can display only one record.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+For eg:
+Without repeating frame :
+Sno. Name Empid Dept
+1 Dinesh 56971 GE
+With repeating frame :
+Sno. Name Empid Dept
+1 Dinesh 56971 GE
+. 
+. 
+50 Vishnu 56973 GE
+Note: 
+Repeating Frame name always starts with ‘ R_ ’.
+Define repeating frame inside main frame.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Fields: 
+A field is the layout container for each column in the layout. A field is owned by
+the object surrounding it, typically a repeating frame, unless the field is a
+summary (in which case it is owned by a frame).
+Parameter Form field:
+Parameter Form fields are layout containers for parameters used on the Runtime
+Parameter Form.
+Boilerplate:
+Boilerplate is an y text or graphics that appear in a report every time it is run.
+Report Builder will create one boilerplate object for each label selected in the
+Report Wizard (it is named B_
+Column name). Also, one boilerplate object is sometimes created for each report
+summary. A boilerplate object is owned by the object surrounding it, unless
+otherwise noted.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Anchors:
+Anchors are used to determine the vertical and ho rizontal positioning of a child
+object relative to its parent. The end of the anchor with a symbol on it is attached
+to the parent object.
+Since the size of some layout objects may chan ge when the report runs (and data
+is actually fetched), you need anchors to define where you want objects to appear
+relative to one another. An anchor defines the relative position of an object to the
+object to which it is anchored. Positioning is based on the size of the objects after
+the data has been fetched rather than on th eir size in the editor. It should also be
+noted that the position of the object in the Layout editor effects the final po sition
+in the report output. Any physical offset in the layout is incorporated into the
+percentage position specified in the Anchor property sheet.
+Anchor restrictions :
+• An object may be anchored to only one other object.
+• Matrix objects, anchors, and the mar gin cannot be anchored to anythin g (i.e., they
+may not be the parent or child object for an anchor).
+• A repeating frame th at is the vertical or horizontal repeating frame for a matrix
+cannot be an chored to another object, but other objects may b e anchored to it (i.e.,
+it can be the parent but not the child object for an anchor).
+•Nothing can be an chored to a hidden object (an object with Visible set to No).
+• Moving an anchor also causes the two objects it anchors together to move.
+• Objects cannot be ancho red together in such a way that they h ave a circular
+dependency. 
+• To copy an anchor, you must select the anchor and the two objects it anchors
+together. If you select the anchor by itself, nothing will be copied to the paste
+buffer. If you select the anchor and one of the objects, only the object is placed in
+the clipboard.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+• An anchor cannot be resized.
+• An anchor must always be on top of the objects it anchors together (i.e., it must be
+one or more layers above the parent and child objects). Report Builder prevents
+you from moving the anchor to a layer below its parent and child objects.
+• You cannot use Align, Align Objects, or Size Objects from the Arrange menu on
+anchors. 
+Examples: 
+Centering fields horizontally Centering fields vertically 
+Collapse Vertically and Horizontally
+Collapse Vertically example Keep With Anchoring Object
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Parameter Form
+The Report Editor's Parameter Form view enables you to create a Runtime Parameter
+Form for your report. You can select pre-d efined system parameters for your form using
+the Parameter Form Builder, or you can create yo ur own.
+Painting region 
+The painting region is the area in which you can create, modify, position, or
+delete objects while viewing their graphical representations on the screen.
+The painting region of the Parameter Fo rm view is comprised of physical
+pages(contains Boiler Plate, fields, graphics).
+You specify the size of each parameter form page and the number of pages using
+the Report property sheet (double-click the report's node in the Object Navigator).
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Property Palette 
+The Property Palette has an outline-style interface that enables you to view, locate, and
+set object properties. The Property Palette features:
+expandable and collapsible nodes
+In-place property editing
+Search features
+Multi-selection 
+Complex property dialogs
+The ability to invoke multiple instances of the Property Palette.
+In Data Model: 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+In Layo ut Model: 
+In Parameter Form 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Sample Property pallet for Frame:
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Live Previewer
+The Report Editor's Live Previewer view enables you to preview and inspect your report
+output page by page. Yo u can also work directly with the report output to customize and
+refine the appearance of your report.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+ 
+ 
+ 
+ 
+Tables Used
+Product_master:
+Sales_order: 
+Sales_order_details:
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Data’s in Table 
+Product_master
+Sales_order 
+Sales_order_details
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Relation b/w tables
+Product_master
+Sales_order
+Sales_order_details
+Product_master Sales_order Sales_order_details
+Product_no Primary Key - Foreign Key
+S_order_no Primary Key Foreign Key
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Tabular Report (Using wizard)
+A tabular report is the most basic type of report. Each column co rrespon ds to a column
+selected from the datab ase.
+Query:
+Select* from product_master
+Steps: 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+
+ 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Final Output: 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Data Model:
+Layout Model: 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Tabular Report (Manual Report)
+Query:
+Select * from product_master
+Steps 1: 
+Steps 2: 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Steps 3:Go to Property pallet of group and then change the name as “ G_p ”.
+Steps 4: Create a main frame. Go to property p alette and chan ge vertical & horizonda
+elasticity as “ Expand ”.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Steps 5: Now create a repeating frame inside main frame. Also sets its vertical &
+horizontal elasticity as “ expand ”. Then set the source to “ G_p ”.
+Step 6: Inside repeating frame create fields that is to be displayed in report. Right click
+each field and set the source f rom group attributes. Also set vertical & horizontal
+elasticity as “ expand ”.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Now run the report. By pressing
+Note: 
+While manually creating a layout remember the order of creating its objects.
+1. Frame
+2. Repeating frame inside Frame
+3. Fields / boilerplates
+One more thing, your main frame should not cross the 7 inches in the rules. This applies
+both horizontally & vertically.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Summary Column (Report Level)
+Reset At 
+The Reset At property is the group at which the summary column value resets to zero (if
+Function is Count), null (if Function is not Count), or Value If Null (if the column has
+one). Reset At has a list of values containing valid reset groups. Reset At determines if
+the summary is a running summary or a periodic (e.g., group-level) summary.
+Values 
+Page Is used for page-lev el summaries. The summary is reset
+between p ages
+Report Is used for summaries that apply to the entire rep ort, such as
+gr and totals. The summary is reset after the r eport (i.e., it is
+never reset).
+<names> Is a valid group name. The summary is reset after each
+record of the group.
+Applies to summary columns.
+• The reset group of a summary column may be its group or any group above its
+group, including Report and Page.
+• To ensure that page summaries behave in a predictable way, make sure each
+record fits on a single page, o r if that is not feasible, force each new record to
+print on a new page.
+Reset At - Restrictions
+Reset At is only editable for summary columns.
+Summary columns that are owned by a cross-product group cannot have a Reset
+At of Page.
+If a summary has a Reset At of Page, then the sizing of the field or boilerplate
+object that displays it must be fixed.
+If a column has a Reset At of Page, then an y fields that use it as a source must be
+contained in repeating frames that use the column's group as their source.
+A Reset At of Page will not work for reports that have multiple repeating frames
+associated with a group that is involved in the summary. One common case of
+this is a matrix report. As a result, matrix reports cannot have page-level
+summaries. 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+For multiple summary columns that are in child groups that share the same parent
+group, a Reset At of Page may produce incorrect results. 
+If your data model contains multiple child groups with a shared p arent ( e.g.,
+master-detail-d etail), summary columns with a Reset At of Page may give
+unexpected results.
+Steps 
+Consider the tabular report above. Follow the steps 1 to step 3 in above example.
+Step 4: In data model click for creatin g summary column.
+Step 5: Right click summary column ” CS_1 ” for property palette.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 6: In property palette you can see the column type is “ summary ” and the default
+data type is “ Number ”.
+Now select the “ function ” as your choice such as sum, count, max, min etc.
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Now go to “ Layout Model ”. There create a field F_3 go to its property palette
+and assign source as CS_1 as below.
+Step 8: Run the report. 
+By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Summary Column (Group Level)
+Consider the manually created tabular report abov e. Follow the steps 1 to step 3 as above
+example. 
+Step 4: Before Creating a summary column inside a Group, Select that grou p and then
+create summary column.
+. 
+In data model click this icon for creating summary column. 
+Step 5: Right click the cs2 and go to property palette.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Now select the “ function ” as Count and “ Source ” as “PRODUCT_NO”.
+Step 6: Now go to Layout model create a field “ F_4 ” inside Main frame an d go to its
+property palette and set its source as “ CS_
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Now run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Conditional Formatting 
+Using the Conditional Formatting and Format Exception dialog boxes, you can specify
+output formatting attributes (font and/or color) for a selected layout object based on
+conditions that exist. The conditions that you define are called format exceptions .
+You can display the Conditional Formatting dialog box from the Live Previewer view o r
+Layout Model view in any of the following ways:
+Double-click the object to display the Property Palette. Under the General Layout
+node, click the Conditional Formatting value field (labeled ¼).
+Display the pop-up menu (right-click in Windows) for the object.
+Click the object, then choose Format Conditional Formatting.
+After you specify conditions and formatting for the current layout object in the Format
+Exception dialog box, the entire definition is exported to a PL/SQL format trigger. If a
+format trigger already exists for the layout object, the definition in the Format Exception
+dialog box overwrites the existing trigger code wh en you confirm the Report Builder
+prompt. 
+You can edit the format trigger manually via the PL/SQL Editor; however, if you
+subsequently modify the definition using the Format Exception dialog box , Report
+Builder displays a prompt to overwrite the ex isting format trigger.
+Consider the above report for demo.
+Step 1 to step 6 is same as above.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Go to “ Layout Model ” right click any object in the report, click “ conditional
+Formatting ”.
+\
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Now set the condition and format as per your wish.
+Set condition for COST_PRICE field also. Then run the report. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+Formula Column (Report Level)
+Query:
+select product_no , qty_on_hand , cost_price from product_master
+Now create report manually using normal steps.
+Step 3: In data model 
+Now click this icon for creating a fo rmula column. Then click the repo rt.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 4: Now create Formula column by pressing this icon . Then right click “ CF_1 ”,
+click property palette. 
+Click the “ PL/SQL Formula ” tab. Write the following code in the functio n.
+Code: 
+return :CS_1 * 0.125 ;
+Then Press “ Compile ” button to check code is write or not. If sucessfully completed
+Close the window. 
+Note :
+:While reteriving the v alue from any layout object put “ ” in front of object name.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 5: Noe create a layout in layout model.
+Step 6: Run the report. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Formula Column (Group Level)
+Query:
+select product_no , qty_on_hand , cost_price from product_master
+Step 1: Create the report in usual manner.
+Step 2: Now go to data model for cr eating summary and formula column.
+Step 3: Now select the group and click Formula co lumn icon . 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Right click “ CF_1 ” and click property palette. Then click “ PLSQL Formula ” tab.
+Then in the PLSQL editor write the following cod e.
+Code:
+return (:qty_on_hand)*(:cost_price);
+Step 4: In the same way create a summar y column at report lev el.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 5: Now create one more formula column at report level.
+Code:
+return :CS_1 * 0.125 ;
+Step 6: Move to Layout model to create layout for objects.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Now run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Placeholder Column (Report Level)
+Query:
+Select product_no , qty_on_hand , cost_price from product_master
+Step 1: Create the report in usual manner.
+Step 2: Now create a group level formula column, report level summary ( CS_1 ),
+placeholder ( CP_1 ), and formula column ( CF_2 ).
+CF_1: 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+CS_1: 
+CP_1: 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+CF_2: 
+Step 3: Now create layout for this report in layout model as below.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 4: Now run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Parameter Form (Bind Reference)
+Query:
+select * from SALES_ORDER_DETAILS
+where product_no = :PRODUCT_NUM
+Step 1: Create the report in usual manner.
+As we have used bind reference in the query, automatically the “ User Parameter ” is
+created. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 2: Now go to the parameter form. Then create a field using this icon .
+Then right click the field and go to its property palette.
+Now select the source as “ PRODUCT_NUM ”. You can think why product_num. This is
+because it is the bind reference used in SQL “ SELECT Statement ” in QUERY.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 3: Now go to “ layout model” to create a layout for the report as below.
+Step 4: Run the report. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY
+Classification: Internal
+
+ 
+Now select the product number as your choice.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+After selecting press “ Enter ”.
+Sample Output 2: 
+Sample Output 3: 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Break Report (Without Joins)
+Break report is created when you want the repeating values for the column to be printed
+only once.
+Thus the break report are efficient only wh en the select statement includes a column,
+called a break column containing at least one value which repeats over multiple records.
+Query:
+select * from sales_order
+Step1: create the report in usual manner.
+Step 2: Now click the “ ORDER_STATUS ” from the group “ G_S_ORDER_NO ” and
+drag it above the group as below.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 3: Now go to the layout model & create a layout for this report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 4: Now run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Break Report (With Joins) 
+Query:
+SELECT sales_order.s_order_no,
+sales_order.dely_date,
+sales_order_details.product_no,
+product_master.description,
+product_master.unit_measure,
+sales_order_details.qty_ordered,
+sales_order_details.qty_disp
+FROM sales_order,
+sales_order_details,
+product_master 
+WHERE sales_order_details.s_order_no = sales_order.s_order_no AND
+sales_order_details.product_no = product_master.product_no AND
+sales_order_details.qty_ordered > sales_order_details.qty_disp
+Create the report in usual manner. Create a break group “ G_1 ” which has columns
+“S_Order_no ” & “ Dely_date ”
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Now create a layout as shown below.
+Then run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Master-Detail Report
+A simple Master-detail report contains two grou p Master group & detail group .
+For each master record fetched, relative d etail records are fetched. Therefor e its ver y
+similar to break repo rt.
+If you use default tabular layout the master-detail report will look like break report.
+Concept:
+Break & master-detail report can result in similar outputs but they require
+different data model objects.
+Break report uses one query and two or more groups.
+Master-detail repo rt contains two queries each of which has at least one group.
+Relationship between two objects is established by using data link( outer join ).
+Query with Primary key column is called Parent query .
+Query with foreign key column is called Child Query .
+Layout: 
+Master-detail report uses default master d etail layout in which master record s are
+displayed across the page with the labels to the left of the group field.
+Detail records appear below the master record in standard tabular format.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+ 
+ 
+Tables Used :
+Client_master
+Salesman_master 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+ 
+Data’s in table 
+Client_master 
+Salesman_master 
+Table Relation 
+Column Sales_order Client_master Salesman_master
+Client_no Primar y Key Foreign_key
+Salesman_no Primar y key Foreign Key
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Master Detail Report
+Q_Master:
+SELECT s_order_no,
+s_order_date,
+dely_date,
+dely_type,
+client_master.name "client name",
+dely_addr,
+salesman_master.salesman_name "salesman name"
+FROM sales_order,
+salesman_master,
+client_master
+WHERE sales_order.client_no = client_master.client_no AND
+sales_order.salesman_no = salesman_master.salesman_no 
+Q_Detail:
+SELECT s_order_no,
+description,
+unit_measure,
+product_rate,
+qty_ordered
+FROM sales_order_details,
+product_master 
+WHERE sales_order_details.PRODUCT_NO =
+product_master.PRODUCT_NO
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ 
+Step 1: Create a report in usual manner. Write query into data model and name it as
+Q_master and Q_d etail. Then create a link between the query. Select the primary key
+column in “ G_master ” then click the following icon and drag the lik connect it to
+detail query then link is created. Set all summary column reset as to “ G_MASTER ” in
+property palette. 
+Step 2: Now go to Tools report wizard.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 3: Then Run the report.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Matrix Report
+A matrix report is a summary report that presents the desire data with headings
+across the topand do wn left side.
+The data in middle like spreadsheet.
+The totals are displayed across the bottom and right side.
+A matrix report is referred as “ Cross Tab ” report.
+A matrix report is cross tabulation of 4 set of data:
+1. one set across the page.
+2. one set of data do wn the page.
+3. one set of data is cross product.
+4. one set of data is filler.
+Different types of matrix report.
+a. Simple matrix.
+b. Nested matrix.
+c. Multi query matrix with break.
+d. Matrix break.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Matrix Data Model 
+1. Number of queries:
+Matrix report requires 4 groups with any no. of queries. 
+If you build report with one query you need at least 3 groups.
+If you build with multiple queries you need at least 1 group.
+2. Group Structure:
+Matrix reports are built with 4 or more groups:
+a. Two or more dimension groups:
+It’s a cross product group. The information in this group is sometimes
+referred as “ Ma trix Labels ”.
+b. One or more Cross Product group:
+The cross product group contains all possible combination values of the
+dimension group. This group is represented as intersection of repeating
+frames of do wn & across dimension group. 
+c. One cell or filler group:
+The cell group contains actual information that is represented in the cells
+of cross product. For each interception of dimension group th e cell values
+contain zero, one or multiple values.
+Summary Column :
+While creating the summary column you need to indicate the followin g:
+a. The frequency o f summary i.e. the dimension gro up to which it belongs.
+b. The order n which to compute i.e. top to bottom or left o right.
+Matrix Layout : 
+Matrix layout model should consists of following layout objects: 
+1. At least 2 repeating frame one with print direction down & another with across .
+2. A matrix object created for cross product group.
+3. Boilerplates for each column & row of values as well as for summaries.
+Matrix / Cross Product Object :
+A matrix object defines the intersection of two repeating frames. To cr eate a matrix
+object press the following .
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Matrix Report (Using Wizard)
+Query:
+SELECT product_master.description,
+sum(sales_order_details.qty_ordered) "quantity",
+to_char(sales_order.s_order_date,'mm') mth,
+to_char(sales_order.s_order_date,'mon') mthfull
+FROM sales_order_details,
+sales_order, 
+product_master
+WHERE (sales_order_details.s_order_no = sales_order.s_order_no) AND
+(sales_order_details.product_no = product_master.product_no)
+GROUP BY to_char(sales_order.s_order_date, 'mm'), 
+product_master.description,
+to_char(sales_order.s_order_date,'mon')
+ORDER BY to_char(sales_order.s_order_date, 'mm')asc 
+Step 1: Create a query in usual manner in data model.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 2: Now select the “ description ” in G_description and drag that column to upper
+left. 
+Step 3: Similarly select “ mthfull ” from the group G_description and drag that to upper
+right. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Now rename the group as follows:
+G_description asG-quan tity
+G_1 as G_description 
+Step 4: Now click the following icon to create a cross product group and name that
+as G_countquantity. 
+Click the icon and select the groups G_description & G_mthfull. 
+Rename G_2 as G_ count_quantity.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 5: Now create a group level summary column countquantity.
+Set the properties to following:
+Product order : G_description G_mthfull (Since this is a filler cell).
+Function : Count 
+Source : quantity 
+Reset At : G_mthfull (Since we are restricting the count o f quantity every month)
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Set the properties to following:
+Product order : G_description
+Function : Sum 
+Source : Countquantity
+Reset At : G_description (Since we need to sum singly item qty for all month)
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Set the properties to following:
+Product order : G_mthfull
+Function : Sum 
+Source : Countquantity
+Reset At : G_mthfull (Since we need to sum all item qty for all month)
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 6: Now create a layout using report wizard.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Output : 
+Layout Model for Matrix report:
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Matrix Report (Using Wizard)
+Query:
+SELECT product_master.description,
+sum(sales_order_details.qty_ordered) "quantity",
+to_char(sales_order.s_order_date,'mm') mth,
+to_char(sales_order.s_order_date,'mon') mthfull
+FROM sales_order_details,
+sales_order,
+product_master
+WHERE (sales_order_details.s_order_no = sales_order.s_order_no) AND
+(sales_order_details.product_no = product_master.product_no)
+GROUP BY to_char(sales_order.s_order_date, 'mm'), 
+product_master.description,
+to_char(sales_order.s_order_date,'mon')
+ORDER BY to_char(sales_order.s_order_date, 'mm')asc
+Create the report as p er above example. Steps 1 to step 5 are same as above.
+For differentiating I have changed the n ames of Groups as follows:
+Countquantity as filler cell
+Sumcountquantityperdescription as qty_on_hand_all_months
+Sumcountquantitypermthfull as qty_per_months
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 6: Draw a layout fo r the matrix report in layout model.
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Property Palette :
+Field F_1: Field F_2:
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Field F_3: Field F_4:
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Field F_5: Field F_6:
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
+
+ 
+Step 7: Run the report. 
+ By:Malinda Ramadhani TANZANIA EDUCATION AUTHORITY 
+Classification: Internal
