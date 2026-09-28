@@ -75,12 +75,12 @@ flowchart LR
 
 ## 3. Equipo de trabajo (Kairos G10)
 
-| Persona | Rol | Reemplazo |
+| Persona | Rol | Reemplazo | 
 |---|---|
 | Juan Pablo Calla (PM) | Project Manager |
-| Gaspar Martinez Paiva | Data Engineer | 
-| Bryan Infante | AI Engineer | Reemplazo: Ethan Espinoza Acosta |
-| Adrian Gil | ML Engineer | Reemplazo:Gaspar Martinez Paiva |
+| Gaspar Martinez Paiva | Data Engineer |
+| Bryan Infante | AI Engineer | Ethan Espinoza Acosta | 
+| Adrian Gil | ML Engineer | Gaspar Martinez Paiva | 
 | Ethan Espinoza Acosta | Backend Developer |
 | Dario Higuera Moreno | No Code Developer |
 | Diana Dure | QA Tester |
