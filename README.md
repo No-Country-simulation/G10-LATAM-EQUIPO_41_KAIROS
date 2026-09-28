@@ -79,8 +79,8 @@ flowchart LR
 |---|---|
 | Juan Pablo Calla (PM) | Project Manager |
 | Gaspar Martinez Paiva | Data Engineer | 
-| Bryan Infante | AI Engineer | Le Reemplaza: Ethan Espinoza Acosta
-| Adrian Gil | ML Engineer | Le Reemplaza:Gaspar Martinez Paiva 
+| Bryan Infante | AI Engineer | Reemplazo: Ethan Espinoza Acosta |
+| Adrian Gil | ML Engineer | Reemplazo:Gaspar Martinez Paiva |
 | Ethan Espinoza Acosta | Backend Developer |
 | Dario Higuera Moreno | No Code Developer |
 | Diana Dure | QA Tester |
