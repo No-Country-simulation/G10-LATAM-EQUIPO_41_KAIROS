@@ -75,7 +75,7 @@ flowchart LR
 
 ## 3. Equipo de trabajo (Kairos G10)
 
-| Persona | Rol |
+| Persona | Rol | Reemplazo |
 |---|---|
 | Juan Pablo Calla (PM) | Project Manager |
 | Gaspar Martinez Paiva | Data Engineer | 
