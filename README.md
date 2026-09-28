@@ -1,4 +1,4 @@
-# NuevaMente 🎓 — Kairos G10
+# Kairos - NuevaMente 🎓  
 
 Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
 **Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
