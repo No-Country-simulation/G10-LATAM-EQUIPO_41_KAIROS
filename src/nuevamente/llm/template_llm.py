@@ -107,6 +107,7 @@ class TemplateLLM:
     """Implementación de LLMClient sin red, usada como proveedor por defecto."""
 
     def __init__(self) -> None:
+        self.etiqueta = "template"
         self.nombre_modelo = "template-extractivo-v1"
 
     def generar_estructurado(self, schema: type, system: str, user: str):
