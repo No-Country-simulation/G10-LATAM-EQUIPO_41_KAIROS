@@ -115,7 +115,7 @@ def _fuente_mas_cercana(afirmacion: str, fuentes: list[str], coleccion: Coleccio
 def extraer_afirmaciones(contenido_adaptado, coleccion: ColeccionDocumento | None = None) -> list[tuple[str, str]]:
     """Extrae pares (afirmacion, chunk_id) de cualquier ContenidoAdaptado.
 
-    Recorre los campos con `fuentes` (items/preguntas/pasos/escenas) según el
+    Recorre los campos con `fuentes` (items/preguntas/pasos/escenas/intervenciones) según el
     formato. El resumen ejecutivo es síntesis global con una lista de `fuentes`
     para todo el texto: cada oración del resumen es una afirmación, verificada
     contra el chunk declarado que mejor la sustenta (requiere `coleccion`).
@@ -139,6 +139,11 @@ def extraer_afirmaciones(contenido_adaptado, coleccion: ColeccionDocumento | Non
         for escena in contenido_adaptado.escenas:
             if escena.fuentes:
                 pares.append((escena.narracion, escena.fuentes[0]))
+    elif formato == "Podcast":
+        # solo las intervenciones con fuente (las de Leo); las de Ana conducen la charla
+        for intervencion in contenido_adaptado.intervenciones:
+            if intervencion.fuentes:
+                pares.append((intervencion.texto, intervencion.fuentes[0]))
     elif formato == "Resumen Ejecutivo":
         if contenido_adaptado.fuentes and coleccion is not None:
             for oracion in _SEP_ORACIONES.split(contenido_adaptado.resumen):

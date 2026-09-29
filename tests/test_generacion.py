@@ -19,9 +19,9 @@ def _generar(documento, formato, nivel="Didáctico"):
     )
 
 
-@pytest.mark.parametrize("formato", ["Resumen Ejecutivo", "Guion de Clase"])
+@pytest.mark.parametrize("formato", ["Resumen Ejecutivo", "Guion de Clase", "Podcast"])
 def test_formatos_de_sintesis_se_verifican(documento_salud, formato):
-    """Resumen y Guion ya no se aprueban sin verificar: traen afirmaciones con fuente."""
+    """Resumen, Guion y Podcast no se aprueban sin verificar: traen afirmaciones con fuente."""
     r = _generar(documento_salud, formato)
     assert r.evaluacion.afirmaciones_total > 0
     assert r.evaluacion.aprobado_por_critico
@@ -82,3 +82,25 @@ def test_nivel_de_detalle_cambia_la_extension(documento_salud):
 def test_doc_id_distingue_documentos_que_difieren_despues_del_inicio():
     base = "a" * 600
     assert chunkear_documento("Doc", base + "x")[0].doc_id != chunkear_documento("Doc", base + "y")[0].doc_id
+
+
+def test_si_el_proveedor_falla_se_usa_el_respaldo_local(documento_salud):
+    from nuevamente.llm.base import LLMError
+    from nuevamente.llm.factory import ConRespaldoLocal
+    from nuevamente.llm.template_llm import TemplateLLM
+
+    class SinCuota:
+        nombre_modelo = "gemini-prueba"
+        llamadas = 0
+
+        def generar_estructurado(self, schema, system, user):
+            SinCuota.llamadas += 1
+            raise LLMError("429 RESOURCE_EXHAUSTED")
+
+    llm = ConRespaldoLocal(SinCuota(), TemplateLLM())
+    r = generar_contenido_educativo(
+        "Protocolo", documento_salud, "Principiante", "Podcast", "Salud", "Didáctico", llm=llm
+    )
+    assert r.evaluacion.aprobado_por_critico
+    assert r.metadatos.modelo_llm.startswith("template-extractivo-v1 (respaldo: gemini-prueba")
+    assert SinCuota.llamadas == 1  # tras el primer fallo no vuelve a esperar a la API

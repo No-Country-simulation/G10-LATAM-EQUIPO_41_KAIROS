@@ -18,7 +18,7 @@ transforma en contenido educativo personalizado según:
 - **Perfil del destinatario:** Principiante, Desarrollador Junior/Semi Senior,
   Líder Técnico/Arquitecto, Gestor/Ejecutivo.
 - **Formato pedagógico:** Flashcards, Quiz, Tutorial, Resumen Ejecutivo, Guion
-  de Clase.
+  de Clase, Podcast (solo en audio).
 - **Nicho/sector:** General, Fintech, Salud, E-commerce.
 
 Cualquier resultado se puede descargar como **presentación PowerPoint (.pptx)**,
@@ -32,9 +32,20 @@ El **Guion de Clase** además se puede convertir en un **video MP4 narrado**: un
 diapositiva por escena con la narración en voz en off (botón "Generar video" en
 la interfaz, o `GET /api/v1/contenidos/{objeto_id}/video`).
 
+El **Podcast** es una conversación entre dos locutores: Ana conduce y pregunta,
+y Leo explica lo que dice el documento. Se entrega **solo como audio MP3**, con
+una voz distinta para cada uno: la interfaz lo graba al terminar y muestra el
+reproductor (o `GET /api/v1/contenidos/{objeto_id}/podcast`). No se exporta a
+Markdown, Anki ni PowerPoint. Las voces son **naturales, de Gemini TTS** (Ana: *Sulafat*,
+cálida; Leo: *Charon*, clara), con tono pausado y claro; se configuran con
+`PODCAST_VOCES`, `PODCAST_VOZ_ANA` y `PODCAST_VOZ_LEO`. Si Gemini TTS no está
+disponible (sin cuota o sin red), el episodio se narra con las voces del sistema
+y la interfaz lo indica. Solo se verifican contra la fuente
+las intervenciones de Leo, que son las que llevan contenido del documento.
+
 Cada afirmación generada se **verifica contra el documento fuente** y se le
-asigna un score de anclaje. Esto vale para los 5 formatos: en Resumen Ejecutivo
-se verifica cada oración del resumen y en Guion de Clase cada escena. Si un
+asigna un score de anclaje. Esto vale para los 6 formatos: en Resumen Ejecutivo
+se verifica cada oración del resumen, en Guion de Clase cada escena y en Podcast cada intervención de Leo. Si un
 resultado no trae afirmaciones con fuente, no se aprueba y su score es 0. Todo se guarda en OCI Object Storage (o en un
 respaldo local si OCI no está configurado) y se expone por API REST y por una
 interfaz web (HTML/CSS/JS, servida por la misma API en `http://localhost:8000/`).
@@ -126,7 +137,7 @@ componente de generación/embeddings, no si el flujo funciona.
 # 1. Instalar el paquete y dependencias
 pip install -e ".[dev,ui]"
 
-# 2. Correr los tests (57 pruebas, deben pasar todas)
+# 2. Correr los tests (72 pruebas, deben pasar todas)
 pytest tests/ -v
 
 # 3. Levantar la API y la interfaz web (un solo proceso)
@@ -148,9 +159,11 @@ Copia `.env.example` a `.env`. Se carga al importar `nuevamente.config`: primero
 exportadas en la terminal tienen prioridad sobre las del archivo.
 
 ```env
-LLM_PROVIDER=template            # "gemini" para usar la API real (pip install -e ".[gemini]")
+LLM_PROVIDER=template            # "gemini" (pip install -e ".[gemini]") o "claude" (pip install -e ".[claude]")
 LLM_MODEL=gemini-3.8-flash
 GEMINI_API_KEY=                  # https://aistudio.google.com/apikey
+ANTHROPIC_API_KEY=               # https://platform.claude.com/settings/keys (con LLM_PROVIDER=claude)
+CLAUDE_MODEL=claude-opus-5
 EMBEDDINGS_PROVIDER=local
 FIDELITY_MIN_GENERAL=0.85
 FIDELITY_MIN_SALUD=0.90          # umbral reforzado para el nicho Salud
@@ -193,12 +206,12 @@ Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
 - [x] Ingesta funcional de PDF, Markdown y texto
 - [x] RAG con chunking, embeddings y búsqueda vectorial (ver limitación de proveedor arriba)
 - [x] Orquestación tipo agentes (Planificador → Investigador → Redactor → Crítico, con reintento)
-- [x] Adapta el mismo contenido a los 4 perfiles y los 5 formatos (probado en `tests/test_api.py`)
+- [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
 - [x] Salida JSON estructurada, interfaz web propia + API REST operativa
 - [x] Integración con OCI Object Storage, con fallback local documentado y visible
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
 - [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
-- [x] Tests automatizados (57), incluida seguridad ante inyección de instrucciones
+- [x] Tests automatizados (72), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
 - [ ] Conectar `GeminiLLMClient` real en la máquina del equipo (con API key)
 
@@ -222,7 +235,7 @@ nuevamente/
 ├── scripts/
 │   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 57 pruebas (Diana)
+├── tests/                  # 72 pruebas (Diana)
 ├── docs/
 │   ├── SETUP_OCI.md
 │   └── demo/
