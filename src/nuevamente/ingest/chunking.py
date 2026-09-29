@@ -35,24 +35,87 @@ def _doc_id(titulo: str, contenido: str) -> str:
     return h.hexdigest()[:16]
 
 
-def _detectar_secciones(contenido: str) -> list[tuple[str, str]]:
-    """Divide por encabezados Markdown (#, ##, ###) si existen; si no, una sola sección."""
-    patron = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
-    matches = list(patron.finditer(contenido))
-    if not matches:
-        return [("Documento completo", contenido)]
+_ENCABEZADO_MD = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
+# "1. ACCESO A LA CONSOLA", "2.3 Modos de configuración": encabezados numerados de PDF/texto
+_ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)[.)]?\s+([^\W\d_].{1,90})$")
 
+
+_PALABRAS_CORTAS = {"a", "al", "de", "del", "e", "el", "en", "la", "las", "lo", "los", "o", "por", "se", "su", "sus", "u", "un", "una", "y", "que", "con", "sin"}
+
+
+def _titulo_legible(texto: str) -> str:
+    """Normaliza un título de sección: sin numeración de origen ("1.", "2.3") para que
+    todos los títulos se vean igual, y en tipo oración si venía en mayúsculas
+    ("MODOS DE CONFIGURACION"), conservando las siglas cortas ("IP", "OSPF")."""
+    texto = " ".join(texto.split()).rstrip(":").strip()
+    texto = re.sub(r"^\d{1,2}(?:\.\d{1,2})*[.)]?\s+", "", texto) or texto
+    letras = [c for c in texto if c.isalpha()]
+    if not letras or sum(c.isupper() for c in letras) / len(letras) <= 0.9:
+        return texto
+    palabras = []
+    for i, p in enumerate(texto.split()):
+        sigla = len(p) <= 4 and p.lower() not in _PALABRAS_CORTAS
+        if sigla:
+            palabras.append(p)
+        else:
+            palabras.append(p.capitalize() if i == 0 else p.lower())
+    return " ".join(palabras)
+
+
+def _es_encabezado_texto(linea: str) -> str | None:
+    """Reconoce encabezados en documentos sin Markdown (PDF, texto plano).
+
+    Acepta títulos numerados ("1. Acceso a la consola") y líneas completas en
+    mayúsculas de al menos dos palabras. Devuelve el título legible, o None.
+    """
+    linea = linea.strip()
+    if not linea or len(linea) > 100 or linea[-1] in ".,;":
+        return None
+    m = _ENCABEZADO_NUMERADO.match(linea)
+    # un título no trae comas ni punto seguido; una oración numerada sí suele traerlos
+    if m and len(m.group(2).split()) <= 10 and not re.search(r"[,;]|\.\s", m.group(2)):
+        return _titulo_legible(m.group(2))
+    palabras = linea.split()
+    letras = [c for c in linea if c.isalpha()]
+    if 2 <= len(palabras) <= 12 and len(letras) >= 6 and all(c.isupper() for c in letras):
+        return _titulo_legible(linea)
+    return None
+
+
+def _secciones_desde(contenido: str, marcas: list[tuple[int, int, str]]) -> list[tuple[str, str]]:
+    """Arma (título, cuerpo) a partir de las posiciones (inicio, fin, título) de cada encabezado.
+
+    El texto previo al primer encabezado se conserva como "Introducción".
+    """
     secciones: list[tuple[str, str]] = []
-    for i, m in enumerate(matches):
-        titulo_seccion = m.group(2).strip()
-        inicio = m.end()
-        fin = matches[i + 1].start() if i + 1 < len(matches) else len(contenido)
-        cuerpo = contenido[inicio:fin].strip()
+    preambulo = contenido[: marcas[0][0]].strip()
+    if preambulo:
+        secciones.append(("Introducción", preambulo))
+    for i, (_, fin_titulo, titulo) in enumerate(marcas):
+        fin = marcas[i + 1][0] if i + 1 < len(marcas) else len(contenido)
+        cuerpo = contenido[fin_titulo:fin].strip()
         if cuerpo:
-            secciones.append((titulo_seccion, cuerpo))
-    if not secciones:
-        return [("Documento completo", contenido)]
+            secciones.append((titulo, cuerpo))
     return secciones
+
+
+def _detectar_secciones(contenido: str) -> list[tuple[str, str]]:
+    """Divide por encabezados Markdown (#, ##, ###) si existen; si no, por encabezados
+    numerados o en mayúsculas (típicos de un PDF); si tampoco hay, una sola sección."""
+    marcas = [(m.start(), m.end(), _titulo_legible(m.group(2))) for m in _ENCABEZADO_MD.finditer(contenido)]
+
+    if not marcas:
+        posicion = 0
+        for linea in contenido.split("\n"):
+            titulo = _es_encabezado_texto(linea)
+            if titulo:
+                marcas.append((posicion, posicion + len(linea), titulo))
+            posicion += len(linea) + 1
+        if len(marcas) < 2:  # un único "encabezado" suele ser ruido, no estructura
+            marcas = []
+
+    secciones = _secciones_desde(contenido, marcas) if marcas else []
+    return secciones or [("Documento completo", contenido)]
 
 
 def _partir_con_solapamiento(texto: str, tamano: int, solapamiento: int) -> list[str]:

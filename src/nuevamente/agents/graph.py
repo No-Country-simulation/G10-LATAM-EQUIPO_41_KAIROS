@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -32,6 +33,7 @@ from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
     FlashcardsContenido,
     GuionDeClaseContenido,
+    PodcastContenido,
     QuizContenido,
     ResumenEjecutivoContenido,
     TutorialContenido,
@@ -44,6 +46,7 @@ _SCHEMA_POR_FORMATO = {
     "Tutorial": TutorialContenido,
     "Resumen Ejecutivo": ResumenEjecutivoContenido,
     "Guion de Clase": GuionDeClaseContenido,
+    "Podcast": PodcastContenido,
 }
 
 
@@ -63,7 +66,7 @@ def _planificar(coleccion: ColeccionDocumento, formato: str) -> list[str]:
     consulta — así se evita el problema de cobertura de un RAG top-k plano.
     """
     secciones = coleccion.secciones()
-    if formato in ("Resumen Ejecutivo", "Guion de Clase"):
+    if formato in ("Resumen Ejecutivo", "Guion de Clase", "Podcast"):
         return secciones
     return secciones  # en este MVP todos los formatos cubren todas las secciones
 
@@ -114,6 +117,87 @@ def _redactar(
     formato = schema.model_fields["formato"].default
     system = construir_prompt_sistema(formato, perfil, nicho, nivel_detalle)
     return llm.generar_estructurado(schema, system=system, user=json.dumps(user_payload, ensure_ascii=False))
+
+
+def _normalizar(texto: str) -> set[str]:
+    """Palabras de un texto, en minúsculas y sin puntuación ni el prefijo que agrega el perfil."""
+    texto = re.sub(r"^(En palabras simples|Lo importante para la gestión|La fuente indica):\s*", "", texto)
+    return set(re.findall(r"\w+", texto.lower()))
+
+
+def _es_duplicado(texto: str, vistos: list[set[str]]) -> bool:
+    """Presunto duplicado: el mismo texto, o uno que comparte casi todas sus palabras
+    con otro ya incluido (el solapamiento del chunking repite oraciones entre chunks)."""
+    palabras = _normalizar(texto)
+    if not palabras:
+        return False
+    for otro in vistos:
+        comunes = len(palabras & otro)
+        if comunes / min(len(palabras), len(otro)) >= 0.85:
+            return True
+    vistos.append(palabras)
+    return False
+
+
+def _sin_repetidos(textos: list[str]) -> list[str]:
+    vistos: list[set[str]] = []
+    return [t for t in textos if t.strip() and not _es_duplicado(t, vistos)]
+
+
+def _depurar(contenido: ContenidoAdaptado) -> ContenidoAdaptado:
+    """Quita presuntos duplicados (tarjetas, preguntas, pasos, escenas, intervenciones y
+    listas) y vuelve a numerar en orden, sin huecos. El Redactor, sobre todo el
+    extractivo, puede repetir una misma idea que aparece en dos chunks solapados."""
+    datos = contenido.model_dump()
+    vistos: list[set[str]] = []
+
+    if "items" in datos:
+        datos["items"] = [x for x in datos["items"] if not _es_duplicado(x["dorso"], vistos)]
+    if "preguntas" in datos:
+        datos["preguntas"] = [
+            p for p in datos["preguntas"] if not _es_duplicado(p["opciones"][p["indice_correcto"]], vistos)
+        ]
+    if "pasos" in datos:
+        datos["pasos"] = [p for p in datos["pasos"] if not _es_duplicado(p["instruccion"], vistos)]
+    if "escenas" in datos:
+        datos["escenas"] = [e for e in datos["escenas"] if not _es_duplicado(e["narracion"], vistos)]
+    if "intervenciones" in datos:
+        # si se quita una respuesta repetida de Leo, se quita también la pregunta de Ana que la introducía
+        limpias: list[dict] = []
+        for x in datos["intervenciones"]:
+            if x["locutor"] == "Leo" and x["fuentes"] and _es_duplicado(x["texto"], vistos):
+                if len(limpias) > 1 and limpias[-1]["locutor"] == "Ana" and not limpias[-1]["fuentes"]:
+                    limpias.pop()
+                continue
+            limpias.append(x)
+        datos["intervenciones"] = limpias
+
+    for campo in ("items", "preguntas"):
+        if campo in datos and not datos[campo]:
+            return contenido  # nunca dejar el material vacío
+    for campo in ("pasos", "escenas", "intervenciones"):
+        for i, parte in enumerate(datos.get(campo, []), start=1):
+            parte["orden"] = i
+
+    for campo in ("prerrequisitos", "errores_comunes", "checklist_final", "puntos_clave", "decisiones_o_riesgos"):
+        if campo in datos:
+            datos[campo] = _sin_repetidos(datos[campo]) or datos[campo]
+    if "escenas" in datos:
+        datos["duracion_total_min"] = max(1, min(60, round(sum(e["duracion_seg"] for e in datos["escenas"]) / 60)))
+
+    return type(contenido).model_validate(datos)
+
+
+def _asignar_secciones(contenido: ContenidoAdaptado, coleccion: ColeccionDocumento) -> None:
+    """Anota en cada parte generada (tarjeta, pregunta, paso, escena, intervención) la
+    sección del documento de la que sale, a partir de su primera fuente. Así la interfaz
+    y las exportaciones pueden mostrar el título de cada parte. No lo decide el LLM."""
+    partes = []
+    for campo in ("items", "preguntas", "pasos", "escenas", "intervenciones"):
+        partes.extend(getattr(contenido, campo, None) or [])
+    for parte in partes:
+        chunk = coleccion.get_chunk(parte.fuentes[0]) if parte.fuentes else None
+        parte.seccion = chunk.seccion if chunk else ""
 
 
 def _calcular_tiempo_estudio(contenido: ContenidoAdaptado) -> int:
@@ -175,8 +259,8 @@ def generar_contenido_educativo(
 
     intentos = settings.max_reintentos_critico + 1
     for intento in range(1, intentos + 1):
-        contenido = _redactar(
-            llm, schema, documento_titulo, perfil, nicho, nivel_detalle, chunks_evidencia, retroalimentacion
+        contenido = _depurar(
+            _redactar(llm, schema, documento_titulo, perfil, nicho, nivel_detalle, chunks_evidencia, retroalimentacion)
         )
         evaluacion_fidelidad = evaluar_fidelidad(contenido, coleccion)
 
@@ -201,6 +285,7 @@ def generar_contenido_educativo(
             break
         contenido_anterior = contenido
 
+    _asignar_secciones(contenido, coleccion)
     tiempo_generacion = round(time.perf_counter() - t0, 3)
     sin_afirmaciones = evaluacion_fidelidad is None or evaluacion_fidelidad.total == 0
     score_final = 0.0 if sin_afirmaciones else evaluacion_fidelidad.score

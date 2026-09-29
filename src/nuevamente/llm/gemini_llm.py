@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import time
 
+import httpx
 from pydantic import ValidationError
 
 from nuevamente.config import settings
@@ -91,6 +92,15 @@ class GeminiLLM:
                         break  # reintentar no sirve hasta mañana: siguiente modelo
                     if intento < _REINTENTOS_RED - 1:
                         time.sleep(min(2 ** (intento + 1), 20))
+                except httpx.HTTPError as exc:
+                    # Sin conexión, DNS o SSL cortado: transitorio, igual que un 503.
+                    ultimo = exc
+                    if intento < _REINTENTOS_RED - 1:
+                        time.sleep(min(2 ** (intento + 1), 20))
+        if isinstance(ultimo, httpx.HTTPError):
+            raise LLMError(
+                f"No hay conexión con Gemini. Revisa tu conexión a internet ({ultimo})."
+            ) from ultimo
         raise LLMError(
             f"Gemini no disponible (modelos probados: {', '.join(self._modelos)}): {ultimo}"
         ) from ultimo
