@@ -10,6 +10,20 @@ oculto.
 """
 from __future__ import annotations
 
+import os
+import ssl
+import urllib3
+
+# --- PARCHE SSL GLOBAL (Desactiva la verificación para proxy/antivirus local) ---
+os.environ["PYTHONHTTPSVERIFY"] = "0"
+os.environ["CURL_CA_BUNDLE"] = ""
+os.environ["REQUESTS_CA_BUNDLE"] = ""
+ssl._create_default_https_context = ssl._create_unverified_context
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# ---------------------------------------------------------------------------------
+
+
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,12 +58,18 @@ class StorageService:
         try:
             config = oci.config.from_file(str(config_path), settings.oci_profile)
             oci.config.validate_config(config)
-            return oci.object_storage.ObjectStorageClient(config)
-        except Exception:
+            #return oci.object_storage.ObjectStorageClient(config)
+            # Desactiva la verificación estricta de SSL para conexiones locales/VPN
+            client = oci.object_storage.ObjectStorageClient(config)
+            # Desactiva la verificación de certificados en la sesión HTTP de OCI
+            client.base_client.session.verify = False
+            return client
+        except Exception as e:
             # Cualquier problema de credenciales o red: caemos a fallback local,
             # sin tumbar la aplicación.
+            print(f"\n[ERROR REAL DE OCI]: {e}\n")
             return None
-
+        
     def disponible_oci(self) -> bool:
         return self._cliente_oci is not None
 
@@ -61,8 +81,9 @@ class StorageService:
                     namespace, settings.oci_bucket, objeto_id, contenido.encode("utf-8"), content_type=content_type
                 )
                 return ResultadoSubida(bucket=settings.oci_bucket, objeto_id=objeto_id, status_upload="completado")
-            except Exception:
-                pass  # cae a fallback local abajo
+            except Exception as e:
+                #pass  # cae a fallback local abajo
+                print(f"\n[ERROR DE SUBIDA OCI]: {e}\n")
 
         destino = self._fallback_dir / objeto_id.replace("/", "__")
         destino.parent.mkdir(parents=True, exist_ok=True)
