@@ -17,6 +17,7 @@ const FORMATOS = {
   "Tutorial": { icono: "🧭", ayuda: "Paso a paso" },
   "Resumen Ejecutivo": { icono: "📊", ayuda: "Lo esencial en 1 minuto" },
   "Guion de Clase": { icono: "🎬", ayuda: "Para explicar en clase" },
+  "Podcast": { icono: "🎙️", ayuda: "Para escuchar" },
 };
 
 const ETAPAS = [
@@ -308,9 +309,16 @@ function mostrarResultado(respuesta, tituloDocumento) {
 
   $("#res-etiqueta").textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${m.perfil_aplicado}`;
   $("#res-titulo").textContent = tituloDocumento;
+  // el podcast es solo audio: se descarga desde su reproductor, no como texto ni diapositivas
+  document.querySelector(".descargas").hidden = c.formato === "Podcast";
 
   renderMetricas(respuesta);
-  $("#p-contenido").replaceChildren(renderContenido(c));
+  // el generador cayó al respaldo local (Claude o Gemini sin crédito/cuota, saturado o sin red)
+  const proveedor = /claude/i.test(m.modelo_llm) ? "Claude" : "Gemini";
+  const aviso = /respaldo/.test(m.modelo_llm)
+    ? h("p", { class: "pill pill-aviso" }, `⚠️ ${proveedor} no estuvo disponible: este material se generó con el modo local.`)
+    : null;
+  $("#p-contenido").replaceChildren(...[aviso, renderContenido(c)].filter(Boolean));
   $("#p-calidad").replaceChildren(renderCalidad(respuesta.evaluacion_calidad));
   $("#p-almacenamiento").replaceChildren(renderAlmacenamiento(respuesta.almacenamiento_oci));
   $("#json").textContent = JSON.stringify(respuesta, null, 2);
@@ -342,6 +350,7 @@ function renderContenido(c) {
     case "Tutorial": return renderTutorial(c);
     case "Resumen Ejecutivo": return renderResumen(c);
     case "Guion de Clase": return renderGuion(c);
+    case "Podcast": return renderPodcast(c);
     default: return h("p", {}, "Formato no reconocido.");
   }
 }
@@ -359,12 +368,58 @@ function barraProgreso(texto) {
   };
 }
 
+// Título de sección sin la numeración del documento de origen ("2. Modos" -> "Modos"),
+// para que todos los títulos se vean igual (materiales guardados antes incluidos).
+const tituloSeccion = (s) => (s || "").replace(/^\d{1,2}(?:\.\d{1,2})*[.)]?\s+/, "");
+
+// Todas las listas del material con la misma viñeta, y todos los bloques con el mismo formato.
+const lista = (textos) => h("ul", { class: "lista" }, textos.map((t) => h("li", {}, t)));
+const caja = (titulo, ...contenido) => h("div", { class: "caja" }, h("h4", {}, titulo), ...contenido);
+
+// Título y subtítulo del material, iguales en todos los formatos.
+function cabeceraMaterial(titulo, subtitulo) {
+  return h(
+    "header",
+    { class: "material-cabecera" },
+    h("h3", { class: "material-titulo" }, titulo),
+    subtitulo && h("p", { class: "material-subtitulo" }, subtitulo),
+  );
+}
+
+// Agrupa las partes consecutivas de una misma sección del documento y pone el
+// título de la sección encima de cada grupo. Si el material no trae secciones
+// (resultados anteriores o documento sin encabezados), las muestra sin agrupar.
+function porSeccion(partes, renderGrupo) {
+  const grupos = [];
+  partes.forEach((parte, i) => {
+    const seccion = tituloSeccion(parte.seccion);
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.seccion === seccion) ultimo.partes.push([parte, i]);
+    else grupos.push({ seccion, partes: [[parte, i]] });
+  });
+  const sinTitulos = grupos.every((g) => !g.seccion || g.seccion === "Documento completo");
+  if (sinTitulos) return renderGrupo(partes.map((p, i) => [p, i]));
+  return grupos.map((g) =>
+    h(
+      "section",
+      { class: "bloque-seccion" },
+      h(
+        "h4",
+        { class: "seccion-titulo" },
+        h("span", {}, g.seccion || "Otras partes"),
+        h("small", {}, `${g.partes.length} ${g.partes.length === 1 ? "parte" : "partes"}`),
+      ),
+      renderGrupo(g.partes),
+    ),
+  );
+}
+
 function renderFlashcards(c) {
   const vistas = new Set();
   const progreso = barraProgreso("");
   progreso.actualizar(0, c.items.length, "repasadas");
 
-  const tarjetas = c.items.map((item, i) =>
+  const tarjeta = ([item, i]) =>
     h(
       "button",
       {
@@ -380,7 +435,13 @@ function renderFlashcards(c) {
       h(
         "div",
         { class: "flashcard-interior" },
-        h("div", { class: "cara cara-frente" }, h("strong", {}, item.frente), h("small", {}, "Toca para ver la respuesta ↻")),
+        h(
+          "div",
+          { class: "cara cara-frente" },
+          h("span", { class: "numero-parte" }, `Tarjeta ${i + 1}`),
+          h("strong", {}, item.frente),
+          h("small", {}, "Toca para ver la respuesta ↻"),
+        ),
         h(
           "div",
           { class: "cara cara-dorso" },
@@ -388,15 +449,14 @@ function renderFlashcards(c) {
           item.pista_didactica && h("span", { class: "pista" }, "💡 ", item.pista_didactica),
         ),
       ),
-    ),
-  );
+    );
 
   return h(
     "div",
     {},
-    h("p", { class: "intro" }, c.introduccion_contextualizada),
+    cabeceraMaterial(c.titulo, c.introduccion_contextualizada),
     progreso.el,
-    h("div", { class: "mazo" }, tarjetas),
+    porSeccion(c.items, (partes) => h("div", { class: "mazo" }, partes.map(tarjeta))),
   );
 }
 
@@ -409,7 +469,7 @@ function renderQuiz(c) {
   };
   actualizar();
 
-  const preguntas = c.preguntas.map((p, i) => {
+  const pregunta = ([p, i]) => {
     const retro = h("p", { class: "retro", hidden: true });
     const botones = p.opciones.map((opcion, j) =>
       h(
@@ -436,13 +496,20 @@ function renderQuiz(c) {
     return h(
       "div",
       { class: "pregunta" },
-      h("h4", {}, `${i + 1}. ${p.enunciado}`),
+      h("span", { class: "numero-parte" }, `Pregunta ${i + 1}`),
+      h("h4", {}, p.enunciado),
       h("div", { class: "opciones" }, botones),
       retro,
     );
-  });
+  };
 
-  return h("div", {}, progreso.el, preguntas);
+  return h(
+    "div",
+    {},
+    cabeceraMaterial(c.titulo, `${c.preguntas.length} preguntas de opción múltiple sobre el documento.`),
+    progreso.el,
+    porSeccion(c.preguntas, (partes) => partes.map(pregunta)),
+  );
 }
 
 function renderTutorial(c) {
@@ -458,28 +525,27 @@ function renderTutorial(c) {
   });
   actualizar();
 
+  // si el paso se titula igual que su sección, el título ya está encima del grupo
+  const paso = ([p]) =>
+    h(
+      "li",
+      { "data-orden": p.orden },
+      h("span", { class: "numero-parte" }, `Paso ${p.orden}`),
+      p.titulo && p.titulo !== p.seccion && tituloSeccion(p.titulo) !== tituloSeccion(p.seccion) && h("h4", {}, p.titulo),
+      h("p", {}, p.instruccion),
+      p.resultado_esperado && h("p", { class: "resultado-esperado" }, "→ ", p.resultado_esperado),
+    );
+
   return h(
     "div",
     {},
-    h("p", { class: "intro" }, "🎯 ", c.objetivo),
+    cabeceraMaterial("Tutorial paso a paso", `🎯 ${c.objetivo}`),
     c.prerrequisitos.length > 0 &&
-      h("div", { class: "caja" }, h("h4", {}, "Antes de empezar"), h("ul", {}, c.prerrequisitos.map((p) => h("li", {}, p)))),
-    h(
-      "ol",
-      { class: "linea-tiempo" },
-      c.pasos.map((paso) =>
-        h(
-          "li",
-          { "data-orden": paso.orden },
-          h("h4", {}, paso.titulo),
-          h("p", {}, paso.instruccion),
-          paso.resultado_esperado && h("p", { class: "resultado-esperado" }, "→ ", paso.resultado_esperado),
-        ),
-      ),
-    ),
+      caja("📋 Antes de empezar", lista(c.prerrequisitos)),
+    porSeccion(c.pasos, (partes) => h("ol", { class: "linea-tiempo" }, partes.map(paso))),
     c.errores_comunes.length > 0 &&
-      h("div", { class: "caja" }, h("h4", {}, "⚠️ Errores comunes"), h("ul", {}, c.errores_comunes.map((e) => h("li", {}, e)))),
-    checklist.length > 0 && h("div", { class: "caja" }, h("h4", {}, "✅ Checklist final"), progreso.el, checklist),
+      caja("⚠️ Errores comunes", lista(c.errores_comunes)),
+    checklist.length > 0 && caja("✅ Checklist final", progreso.el, checklist),
   );
 }
 
@@ -487,12 +553,11 @@ function renderResumen(c) {
   return h(
     "div",
     {},
-    h("p", { class: "resumen-texto" }, c.resumen),
-    h("h4", {}, "Puntos clave"),
-    h("div", { class: "etiquetas" }, c.puntos_clave.map((p) => h("span", {}, p))),
-    c.decisiones_o_riesgos.length > 0 &&
-      h("div", { class: "caja" }, h("h4", {}, "⚠️ Riesgos y decisiones"), h("ul", {}, c.decisiones_o_riesgos.map((r) => h("li", {}, r)))),
-    c.impacto_de_negocio && h("div", { class: "destacado" }, h("strong", {}, "💼 Impacto: "), c.impacto_de_negocio),
+    cabeceraMaterial("Resumen ejecutivo", `Lo esencial de «${estado.tituloDocumento || "el documento"}» en un minuto.`),
+    caja("📝 Resumen", h("p", { class: "resumen-texto" }, c.resumen)),
+    caja("📌 Puntos clave", lista(c.puntos_clave.map(tituloSeccion))),
+    c.decisiones_o_riesgos.length > 0 && caja("⚠️ Riesgos y decisiones", lista(c.decisiones_o_riesgos)),
+    c.impacto_de_negocio && caja("💼 Impacto", h("p", {}, c.impacto_de_negocio)),
   );
 }
 
@@ -594,30 +659,98 @@ function panelVideo() {
   return h(
     "div",
     { class: "panel-video" },
-    h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "Video de la clase"), nota), boton),
+    h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎬 Video de la clase"), nota), boton),
     selectorVoz(),
     zona,
   );
 }
 
 function renderGuion(c) {
-  let acumulado = 0;
   const reloj = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  // minuto en que empieza cada escena, acumulando las anteriores
+  const inicios = [];
+  c.escenas.reduce((acumulado, e) => (inicios.push(acumulado), acumulado + e.duracion_seg), 0);
+  const escena = ([e, i]) =>
+    h(
+      "div",
+      { class: "escena" },
+      h("div", { class: "escena-tiempo" }, reloj(inicios[i]), h("small", {}, `Escena ${e.orden} · ${e.duracion_seg}s`)),
+      h("div", {}, h("p", {}, e.narracion), e.apoyo_visual && h("p", { class: "visual" }, "🖼️ ", e.apoyo_visual)),
+    );
+
   return h(
     "div",
     {},
+    cabeceraMaterial(
+      "Guion de clase",
+      `🎬 ${c.escenas.length} escenas · duración total aproximada: ${c.duracion_total_min} min`,
+    ),
     estado.respuesta?.almacenamiento_oci?.objeto_id && panelVideo(),
-    h("p", { class: "intro" }, `🎬 Duración total aproximada: ${c.duracion_total_min} min`),
-    c.escenas.map((e) => {
-      const inicio = acumulado;
-      acumulado += e.duracion_seg;
-      return h(
-        "div",
-        { class: "escena" },
-        h("div", { class: "escena-tiempo" }, reloj(inicio), h("small", {}, `Escena ${e.orden} · ${e.duracion_seg}s`)),
-        h("div", {}, h("p", {}, e.narracion), e.apoyo_visual && h("p", { class: "visual" }, "🖼️ ", e.apoyo_visual)),
+    porSeccion(c.escenas, (partes) => partes.map(escena)),
+  );
+}
+
+// El podcast se entrega solo como audio: al mostrar el resultado se graba (o se
+// toma de la caché) y se ofrece el reproductor, sin transcripción en pantalla.
+function renderPodcast(c) {
+  const objetoId = estado.respuesta?.almacenamiento_oci?.objeto_id;
+  const titulo = estado.tituloDocumento || "podcast";
+  const hayVoz = Boolean(estado.voces.femenina || estado.voces.masculina);
+  const zona = h("div", { class: "video-zona" });
+  const nota = h("p", { class: "nota" });
+  const reintentar = h("button", { type: "button", class: "btn-video", hidden: true }, "🎙️ Reintentar");
+
+  async function grabar() {
+    reintentar.hidden = true;
+    nota.textContent = "⏳ Ana y Leo están grabando el episodio. Puede tardar uno o dos minutos.";
+    try {
+      const resp = await fetch(`/api/v1/contenidos/${objetoId}/podcast`);
+      if (!resp.ok) throw new Error(await mensajeDeError(resp));
+      const naturales = resp.headers.get("X-Podcast-Voces") === "gemini";
+      const url = URL.createObjectURL(await resp.blob());
+      const base = titulo.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "") || "podcast";
+      const audio = h("audio", { class: "audio", src: url, controls: true, preload: "auto" });
+      zona.replaceChildren(
+        audio,
+        h("a", { class: "btn-secundario", href: url, download: `${base}_podcast.mp3` }, "⬇️ Descargar MP3"),
       );
-    }),
+      const voces = naturales
+        ? "Voces naturales."
+        : "Voces del sistema: las voces naturales no estuvieron disponibles.";
+      nota.textContent = `Episodio con Ana y Leo. ${voces}`;
+      // la duración real del MP3, no la estimada al redactar
+      audio.addEventListener("loadedmetadata", () => {
+        const s = Math.round(audio.duration);
+        nota.textContent = `Episodio de ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} min con Ana y Leo. ${voces}`;
+      });
+    } catch (err) {
+      nota.textContent = `No se pudo grabar el episodio: ${err.message}`;
+      reintentar.hidden = false;
+    }
+  }
+  reintentar.addEventListener("click", grabar);
+
+  if (!objetoId) nota.textContent = "El episodio no se guardó, así que no se puede grabar el audio.";
+  else if (!hayVoz) nota.textContent = "No hay voces instaladas en el servidor para grabar el episodio.";
+  else grabar();
+
+  // temas del episodio: las secciones del documento que explica Leo, en orden
+  const temas = [
+    ...new Set(c.intervenciones.map((x) => tituloSeccion(x.seccion)).filter((s) => s && s !== "Documento completo")),
+  ];
+
+  return h(
+    "div",
+    {},
+    cabeceraMaterial(c.titulo, `🎙️ Conversación entre Ana y Leo · unos ${c.duracion_total_min} min`),
+    h(
+      "div",
+      { class: "panel-video" },
+      h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎧 Escucha el episodio"), nota), reintentar),
+      zona,
+    ),
+    temas.length > 0 &&
+      caja("📚 Temas del episodio", lista(temas)),
   );
 }
 

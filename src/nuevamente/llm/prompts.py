@@ -44,6 +44,14 @@ PROMPT_POR_FORMATO = {
         "Divide la clase en escenas. La narración está escrita para leerse en voz alta; "
         "el apoyo visual describe la diapositiva. Estima la duración de cada escena."
     ),
+    "Podcast": (
+        "Escribe un episodio de podcast conversado entre dos locutores. Ana conduce: "
+        "saluda, presenta cada tema y hace preguntas; sus intervenciones no llevan "
+        "fuentes. Leo responde con lo que dice el documento: cada intervención suya "
+        "lleva en `fuentes` el chunk_id que la sustenta. Alterna los turnos, usa frases "
+        "cortas y naturales para escuchar, sin viñetas ni tablas, y cierra con Ana "
+        "despidiendo el episodio. Estima la duración total en minutos."
+    ),
 }
 
 PROMPT_POR_PERFIL = {

@@ -46,13 +46,24 @@ class Settings:
     vectorstore_dir: str = os.getenv("VECTORSTORE_DIR", "data/vectorstore")
 
     # --- LLM ---
-    llm_provider: str = os.getenv("LLM_PROVIDER", "template")  # template | gemini | openai | anthropic
+    llm_provider: str = os.getenv("LLM_PROVIDER", "template")  # template | gemini | claude
     llm_model: str = os.getenv("LLM_MODEL", "gemini-3.8-flash")
     # Modelos a usar, en orden, si el principal está saturado (lista separada por comas)
     llm_modelos_respaldo: tuple[str, ...] = tuple(
         m.strip() for m in os.getenv("LLM_MODELOS_RESPALDO", "gemini-3.5-flash,gemini-flash-latest").split(",") if m.strip()
     )
+    # Si el proveedor real falla (cuota, saturación, sin red), generar con TemplateLLM
+    llm_respaldo_local: bool = os.getenv("LLM_RESPALDO_LOCAL", "true").strip().lower() in ("1", "true", "si", "sí")
     gemini_api_key: str = field(default=os.getenv("GEMINI_API_KEY", ""), repr=False)
+    anthropic_api_key: str = field(default=os.getenv("ANTHROPIC_API_KEY", ""), repr=False)
+    claude_model: str = os.getenv("CLAUDE_MODEL", "claude-opus-5")
+
+    # --- Voces del Podcast ---
+    # gemini: voces naturales de Gemini TTS (requiere GEMINI_API_KEY); sistema: voces del SO
+    podcast_voces: str = os.getenv("PODCAST_VOCES", "gemini").strip().lower()
+    podcast_tts_model: str = os.getenv("PODCAST_TTS_MODEL", "gemini-3.1-flash-tts-preview")
+    podcast_voz_ana: str = os.getenv("PODCAST_VOZ_ANA", "Sulafat")  # cálida
+    podcast_voz_leo: str = os.getenv("PODCAST_VOZ_LEO", "Charon")  # clara, explicativa
 
     # --- Fidelidad ---
     # Umbral general del enunciado vs. umbral reforzado para el nicho Salud (ver plan de trabajo).

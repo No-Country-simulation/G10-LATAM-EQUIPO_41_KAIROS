@@ -22,6 +22,7 @@ class FormatoSalida(str, Enum):
     QUIZ = "Quiz"
     RESUMEN_EJECUTIVO = "Resumen Ejecutivo"
     GUION_DE_CLASE = "Guion de Clase"
+    PODCAST = "Podcast"
 
 
 class NichoSector(str, Enum):
