@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 
 from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
@@ -16,6 +17,16 @@ from nuevamente.schemas.formatos import (
     ResumenEjecutivoContenido,
     TutorialContenido,
 )
+
+
+def _titulo_seccion(lineas: list[str], parte, anterior: list[str]) -> None:
+    """Escribe "## <sección>" cuando la parte empieza una sección nueva del documento."""
+    # sin numeración de origen ("2. Modos" -> "Modos"): las secciones no se numeran, las partes sí
+    seccion = re.sub(r"^\d{1,2}(?:\.\d{1,2})*[.)]?\s+", "", getattr(parte, "seccion", ""))
+    if seccion and seccion != "Documento completo" and seccion != anterior[0]:
+        lineas.append(f"## {seccion}")
+        lineas.append("")
+    anterior[0] = seccion
 
 
 def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") -> str:
@@ -29,8 +40,10 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
         lineas.append("")
         lineas.append(contenido.introduccion_contextualizada)
         lineas.append("")
+        anterior = [""]
         for i, item in enumerate(contenido.items, 1):
-            lineas.append(f"## {i}. {item.frente}")
+            _titulo_seccion(lineas, item, anterior)
+            lineas.append(f"### Tarjeta {i}: {item.frente}")
             lineas.append(item.dorso)
             if item.pista_didactica:
                 lineas.append(f"*Pista: {item.pista_didactica}*")
@@ -39,19 +52,20 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
     elif isinstance(contenido, QuizContenido):
         lineas.append(f"# {contenido.titulo}")
         lineas.append("")
+        anterior = [""]
         for i, p in enumerate(contenido.preguntas, 1):
-            lineas.append(f"## Pregunta {i}")
-            lineas.append(p.enunciado)
+            _titulo_seccion(lineas, p, anterior)
+            lineas.append(f"### Pregunta {i}: {p.enunciado}")
             lineas.append("")
             for j, opcion in enumerate(p.opciones):
                 marca = "✅" if j == p.indice_correcto else "◻️"
-                lineas.append(f"{marca} {chr(65+j)}. {opcion}")
+                lineas.append(f"- {marca} {chr(65+j)}) {opcion}")
             lineas.append("")
             lineas.append(f"**Justificación:** {p.justificacion}")
             lineas.append("")
 
     elif isinstance(contenido, TutorialContenido):
-        lineas.append(f"# Tutorial")
+        lineas.append("# Tutorial paso a paso")
         lineas.append(f"**Objetivo:** {contenido.objetivo}")
         lineas.append("")
         if contenido.prerrequisitos:
@@ -59,8 +73,10 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
             for p in contenido.prerrequisitos:
                 lineas.append(f"- {p}")
             lineas.append("")
+        anterior = [""]
         for paso in contenido.pasos:
-            lineas.append(f"## Paso {paso.orden}: {paso.titulo}")
+            _titulo_seccion(lineas, paso, anterior)
+            lineas.append(f"### Paso {paso.orden}: {paso.titulo}")
             lineas.append(paso.instruccion)
             if paso.resultado_esperado:
                 lineas.append(f"*Resultado esperado: {paso.resultado_esperado}*")
@@ -78,25 +94,29 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
     elif isinstance(contenido, ResumenEjecutivoContenido):
         lineas.append("# Resumen Ejecutivo")
         lineas.append("")
+        lineas.append("## Resumen")
         lineas.append(contenido.resumen)
         lineas.append("")
-        lineas.append("**Puntos clave:**")
+        lineas.append("## Puntos clave")
         for pk in contenido.puntos_clave:
             lineas.append(f"- {pk}")
         if contenido.decisiones_o_riesgos:
             lineas.append("")
-            lineas.append("**Riesgos/decisiones:**")
+            lineas.append("## Riesgos y decisiones")
             for r in contenido.decisiones_o_riesgos:
                 lineas.append(f"- {r}")
         if contenido.impacto_de_negocio:
             lineas.append("")
-            lineas.append(f"**Impacto de negocio:** {contenido.impacto_de_negocio}")
+            lineas.append("## Impacto de negocio")
+            lineas.append(contenido.impacto_de_negocio)
 
     elif isinstance(contenido, GuionDeClaseContenido):
         lineas.append(f"# Guion de Clase ({contenido.duracion_total_min} min)")
         lineas.append("")
+        anterior = [""]
         for escena in contenido.escenas:
-            lineas.append(f"## Escena {escena.orden} — {escena.duracion_seg}s")
+            _titulo_seccion(lineas, escena, anterior)
+            lineas.append(f"### Escena {escena.orden} — {escena.duracion_seg}s")
             lineas.append(f"**Narración:** {escena.narracion}")
             if escena.apoyo_visual:
                 lineas.append(f"**Apoyo visual:** {escena.apoyo_visual}")
@@ -133,3 +153,4 @@ def exportar_anki_csv(contenido: ContenidoAdaptado) -> str:
             writer.writerow([f"Escena {escena.orden}", escena.narracion])
 
     return buffer.getvalue()
+

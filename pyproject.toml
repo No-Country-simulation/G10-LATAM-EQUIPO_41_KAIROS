@@ -25,6 +25,7 @@ dependencies = [
 dev = ["pytest", "httpx"]
 oci = ["oci"]
 gemini = ["google-genai>=1.30"]
+claude = ["anthropic>=1"]
 ui = ["streamlit"]
 
 [tool.setuptools.packages.find]

@@ -12,6 +12,7 @@ os.environ["FALLBACK_DIR"] = tempfile.mkdtemp(prefix="nuevamente-tests-")
 os.environ["OCI_CONFIG_FILE"] = os.path.join(os.environ["FALLBACK_DIR"], "sin-oci")
 os.environ["VIDEOS_DIR"] = os.path.join(os.environ["FALLBACK_DIR"], "videos")
 os.environ["VIDEO_TTS"] = "off"  # videos en silencio: rápidos y sin depender de las voces del sistema
+os.environ["PODCAST_VOCES"] = "sistema"  # sin llamadas a Gemini TTS en los tests
 os.environ["LLM_PROVIDER"] = "template"  # sin llamadas a Gemini aunque el .env lo active
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
