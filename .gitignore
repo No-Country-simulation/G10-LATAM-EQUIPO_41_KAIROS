@@ -13,3 +13,4 @@ data/videos/
 .streamlit/
 docs/demo/resultados/*.json
 .DS_Store
+.pytest_cache/

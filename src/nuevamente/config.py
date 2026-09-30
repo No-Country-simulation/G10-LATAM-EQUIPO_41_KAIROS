@@ -35,6 +35,19 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_tuple_keys(*names: str) -> tuple[str, ...]:
+    encontradas: list[str] = []
+    for name in names:
+        val = os.getenv(name)
+        if val:
+            for k in val.split(","):
+                k = k.strip()
+                if k and k not in encontradas:
+                    encontradas.append(k)
+    return tuple(encontradas)
+
+
+
 @dataclass(frozen=True)
 class Settings:
     # --- Chunking ---
@@ -52,6 +65,36 @@ class Settings:
     llm_modelos_respaldo: tuple[str, ...] = tuple(
         m.strip() for m in os.getenv("LLM_MODELOS_RESPALDO", "gemini-3.5-flash,gemini-flash-latest").split(",") if m.strip()
     )
+    # Con LLM_PROVIDER=auto se prueban estos proveedores en orden, de una API a otra.
+    # Cada uno tiene su propia cuota, así que agotar una no corta la generación.
+    llm_cadena: tuple[str, ...] = tuple(
+        p.strip() for p in os.getenv("LLM_CADENA", "gemini,groq,cerebras,openrouter").split(",") if p.strip()
+    )
+    # Claves de Gemini: admite una sola clave o varias separadas por coma para rotar si se agota la cuota
+    gemini_api_keys: tuple[str, ...] = field(
+        default_factory=lambda: _env_tuple_keys("GEMINI_API_KEYS", "GEMINI_API_KEY"),
+        repr=False,
+    )
+    gemini_api_key: str = field(
+        default_factory=lambda: (
+            _env_tuple_keys("GEMINI_API_KEYS", "GEMINI_API_KEY")[0]
+            if _env_tuple_keys("GEMINI_API_KEYS", "GEMINI_API_KEY")
+            else ""
+        ),
+        repr=False,
+    )
+    groq_api_key: str = field(default=os.getenv("GROQ_API_KEY", ""), repr=False)
+    cerebras_api_key: str = field(default=os.getenv("CEREBRAS_API_KEY", ""), repr=False)
+    openrouter_api_key: str = field(default=os.getenv("OPENROUTER_API_KEY", ""), repr=False)
+
+    # --- Control de tasa (RPM / TPM) y optimización Gemini ---
+    # Pausa prudente mínima en segundos entre llamadas consecutivas a la API
+    gemini_rpm_delay: float = _env_float("GEMINI_RPM_DELAY", 1.5)
+    # Si es True, optimiza variantes 'Pro' a 'Flash' para mayor cuota y throughput
+    gemini_preferir_flash: bool = os.getenv("GEMINI_PREFERIR_FLASH", "true").lower() in ("true", "1", "yes")
+    gemini_max_reintentos: int = _env_int("GEMINI_MAX_REINTENTOS", 5)
+    gemini_delay_base: float = _env_float("GEMINI_DELAY_BASE", 2.0)
+
     # Si el proveedor real falla (cuota, saturación, sin red), generar con TemplateLLM
     llm_respaldo_local: bool = os.getenv("LLM_RESPALDO_LOCAL", "true").strip().lower() in ("1", "true", "si", "sí")
     gemini_api_key: str = field(default=os.getenv("GEMINI_API_KEY", ""), repr=False)
