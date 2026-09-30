@@ -255,8 +255,7 @@ Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
 - [x] Integración con OCI Object Storage, con fallback local documentado y visible
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
 - [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
-- [x] Tests automatizados (75), incluida seguridad ante inyección de instrucciones
-- [x] Rotación de modelos y de APIs gratuitas ante agotamiento de cuotas
+- [x] Tests automatizados (72), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
 - [ ] Conectar una API real en la máquina del equipo (con API key)
 

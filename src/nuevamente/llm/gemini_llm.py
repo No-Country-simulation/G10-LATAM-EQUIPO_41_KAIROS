@@ -29,6 +29,7 @@ import time
 from collections.abc import Callable, Sequence
 from typing import Any
 
+import httpx
 from pydantic import ValidationError
 
 from nuevamente.config import settings

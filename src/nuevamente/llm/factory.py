@@ -12,10 +12,42 @@ cuando se acaba la cuota diaria de un proveedor gratuito.
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 
 from nuevamente.config import settings
-from nuevamente.llm.base import LLMClient
+from nuevamente.llm.base import LLMClient, LLMError
 from nuevamente.llm.template_llm import TemplateLLM
+
+logger = logging.getLogger(__name__)
+
+
+class ConRespaldoLocal:
+    """Usa el proveedor principal y, si falla (cuota, saturación, sin red), el TemplateLLM.
+
+    Tras el primer fallo se queda con el respaldo el resto de la generación, para no
+    esperar de nuevo a la API en cada reintento del Crítico. `nombre_modelo` indica
+    siempre qué generó el contenido, así los metadatos no ocultan el cambio.
+    """
+
+    def __init__(self, principal: LLMClient, respaldo: LLMClient) -> None:
+        self._principal = principal
+        self._respaldo = respaldo
+        self._usar_respaldo = False
+        self.nombre_modelo = principal.nombre_modelo
+        self.motivo_respaldo = ""
+
+    def generar_estructurado(self, schema, system: str, user: str):
+        if not self._usar_respaldo:
+            try:
+                resultado = self._principal.generar_estructurado(schema, system, user)
+                self.nombre_modelo = self._principal.nombre_modelo
+                return resultado
+            except LLMError as exc:
+                logger.warning("Proveedor principal no disponible, se usa el respaldo local: %s", exc)
+                self._usar_respaldo = True
+                self.motivo_respaldo = str(exc)
+        self.nombre_modelo = f"{self._respaldo.nombre_modelo} (respaldo: {self._principal.nombre_modelo} no disponible)"
+        return self._respaldo.generar_estructurado(schema, system, user)
 
 
 def _crear_gemini() -> LLMClient:
