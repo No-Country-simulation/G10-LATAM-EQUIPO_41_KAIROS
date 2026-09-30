@@ -159,9 +159,15 @@ Copia `.env.example` a `.env`. Se carga al importar `nuevamente.config`: primero
 exportadas en la terminal tienen prioridad sobre las del archivo.
 
 ```env
+# "template" (sin red) | "gemini" | "groq" | "cerebras" | "openrouter" | "auto" (cadena)
+LLM_PROVIDER=template
 LLM_PROVIDER=template            # "gemini" (pip install -e ".[gemini]") o "claude" (pip install -e ".[claude]")
 LLM_MODEL=gemini-3.8-flash
+LLM_MODELOS_RESPALDO=gemini-3.5-flash,gemini-flash-latest
 GEMINI_API_KEY=                  # https://aistudio.google.com/apikey
+GROQ_API_KEY=                    # https://console.groq.com/keys
+CEREBRAS_API_KEY=                # https://cloud.cerebras.ai
+OPENROUTER_API_KEY=              # https://openrouter.ai/keys
 ANTHROPIC_API_KEY=               # https://platform.claude.com/settings/keys (con LLM_PROVIDER=claude)
 CLAUDE_MODEL=claude-opus-5
 EMBEDDINGS_PROVIDER=local
@@ -170,6 +176,44 @@ FIDELITY_MIN_SALUD=0.90          # umbral reforzado para el nicho Salud
 OCI_CONFIG_FILE=~/.oci/config
 OCI_BUCKET=nuevamente-contenidos-educativos
 ```
+
+#### Rotación de modelos y de APIs
+
+Hay dos niveles, porque los dos problemas son distintos:
+
+| Nivel | Dónde | Qué resuelve |
+|---|---|---|
+| Modelos de la misma API | `llm/rotacion.py` | Un 429 o un 5xx en un modelo concreto. Reintenta con backoff y, si ese modelo no tiene cuota, pasa al siguiente de `LLM_MODELOS_RESPALDO`. |
+| APIs distintas | `llm/cadena_llm.py` | La cuota diaria de una cuenta se agotó. `LLM_PROVIDER=auto` cae a la siguiente API de `LLM_CADENA`. |
+Lo segundo es lo que evita que la generación se corte: todos los modelos de Gemini
+comparten la cuota de tu cuenta, así que cuando se agota no ayuda a añadir más modelos
+de Gemini, hace falta otra clave. Groq, Cerebras y OpenRouter tienen plan gratuito y
+cuotas independientes entre sí y de Google AI Studio.
+
+```env
+LLM_PROVIDER=auto
+LLM_CADENA=gemini,groq,cerebras,openrouter
+```
+
+Solo hay que poner las claves de las APIs que quieras usar: un proveedor sin `*_API_KEY`
+en el `.env` se salta solo, sin romper la cadena. Los cuatro proveedores gratuitos en los que
+recai hoy la generación gratuitita:
+
+| Proveedor | Modelos gratuitos por defecto | Dónde sacar la key |
+|---|---|---|
+| Gemini | `gemini-3.8-flash` + 2 de respaldo | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Groq | `openai/gpt-oss-120b`, `openai/gpt-oss-20b` | [console.groq.com/keys](https://console.groq.com/keys) |
+| Cerebras | `gpt-oss-120b`, `qwen-3.8-27b` | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
+| OpenRouter | `openrouter/free` (elige entre los `:free` que soportan salidas estructuradas) | [openrouter.ai/keys](https://openrouter.ai/keys) |
+
+Los proveedores de la tabla se hablan con un único cliente (`llm/openai_compat_llm.py`),
+porque los tres exponen la misma API `chat/completions`. No hace falta instalar nada
+extra: usa el SDK `openai` si está presente y, si no, habla HTTP con `httpx`, que ya es
+dependencia del proyecto. Solo Gemini necesita su SDK (`pip install -e ".[gemini]"`).
+
+Los límites de los planes gratuitos cambian con frecuencia; se pueden cambiar los modelos
+por proveedor sin tocar código con `LLM_MODELOS_GROQ`, `LLM_MODELOS_CEREBRAS` y
+`LLM_MODELOS_OPENROUTER`.
 
 Ver también `docs/SETUP_OCI.md` para crear la cuenta OCI Always Free, el
 bucket privado y las claves API paso a paso.
@@ -213,7 +257,7 @@ Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
 - [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
 - [x] Tests automatizados (72), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
-- [ ] Conectar `GeminiLLMClient` real en la máquina del equipo (con API key)
+- [ ] Conectar una API real en la máquina del equipo (con API key)
 
 ## 9. Estructura del repositorio
 
@@ -224,7 +268,7 @@ nuevamente/
 │   ├── schemas/        # enums, request, response, formatos (Ethan)
 │   ├── ingest/          # lectores + chunking (Gaspar)
 │   ├── rag/             # embeddings + vector store (Gaspar)
-│   ├── llm/              # LLMClient, TemplateLLM, fábrica (Adrian)
+│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Adrian)
 │   ├── agents/           # orquestación (Bryan)
 │   ├── fidelity/         # verificación de fidelidad (Adrian)
 │   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)

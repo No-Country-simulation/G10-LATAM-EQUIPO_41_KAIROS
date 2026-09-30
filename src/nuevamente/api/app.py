@@ -105,6 +105,22 @@ def opciones():
         "niveles": [n.value for n in NivelDetalle],
         "umbral_por_nicho": {n.value: settings.fidelity_min_for(n.value) for n in NichoSector},
         "max_upload_mb": settings.max_upload_mb,
+        # Qué API va a generar y, con LLM_PROVIDER=auto, el orden de rotación. Solo lectura:
+        # el proveedor se cambia en el .env, no por petición.
+        "llm": {
+            "proveedor": settings.llm_provider,
+            "cadena": list(settings.llm_cadena),
+            "con_credenciales": [
+                nombre
+                for nombre, clave in (
+                    ("gemini", settings.gemini_api_key),
+                    ("groq", settings.groq_api_key),
+                    ("cerebras", settings.cerebras_api_key),
+                    ("openrouter", settings.openrouter_api_key),
+                )
+                if clave
+            ],
+        },
         # nombre de la voz que narrará el video de cada tipo, o null si no hay ninguna instalada
         "voces": {tipo: nombre_voz(tipo) for tipo in TIPOS_VOZ},
     }
