@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Literal
@@ -40,9 +42,31 @@ WEB_DIR = Path(__file__).resolve().parents[1] / "web"
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
+@app.middleware("http")
+async def sin_cache_para_la_web(request: Request, call_next):
+    """La página y sus archivos se revalidan siempre (ETag), para que el navegador no
+    siga usando un app.js viejo después de actualizar el código."""
+    respuesta = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        respuesta.headers["Cache-Control"] = "no-cache"
+    return respuesta
+
+
+def _con_version(html: str, archivo: str) -> str:
+    """/static/app.js -> /static/app.js?v=<huella del contenido>: si el archivo cambia,
+    cambia la URL y ningún navegador puede seguir usando una copia vieja."""
+    huella = hashlib.sha256((WEB_DIR / archivo).read_bytes()).hexdigest()[:10]
+    return html.replace(f'"/static/{archivo}"', f'"/static/{archivo}?v={huella}"')
+
+
 @app.get("/", include_in_schema=False)
 def inicio():
-    return FileResponse(WEB_DIR / "index.html")
+    from fastapi.responses import HTMLResponse
+
+    html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    for archivo in ("app.js", "styles.css"):
+        html = _con_version(html, archivo)
+    return HTMLResponse(html)
 
 
 def _error_payload(codigo: str, mensaje: str, detalle: str = "") -> dict:
@@ -151,8 +175,6 @@ async def adaptar_archivo(
             detail=f"El archivo supera el límite de {settings.max_upload_mb} MB permitido.",
         )
 
-    import tempfile
-
     sufijo = Path(archivo.filename or "documento.txt").suffix or ".txt"
     with tempfile.NamedTemporaryFile(suffix=sufijo, delete=False) as tmp:
         tmp.write(contenido_bytes)
@@ -165,8 +187,10 @@ async def adaptar_archivo(
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
+    # el lector ve el archivo temporal (tmpXXXX.pdf): el título sale del nombre que subió el usuario
+    titulo = Path(archivo.filename or "").stem.strip() or "Documento sin título"
     return _procesar_adaptacion(
-        titulo=documento.titulo,
+        titulo=titulo,
         contenido=documento.contenido,
         perfil=perfil_destinatario.value,
         formato=formato_salida.value,
@@ -236,6 +260,11 @@ def exportar_contenido(objeto_id: str, formato: str = "markdown", titulo: str = 
         respuesta = RespuestaAdaptacion.model_validate_json(crudo)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado exportable") from exc
+    if respuesta.contenido_adaptado.formato == "Podcast":
+        raise HTTPException(
+            status_code=422,
+            detail="El podcast solo está disponible en audio: usa /api/v1/contenidos/{objeto_id}/podcast",
+        )
 
     if formato == "markdown":
         texto = exportar_markdown(respuesta.contenido_adaptado)
@@ -292,6 +321,65 @@ def video_contenido(
         except VideoError as exc:
             raise HTTPException(status_code=500, detail=f"No se pudo generar el video: {exc}") from exc
     return FileResponse(destino, media_type="video/mp4", filename="guion_de_clase.mp4", content_disposition_type="inline")
+
+
+@app.get("/api/v1/contenidos/{objeto_id:path}/podcast")
+def podcast_contenido(objeto_id: str):
+    """MP3 de un Podcast guardado, con Ana y Leo en voces distintas. Queda en caché.
+
+    La cabecera X-Podcast-Voces indica con qué se narró: "gemini" (voces naturales)
+    o "sistema" (voces del sistema operativo, el respaldo).
+    """
+    from nuevamente.exports.podcast import (
+        VERSION,
+        VideoError,
+        gemini_tts_configurado,
+        generar_podcast,
+        voces_del_podcast,
+    )
+
+    storage = get_storage_service()
+    crudo = storage.descargar_texto(objeto_id)
+    if crudo is None:
+        raise HTTPException(status_code=404, detail="Contenido no encontrado")
+    try:
+        respuesta = RespuestaAdaptacion.model_validate_json(crudo)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado") from exc
+    if respuesta.contenido_adaptado.formato != "Podcast":
+        raise HTTPException(status_code=422, detail="Solo se puede generar audio a partir de un Podcast")
+
+    def archivo(motor: str) -> Path:
+        if motor == "gemini":
+            voces = f"{settings.podcast_tts_model}:{settings.podcast_voz_ana}:{settings.podcast_voz_leo}"
+        else:
+            voces = ":".join(f"{t}={nombre_voz(t)}" for t in ("femenina", "masculina"))
+        huella = hashlib.sha256(f"v{VERSION}::{objeto_id}::{motor}::{voces}".encode("utf-8")).hexdigest()[:16]
+        return Path(settings.videos_dir) / f"podcast-{motor}-{huella}.mp3"
+
+    def entregar(motor: str):
+        return FileResponse(
+            archivo(motor), media_type="audio/mpeg", filename="podcast.mp3",
+            content_disposition_type="inline", headers={"X-Podcast-Voces": motor},
+        )
+
+    preferido = "gemini" if gemini_tts_configurado() else "sistema"
+    if archivo(preferido).is_file():
+        return entregar(preferido)
+    if preferido == "sistema" and voces_del_podcast() is None:
+        raise HTTPException(status_code=503, detail="No hay voces instaladas en el servidor para narrar el podcast.")
+
+    with tempfile.TemporaryDirectory(prefix="kairos-podcast-") as tmp:
+        temporal = Path(tmp) / "podcast.mp3"
+        try:
+            motor = generar_podcast(respuesta.contenido_adaptado, temporal)
+        except VideoError as exc:
+            raise HTTPException(status_code=500, detail=f"No se pudo generar el podcast: {exc}") from exc
+        # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima
+        # vez se vuelve a intentar con voces naturales
+        archivo(motor).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(temporal), archivo(motor))
+    return entregar(motor)
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}")

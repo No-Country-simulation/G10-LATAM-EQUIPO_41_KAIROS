@@ -19,6 +19,7 @@ class FlashcardItem(_Base):
     dorso: str = Field(min_length=3, max_length=800)
     pista_didactica: str = Field(default="", max_length=300)
     fuentes: list[str] = Field(default_factory=list, description="chunk_id de evidencia")
+    seccion: str = Field(default="", description="sección del documento de la que sale")
 
 
 class FlashcardsContenido(_Base):
@@ -34,6 +35,7 @@ class QuizPregunta(_Base):
     indice_correcto: int = Field(ge=0, le=3)
     justificacion: str
     fuentes: list[str] = Field(default_factory=list)
+    seccion: str = Field(default="", description="sección del documento de la que sale")
 
 
 class QuizContenido(_Base):
@@ -48,6 +50,7 @@ class TutorialPaso(_Base):
     instruccion: str
     resultado_esperado: str = ""
     fuentes: list[str] = Field(default_factory=list)
+    seccion: str = Field(default="", description="sección del documento de la que sale")
 
 
 class TutorialContenido(_Base):
@@ -74,12 +77,29 @@ class GuionEscena(_Base):
     apoyo_visual: str = ""
     duracion_seg: int = Field(ge=5, le=600)
     fuentes: list[str] = Field(default_factory=list)
+    seccion: str = Field(default="", description="sección del documento de la que sale")
 
 
 class GuionDeClaseContenido(_Base):
     formato: Literal["Guion de Clase"] = "Guion de Clase"
     duracion_total_min: int = Field(ge=1, le=60)
     escenas: list[GuionEscena] = Field(min_length=1)
+
+
+class PodcastIntervencion(_Base):
+    orden: int
+    # Ana conduce y pregunta (voz femenina); Leo explica el documento (voz masculina).
+    locutor: Literal["Ana", "Leo"]
+    texto: str = Field(min_length=3, max_length=1200)
+    fuentes: list[str] = Field(default_factory=list, description="chunk_id de evidencia")
+    seccion: str = Field(default="", description="sección del documento de la que sale")
+
+
+class PodcastContenido(_Base):
+    formato: Literal["Podcast"] = "Podcast"
+    titulo: str
+    duracion_total_min: int = Field(ge=1, le=60)
+    intervenciones: list[PodcastIntervencion] = Field(min_length=2, max_length=40)
 
 
 ContenidoAdaptado = Annotated[
@@ -89,6 +109,7 @@ ContenidoAdaptado = Annotated[
         TutorialContenido,
         ResumenEjecutivoContenido,
         GuionDeClaseContenido,
+        PodcastContenido,
     ],
     Field(discriminator="formato"),
 ]

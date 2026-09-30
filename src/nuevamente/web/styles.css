@@ -561,6 +561,23 @@ html { scroll-behavior: smooth; }
 
 /* ---------- Flashcards ---------- */
 .intro { color: var(--texto-suave); margin: 0 0 16px; }
+
+/* Título del material y título de cada sección del documento */
+.material-cabecera { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 2px solid var(--borde); }
+.material-titulo { margin: 0; font-size: 1.3rem; font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; }
+.material-subtitulo { margin: 6px 0 0; color: var(--texto-suave); }
+.bloque-seccion { margin-top: 26px; }
+.bloque-seccion:first-of-type { margin-top: 18px; }
+.seccion-titulo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin: 0 0 12px; padding: 8px 0 8px 14px;
+  border-left: 4px solid var(--primario);
+  font-size: 1.05rem; font-weight: 800; color: var(--texto);
+}
+.seccion-titulo span { overflow-wrap: anywhere; }
+.seccion-titulo small { flex: none; color: var(--texto-suave); font-weight: 700; font-size: 0.8rem; }
+.temas { margin: 0; padding-left: 22px; }
+.temas li { margin: 4px 0; }
 .contador { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-weight: 700; font-size: 0.9rem; }
 .barra { flex: 1; height: 10px; border-radius: 999px; background: var(--fondo-alt); overflow: hidden; }
 .barra > span { display: block; height: 100%; background: linear-gradient(90deg, var(--menta), var(--primario)); border-radius: inherit; transition: width 0.3s; }
@@ -629,43 +646,68 @@ html { scroll-behavior: smooth; }
 
 /* ---------- Tutorial ---------- */
 .linea-tiempo { list-style: none; padding: 0; margin: 0; }
-.linea-tiempo > li { position: relative; padding: 0 0 18px 48px; }
+.linea-tiempo > li { position: relative; padding: 0 0 20px 32px; }
+/* el número del paso va en la etiqueta "Paso N"; el punto solo marca la línea de tiempo */
 .linea-tiempo > li::before {
-  content: attr(data-orden);
+  content: "";
   position: absolute;
   left: 0;
-  top: 0;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--coral);
-  color: #fff;
-  font-weight: 900;
+  box-shadow: 0 0 0 4px var(--coral-suave);
 }
 .linea-tiempo > li:not(:last-child)::after {
   content: "";
   position: absolute;
-  left: 16px;
-  top: 38px;
-  bottom: 4px;
+  left: 6px;
+  top: 24px;
+  bottom: 2px;
   width: 2px;
   background: var(--borde);
 }
-.linea-tiempo h4 { margin: 4px 0 4px; }
+.linea-tiempo h4 { margin: 2px 0 4px; }
 .linea-tiempo p { margin: 0; }
 .resultado-esperado { color: var(--texto-suave); font-size: 0.9rem; margin-top: 6px !important; }
 
 .caja { padding: 16px 18px; border-radius: 16px; background: var(--fondo-alt); margin-top: 16px; }
 .caja h4 { margin: 0 0 10px; }
 .caja ul { margin: 0; padding-left: 20px; }
+.caja p { margin: 0; }
+
+/* Etiqueta "Tarjeta N", "Pregunta N", "Paso N": la misma numeración en todos los formatos */
+.numero-parte {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+.cara-frente .numero-parte { color: rgba(255, 255, 255, 0.85); }
+
+/* Una sola viñeta para todas las listas del material */
+ul.lista { margin: 0; padding: 0; list-style: none; }
+.lista li { position: relative; padding-left: 18px; margin: 6px 0; }
+.lista li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.6em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primario);
+}
 .check { display: flex; gap: 10px; align-items: center; padding: 6px 0; font-weight: 600; }
 .check input { width: 20px; height: 20px; accent-color: var(--menta); }
 .check input:checked + span { text-decoration: line-through; color: var(--texto-suave); }
 
 /* ---------- Resumen ---------- */
-.resumen-texto { font-size: 1.05rem; margin: 0 0 18px; }
+.resumen-texto { font-size: 1.05rem; line-height: 1.6; }
 .etiquetas { display: flex; flex-wrap: wrap; gap: 8px; }
 .etiquetas span { padding: 6px 12px; border-radius: 999px; background: var(--primario-suave); font-weight: 700; font-size: 0.88rem; }
 .destacado { padding: 16px 18px; border-radius: 16px; background: var(--menta-suave); margin-top: 16px; }
@@ -724,6 +766,8 @@ html { scroll-behavior: smooth; }
 .video-zona:empty { display: none; }
 .video { width: 100%; border-radius: 14px; background: #000; aspect-ratio: 16 / 9; }
 .video-zona a { text-decoration: none; color: var(--texto); }
+.audio { width: 100%; }
+
 
 /* ---------- Fidelidad ---------- */
 .fidelidad-cabecera { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-bottom: 18px; }

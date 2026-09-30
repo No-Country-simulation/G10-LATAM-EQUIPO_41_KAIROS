@@ -30,6 +30,8 @@ from nuevamente.schemas.formatos import (
     FlashcardsContenido,
     GuionDeClaseContenido,
     GuionEscena,
+    PodcastContenido,
+    PodcastIntervencion,
     QuizContenido,
     QuizPregunta,
     ResumenEjecutivoContenido,
@@ -43,7 +45,31 @@ _RELLENO_QUIZ = [
     "Ninguna de las otras opciones.",
 ]
 
+_ENUNCIADOS_QUIZ = [
+    "Según el documento, ¿qué afirmación sobre «{s}» es correcta?",
+    "¿Cuál de estas afirmaciones corresponde a «{s}»?",
+    "Sobre «{s}», ¿qué indica el documento?",
+]
+
+_PREGUNTAS_PODCAST = [
+    "Muy claro. ¿Y qué nos dice sobre {tema}?",
+    "Pasemos a {tema}. ¿Qué es lo importante ahí?",
+    "Interesante. ¿Qué hay que saber de {tema}?",
+    "Sigamos con {tema}. ¿Cómo lo explicarías?",
+]
+
 _SEP_ORACIONES = re.compile(r"(?<=[.!?])\s+")
+# viñetas sueltas que deja la extracción de un PDF ("configuración: • Mediante…")
+_VINETAS = re.compile(r"\s*[•●▪◦‣∙]\s*")
+
+# La primera tarjeta de una sección pregunta por la sección; las siguientes, por
+# otro punto de la misma sección, para que no haya dos preguntas idénticas.
+_FRENTES_FLASHCARD = [
+    "¿Qué debes saber sobre «{s}»?",
+    "¿Qué otro punto clave de «{s}» debes recordar?",
+    "¿Qué más explica el documento sobre «{s}»?",
+    "¿Qué detalle práctico de «{s}» conviene tener presente?",
+]
 
 _ANALOGIA_POR_NICHO = {
     "Salud": "Piénsalo como un protocolo que protege tanto al paciente como al personal.",
@@ -62,6 +88,7 @@ _RIESGO_POR_NICHO = {
 
 def _oraciones(texto: str) -> list[str]:
     # " ".join(o.split()) quita los saltos de línea internos del Markdown fuente
+    texto = _VINETAS.sub(" ", texto)
     partes = [" ".join(o.split()) for o in _SEP_ORACIONES.split(texto) if o.strip()]
     partes = [o for o in partes if len(o) > 12]
     # Por el solapamiento del chunking, un chunk puede empezar a mitad de una
@@ -103,6 +130,24 @@ def _adaptar_por_perfil(texto: str, perfil: str, nivel_detalle: str = "Didáctic
     return _primeras(texto, _oraciones_por_nivel(2, nivel_detalle))
 
 
+def _repartir(chunks: list[dict], n: int) -> list[dict]:
+    """Elige hasta `n` chunks repartidos entre todas las secciones (uno por sección en
+    cada vuelta), en el orden del documento, para que el material no se quede en las
+    primeras secciones cuando el documento tiene muchas."""
+    por_seccion: dict[str, list[dict]] = {}
+    for c in chunks:
+        por_seccion.setdefault(c["seccion"], []).append(c)
+    elegidos: list[dict] = []
+    vuelta = 0
+    while len(elegidos) < n and any(vuelta < len(g) for g in por_seccion.values()):
+        for grupo in por_seccion.values():
+            if vuelta < len(grupo) and len(elegidos) < n:
+                elegidos.append(grupo[vuelta])
+        vuelta += 1
+    orden = {id(c): i for i, c in enumerate(chunks)}
+    return sorted(elegidos, key=lambda c: orden[id(c)])
+
+
 class TemplateLLM:
     """Implementación de LLMClient sin red, usada como proveedor por defecto."""
 
@@ -135,17 +180,22 @@ class TemplateLLM:
             return self._resumen_ejecutivo(titulo, nicho, nivel, chunks)
         if schema is GuionDeClaseContenido:
             return self._guion_de_clase(titulo, nivel, chunks)
+        if schema is PodcastContenido:
+            return self._podcast(titulo, nicho, nivel, chunks)
 
         raise LLMError(f"TemplateLLM no soporta el esquema {schema!r}")
 
     # ---- Flashcards ----
     def _flashcards(self, titulo, perfil, nicho, nivel, chunks) -> FlashcardsContenido:
         items = []
-        for c in chunks[:12]:
+        por_seccion: dict[str, int] = {}
+        for c in _repartir(chunks, 12):
             dorso = _adaptar_por_perfil(c["texto"], perfil, nivel)
+            k = por_seccion.get(c["seccion"], 0)
+            por_seccion[c["seccion"]] = k + 1
             items.append(
                 FlashcardItem(
-                    frente=f"¿Qué debes saber sobre \"{c['seccion']}\"?",
+                    frente=_FRENTES_FLASHCARD[k % len(_FRENTES_FLASHCARD)].format(s=c["seccion"]),
                     dorso=dorso,
                     pista_didactica=_ANALOGIA_POR_NICHO.get(nicho, _ANALOGIA_POR_NICHO["General"]),
                     fuentes=[c["chunk_id"]],
@@ -154,7 +204,7 @@ class TemplateLLM:
         return FlashcardsContenido(
             titulo=f"Guía rápida: {titulo}",
             introduccion_contextualizada=(
-                f"Este material resume, en tarjetas de estudio, los puntos clave de \"{titulo}\", "
+                f"Este material resume, en tarjetas de estudio, los puntos clave de «{titulo}», "
                 f"adaptado para el perfil {perfil}."
             ),
             items=items,
@@ -164,8 +214,11 @@ class TemplateLLM:
     def _quiz(self, titulo, chunks) -> QuizContenido:
         preguntas = []
         primeras_por_chunk = [_primeras(c["texto"], 1) for c in chunks]
-        for i, c in enumerate(chunks[:10]):
-            correcta = primeras_por_chunk[i]
+        por_seccion: dict[str, int] = {}
+        for c in _repartir(chunks, 10):
+            k = por_seccion.get(c["seccion"], 0)
+            por_seccion[c["seccion"]] = k + 1
+            correcta = _primeras(c["texto"], 1)
             # Distractores sin repetidos ni iguales a la correcta; si el documento no da
             # suficientes, se completan con opciones de relleno distintas entre sí.
             candidatos = [s for s in primeras_por_chunk if s != correcta] + _RELLENO_QUIZ
@@ -176,7 +229,7 @@ class TemplateLLM:
             opciones = opciones[:4]
             preguntas.append(
                 QuizPregunta(
-                    enunciado=f"Según el documento, ¿qué afirmación sobre \"{c['seccion']}\" es correcta?",
+                    enunciado=_ENUNCIADOS_QUIZ[k % len(_ENUNCIADOS_QUIZ)].format(s=c["seccion"]),
                     opciones=opciones,
                     indice_correcto=posicion_correcta,
                     justificacion=f"La fuente indica: {correcta}",
@@ -188,7 +241,7 @@ class TemplateLLM:
     # ---- Tutorial ----
     def _tutorial(self, titulo, nicho, chunks) -> TutorialContenido:
         pasos = []
-        for i, c in enumerate(chunks[:10], start=1):
+        for i, c in enumerate(_repartir(chunks, 10), start=1):
             oraciones = _oraciones(c["texto"])
             instruccion = oraciones[0] if oraciones else c["texto"][:200]
             resultado = oraciones[1] if len(oraciones) > 1 else ""
@@ -202,20 +255,20 @@ class TemplateLLM:
                 )
             )
         return TutorialContenido(
-            objetivo=f"Aplicar correctamente los pasos descritos en \"{titulo}\".",
+            objetivo=f"Aplicar correctamente los pasos descritos en «{titulo}».",
             prerrequisitos=[],
             pasos=pasos,
             errores_comunes=[
                 f"Omitir un paso porque parece obvio. {_RIESGO_POR_NICHO.get(nicho, _RIESGO_POR_NICHO['General'])}"
             ],
             # una sección puede aportar varios chunks: el checklist lista cada sección una vez
-            checklist_final=[f"Verificado: {s}" for s in dict.fromkeys(c["seccion"] for c in chunks[:10])],
+            checklist_final=[f"Verificado: {s}" for s in dict.fromkeys(c["seccion"] for c in _repartir(chunks, 10))],
         )
 
     # ---- Resumen Ejecutivo ----
     def _resumen_ejecutivo(self, titulo, nicho, nivel, chunks) -> ResumenEjecutivoContenido:
         n_chunks = {"Conciso": 4, "Profundo": 8}.get(nivel, 6)
-        usados = chunks[:n_chunks]
+        usados = _repartir(chunks, n_chunks)
         oraciones = [_primeras(c["texto"], 1) for c in usados]
         resumen = " ".join(oraciones)
         if len(resumen) > 1700:
@@ -227,11 +280,11 @@ class TemplateLLM:
             if len(puntos_clave) >= 5:
                 break
         return ResumenEjecutivoContenido(
-            resumen=resumen or f"Resumen de \"{titulo}\".",
+            resumen=resumen or f"Resumen de «{titulo}».",
             puntos_clave=puntos_clave or [titulo],
             decisiones_o_riesgos=[_RIESGO_POR_NICHO.get(nicho, _RIESGO_POR_NICHO["General"])],
             impacto_de_negocio=(
-                f"Adoptar lo descrito en \"{titulo}\" reduce el riesgo operativo y facilita "
+                f"Adoptar lo descrito en «{titulo}» reduce el riesgo operativo y facilita "
                 f"el cumplimiento en el sector {nicho}."
             ),
             fuentes=[c["chunk_id"] for c in usados],
@@ -241,7 +294,7 @@ class TemplateLLM:
     def _guion_de_clase(self, titulo, nivel, chunks) -> GuionDeClaseContenido:
         escenas = []
         duracion_total = 0
-        for i, c in enumerate(chunks[:8], start=1):
+        for i, c in enumerate(_repartir(chunks, 8), start=1):
             narracion = _primeras(c["texto"], _oraciones_por_nivel(2, nivel))
             # ~11 caracteres por segundo: ritmo medido de la narración del video (exports/video.py)
             duracion = max(10, min(120, round(len(narracion) / 11)))
@@ -258,4 +311,45 @@ class TemplateLLM:
         return GuionDeClaseContenido(
             duracion_total_min=max(1, round(duracion_total / 60)),
             escenas=escenas,
+        )
+
+    # ---- Podcast ----
+    def _podcast(self, titulo, nicho, nivel, chunks) -> PodcastContenido:
+        # Ana conduce (sin fuente); Leo responde con oraciones del chunk (con fuente),
+        # que son las que verifica el Crítico.
+        intervenciones: list[PodcastIntervencion] = []
+        caracteres = 0
+
+        def decir(locutor: str, texto: str, fuentes: list[str] | None = None) -> None:
+            nonlocal caracteres
+            caracteres += len(texto)
+            intervenciones.append(
+                PodcastIntervencion(
+                    orden=len(intervenciones) + 1, locutor=locutor, texto=texto, fuentes=fuentes or []
+                )
+            )
+
+        decir(
+            "Ana",
+            f"Hola, te damos la bienvenida a este episodio. Hoy conversamos sobre «{titulo}». "
+            "Leo, ¿empezamos?",
+        )
+        usados = _repartir(chunks, 8)
+        for i, c in enumerate(usados):
+            seccion = c["seccion"]
+            tema = "el documento" if seccion == "Documento completo" else f"«{seccion}»"
+            if i > 0:
+                decir("Ana", _PREGUNTAS_PODCAST[(i - 1) % len(_PREGUNTAS_PODCAST)].format(tema=tema))
+            decir("Leo", _primeras(c["texto"], _oraciones_por_nivel(2, nivel)), [c["chunk_id"]])
+        decir(
+            "Ana",
+            "Para cerrar, una idea para recordar: "
+            f"{_ANALOGIA_POR_NICHO.get(nicho, _ANALOGIA_POR_NICHO['General']).replace('Piénsalo', 'piénsalo')} "
+            "Gracias por escucharnos, y hasta el próximo episodio.",
+        )
+        return PodcastContenido(
+            titulo=f"Podcast: {titulo}",
+            # ~11 caracteres por segundo, el mismo ritmo de la narración del video
+            duracion_total_min=max(1, min(60, round(caracteres / 11 / 60))),
+            intervenciones=intervenciones,
         )
