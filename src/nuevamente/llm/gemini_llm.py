@@ -182,6 +182,7 @@ class GeminiLLM:
         espera_inicial: float | None = None,
         espera_maxima: float = 30.0,
         retraso_rpm: float | None = None,
+        timeout: float | None = None,
         preferir_flash: bool | None = None,
         client_factory: Callable[[str], Any] | None = None,
     ) -> None:
@@ -250,6 +251,10 @@ class GeminiLLM:
         retraso_segundos = retraso_rpm if retraso_rpm is not None else settings.gemini_rpm_delay
         self._rate_limiter = RateLimiter(retraso_minimo_segundos=retraso_segundos)
 
+        # Timeout por llamada. Con el prompt completo del Redactor (hasta 12 chunks de
+        # evidencia) un flash tarda varios segundos; con 25s se cortaba la respuesta.
+        self._timeout = float(timeout if timeout is not None else settings.gemini_timeout)
+
     @property
     def api_key_actual(self) -> str:
         """Devuelve la clave API actualmente activa."""
@@ -266,8 +271,25 @@ class GeminiLLM:
                 self._clients[key] = self._client_factory(key)
             else:
                 from google import genai
+                from google.genai import types
 
-                self._clients[key] = genai.Client(api_key=key)
+                # El cliente por defecto del SDK falla el handshake TLS contra
+                # generativelanguage.googleapis.com en redes que no negocian HTTP/2
+                # (proxy corporativo, firewall): ConnectTimeout en ~0.2s aunque httpx
+                # a pelo sí llega. Se le pasa un cliente propio sin HTTP/2.
+                #
+                # El timeout va SOLO en el cliente httpx, nunca en HttpOptions: el SDK
+                # convierte ese valor en un deadline que manda dentro de la petición y
+                # con el prompt grande del Redactor la API lo rechaza con
+                # "Manually set deadline too short" (400), o expira antes de responder.
+                http_client = httpx.Client(
+                    http2=False,
+                    timeout=self._timeout,
+                    limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+                )
+                self._clients[key] = genai.Client(
+                    api_key=key, http_options=types.HttpOptions(client_args={"http_client": http_client})
+                )
         return self._clients[key]
 
     def _llamar(self, key: str, modelo: str, contents: list, config) -> str:
@@ -309,6 +331,8 @@ class GeminiLLM:
                         if decision in (CUOTA_AGOTADA, CREDENCIAL_INVALIDA):
                             decision_final = decision
                             break
+
+                        diag = _extraer_diagnostico(exc)
                         if intento < self._reintentos_red - 1:
                             # 1. Backoff exponencial con jitter aleatorio
                             jitter = random.uniform(0.1, 1.0) * min(1.0, float(self._espera_inicial))
@@ -317,7 +341,6 @@ class GeminiLLM:
                                 float(self._espera_maxima),
                             )
                             # 4. Diagnóstico de errores durante los reintentos
-                            diag = _extraer_diagnostico(exc)
                             logger.warning(
                                 "[Gemini Reintento %d/%d] Modelo: '%s' | HTTP %s: %s | Headers: %s | Espera: %.2fs",
                                 intento + 1,
@@ -336,8 +359,7 @@ class GeminiLLM:
                 if decision_final == CUOTA_AGOTADA:
                     self._rotacion_keys.marcar_agotada(clave)
                     continue
-                # Error transitorio continuo en este modelo tras reintentos (ej. 503 saturado):
-                # probar el siguiente modelo de respaldo
+                # Error transitorio continuo o 503 en este modelo: probar el siguiente modelo de respaldo
                 break
 
         # 4. Diagnóstico detallado al agotar todos los intentos

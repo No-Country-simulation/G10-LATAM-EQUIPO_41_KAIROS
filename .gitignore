@@ -14,3 +14,7 @@ data/videos/
 docs/demo/resultados/*.json
 .DS_Store
 .pytest_cache/
+vector_store/
+vector_store_app/
+*.safetensors
+*.sqlite3
