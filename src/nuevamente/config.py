@@ -60,10 +60,10 @@ class Settings:
 
     # --- LLM ---
     llm_provider: str = os.getenv("LLM_PROVIDER", "template")  # template | gemini | claude
-    llm_model: str = os.getenv("LLM_MODEL", "gemini-3.8-flash")
+    llm_model: str = os.getenv("LLM_MODEL", "gemini-3.5-flash")
     # Modelos a usar, en orden, si el principal está saturado (lista separada por comas)
     llm_modelos_respaldo: tuple[str, ...] = tuple(
-        m.strip() for m in os.getenv("LLM_MODELOS_RESPALDO", "gemini-3.5-flash,gemini-flash-latest").split(",") if m.strip()
+        m.strip() for m in os.getenv("LLM_MODELOS_RESPALDO", "gemini-3.1-flash-lite,gemini-flash-latest").split(",") if m.strip()
     )
     # Con LLM_PROVIDER=auto se prueban estos proveedores en orden, de una API a otra.
     # Cada uno tiene su propia cuota, así que agotar una no corta la generación.
@@ -89,15 +89,17 @@ class Settings:
 
     # --- Control de tasa (RPM / TPM) y optimización Gemini ---
     # Pausa prudente mínima en segundos entre llamadas consecutivas a la API
-    gemini_rpm_delay: float = _env_float("GEMINI_RPM_DELAY", 1.5)
+    gemini_rpm_delay: float = _env_float("GEMINI_RPM_DELAY", 0.5)
     # Si es True, optimiza variantes 'Pro' a 'Flash' para mayor cuota y throughput
     gemini_preferir_flash: bool = os.getenv("GEMINI_PREFERIR_FLASH", "true").lower() in ("true", "1", "yes")
-    gemini_max_reintentos: int = _env_int("GEMINI_MAX_REINTENTOS", 5)
-    gemini_delay_base: float = _env_float("GEMINI_DELAY_BASE", 2.0)
+    gemini_max_reintentos: int = _env_int("GEMINI_MAX_REINTENTOS", 2)
+    gemini_delay_base: float = _env_float("GEMINI_DELAY_BASE", 1.0)
+    # Timeout de cada llamada a Gemini, en segundos. Con el prompt completo del Redactor
+    # (hasta 12 chunks de evidencia) un flash tarda varios segundos en responder.
+    gemini_timeout: float = _env_float("GEMINI_TIMEOUT", 90.0)
 
     # Si el proveedor real falla (cuota, saturación, sin red), generar con TemplateLLM
     llm_respaldo_local: bool = os.getenv("LLM_RESPALDO_LOCAL", "true").strip().lower() in ("1", "true", "si", "sí")
-    gemini_api_key: str = field(default=os.getenv("GEMINI_API_KEY", ""), repr=False)
     anthropic_api_key: str = field(default=os.getenv("ANTHROPIC_API_KEY", ""), repr=False)
     claude_model: str = os.getenv("CLAUDE_MODEL", "claude-opus-5")
 
