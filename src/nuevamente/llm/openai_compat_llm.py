@@ -39,6 +39,7 @@ class OpenAICompatLLM:
         max_intentos: int = 3,
         temperatura: float = 0.2,
         timeout: float = 60.0,
+        max_tokens: int = 4096,
     ) -> None:
         if not api_key:
             raise LLMError(f"{etiqueta} requiere su API key configurada (ver .env.example).")
@@ -47,6 +48,7 @@ class OpenAICompatLLM:
         self._etiqueta = etiqueta
         self._temperatura = temperatura
         self._max_intentos = max_intentos
+        self._max_tokens = max_tokens
         self._rotacion = RotacionModelos([modelo, *modelos_respaldo])
         self.nombre_modelo = self._rotacion.modelo_actual
 
@@ -85,12 +87,30 @@ class OpenAICompatLLM:
             "messages": mensajes,
             "temperature": self._temperatura,
         }
+        # Los modelos gpt-oss de Groq son de razonamiento y, sin acotarlo, se llevan
+        # el 85-90% del presupuesto de tokens pensando (medido: 885 de 999 tokens) antes
+        # de escribir el JSON. Con el prompt de 12 chunks eso agota el TPM de la org y
+        # dispara 429. 'low' deja ~20 tokens de razonamiento y el JSON completo.
+        if modelo.startswith("openai/gpt-oss"):
+            cuerpo["reasoning_effort"] = "low"
+            # Tope alto a propósito: razonamiento + JSON + 8-12 flashcards. Sin esto el
+            # proveedor decide el corte y puede devolver el JSON a medio escribir.
+            cuerpo["max_completion_tokens"] = self._max_tokens
         if self._soporta_json_schema:
             cuerpo["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {"name": esquema.get("title", "salida"), "schema": esquema},
             }
         else:
+            # Groq rechaza json_object si los mensajes no mencionan "json" en algún
+            # punto: 400 "messages must contain the word 'json'". Los prompts de
+            # prompts.py no lo dicen, así que hay que asegurarlo al degradar.
+            cuerpo["messages"] = [
+                {**m, "content": m["content"] + "\n\nResponde únicamente en formato JSON."}
+                if i == 0
+                else m
+                for i, m in enumerate(mensajes)
+            ]
             cuerpo["response_format"] = {"type": "json_object"}
 
         if self._client is not None:
@@ -117,6 +137,12 @@ class OpenAICompatLLM:
         if codigo == 400 and self._soporta_json_schema and _rechaza_el_esquema(exc):
             self._soporta_json_schema = False
             raise _ReintentarSinEsquema() from exc
+        # 400 "Failed to generate/validate JSON": el modelo sí aceptó el esquema pero
+        # su salida no lo valida. No es culpa del prompt ni del esquema, así que no
+        # degrada ni rota: se reintenta la misma llamada, que con otro sorteo del
+        # modelo suele salir bien. Es transitorio aunque llegue como 400.
+        if codigo == 400 and _fallo_de_generar_json(exc):
+            return TRANSITORIO
         if codigo == 400:
             raise LLMError(f"Error de la API de {self._etiqueta} (400): {exc}") from exc
 
@@ -210,9 +236,19 @@ def _cuota_diaria_agotada(codigo: int, cuerpo: str) -> bool:
 # degradar solo gastaría un intento de cuota y ocultaría el error real.
 _PISTAS_ESQUEMA = ("json_schema", "response_format", "structured output", "structured_output")
 
+# Groq responde 400 con estos mensajes cuando el modelo acepta el esquema pero su
+# salida no lo valida. Verificado contra api.groq.com con gpt-oss-20b: es intermitente
+# para el mismo prompt (4 llamadas idénticas: 3 HTTP 200, 1 HTTP 400), o sea que la
+# respuesta correcta es reintentar, no degradar el modo de salida.
+_FALLO_JSON = ("failed to generate json", "failed to validate json", "failed_generation")
+
 
 def _rechaza_el_esquema(exc: Exception) -> bool:
     return any(pista in str(exc).lower() for pista in _PISTAS_ESQUEMA)
+
+
+def _fallo_de_generar_json(exc: Exception) -> bool:
+    return any(pista in str(exc).lower() for pista in _FALLO_JSON)
 
 
 # --- Fábricas por proveedor concreto ---------------------------------------
