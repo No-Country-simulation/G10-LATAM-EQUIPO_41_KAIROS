@@ -156,6 +156,10 @@ class OpenAICompatLLM:
 
     # --- interfaz LLMClient ------------------------------------------------
 
+    @property
+    def clave_proveedor(self) -> str:
+        return self._etiqueta.lower()
+
     def generar_estructurado(self, schema: type, system: str, user: str):
         mensajes = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         esquema = schema.model_json_schema()

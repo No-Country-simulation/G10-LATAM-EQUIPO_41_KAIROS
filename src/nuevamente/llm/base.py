@@ -22,6 +22,7 @@ class LLMError(Exception):
 
 class LLMClient(Protocol):
     nombre_modelo: str
+    clave_proveedor: str
 
     def generar_estructurado(
         self,
@@ -35,5 +36,15 @@ class LLMClient(Protocol):
         valida, reenviar el error de validación al modelo antes de fallar con
         LLMError (ver docstring del prompt maestro / README para el diseño
         completo con Gemini en producción).
+        """
+        ...
+
+    @property
+    def clave_proveedor(self) -> str:
+        """Identificador estable del proveedor (`"gemini"`, `"Groq"`...), nunca del modelo.
+
+        `nombre_modelo` cambia cuando el proveedor rota a su modelo de respaldo, así que no
+        sirve para agrupar el historial: quien lo necesita (el router de salud, llm/salud.py)
+        tiene que poder reconocer al mismo proveedor aunque ahora atienda otro modelo.
         """
         ...

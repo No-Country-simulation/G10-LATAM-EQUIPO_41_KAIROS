@@ -120,10 +120,24 @@ def opciones():
                 )
                 if clave
             ],
+            "carrera": settings.carrera_activada,
         },
         # nombre de la voz que narrará el video de cada tipo, o null si no hay ninguna instalada
         "voces": {tipo: nombre_voz(tipo) for tipo in TIPOS_VOZ},
     }
+
+
+@app.get("/api/v1/salud-llm")
+def salud_llm():
+    """Cómo se han portado los proveedores en este proceso: estado del circuito, latencia
+    media observada y cuándo se vuelve a probar al que está caído.
+
+    El router de salud (llm/salud.py) vive en la cadena que se construye por petición, así
+    que el estado se guarda en un módulo aparte, de nivel de proceso, para que estas
+    métricas sirvan de verdad y no salgan siempre a cero."""
+    from nuevamente.llm.salud import registrar_y_ver
+
+    return registrar_y_ver()
 
 
 _MUESTRA_VOZ = "Hola. Así sonará la narración de tu clase: clara, pausada y en español."
