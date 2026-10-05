@@ -25,6 +25,7 @@ class Metadatos(BaseModel):
     tiempo_generacion_segundos: float = 0.0
     modelo_llm: str = ""
     desde_cache: bool = False
+    tiempos_por_agente: dict[str, float] = Field(default_factory=dict)
 
 
 class EvaluacionCalidad(BaseModel):

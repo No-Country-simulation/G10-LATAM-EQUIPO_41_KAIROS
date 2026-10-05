@@ -104,3 +104,17 @@ def test_si_el_proveedor_falla_se_usa_el_respaldo_local(documento_salud):
     assert r.evaluacion.aprobado_por_critico
     assert r.metadatos.modelo_llm.startswith("template-extractivo-v1 (respaldo: gemini-prueba")
     assert SinCuota.llamadas == 1  # tras el primer fallo no vuelve a esperar a la API
+
+
+def test_metadatos_incluyen_tiempos_por_agente(documento_salud):
+    """Verifica que el pipeline registre el desglose de tiempos de cada agente."""
+    r = _generar(documento_salud, "Flashcards")
+    tiempos = r.metadatos.tiempos_por_agente
+    assert "indexacion_rag_ms" in tiempos
+    assert "planificador_ms" in tiempos
+    assert "investigador_ms" in tiempos
+    assert "redactor_segundos" in tiempos
+    assert "critico_ms" in tiempos
+    assert tiempos["planificador_ms"] >= 0.0
+    assert tiempos["investigador_ms"] >= 0.0
+    assert tiempos["critico_ms"] >= 0.0

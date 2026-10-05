@@ -58,17 +58,89 @@ class ResultadoGeneracion:
     coleccion: ColeccionDocumento
 
 
-def _planificar(coleccion: ColeccionDocumento, formato: str) -> list[str]:
-    """Devuelve el orden de secciones a cubrir.
+@dataclass
+class PlanPedagogico:
+    secciones: list[str]
+    conceptos_clave: list[str] = field(default_factory=list)
+    prerrequisitos: list[str] = field(default_factory=list)
 
-    Para formatos de síntesis (Resumen Ejecutivo, Guion de Clase) se recorren
-    TODAS las secciones del documento, no solo las más similares a una única
-    consulta — así se evita el problema de cobertura de un RAG top-k plano.
+
+_SECCIONES_NO_DIDACTICAS = (
+    "índice",
+    "indice",
+    "tabla de contenido",
+    "tabla de contenidos",
+    "table of contents",
+    "bibliografía",
+    "bibliografia",
+    "referencias",
+    "referencias bibliográficas",
+    "notas legales",
+    "aviso legal",
+    "créditos",
+)
+
+
+def _planificar(
+    coleccion: ColeccionDocumento,
+    formato: str,
+    perfil: str = "Principiante",
+    nicho: str = "Salud",
+) -> PlanPedagogico:
+    """Agente Planificador (Híbrido / Local - Latencia < 1ms):
+    Analiza la estructura del documento fuente, el formato pedagógico, el perfil
+    y el nicho. Descarta secciones no didácticas (índices, tablas de contenidos),
+    define la secuencia pedagógica, extrae conceptos clave y formula prerrequisitos.
     """
-    secciones = coleccion.secciones()
-    if formato in ("Resumen Ejecutivo", "Guion de Clase", "Podcast"):
-        return secciones
-    return secciones  # en este MVP todos los formatos cubren todas las secciones
+    secciones_crudas = coleccion.secciones()
+    # Filtrar activamente índices y metadatos para evitar preguntas triviales
+    secciones_didacticas = [
+        s
+        for s in secciones_crudas
+        if not any(
+            nd == s.strip().lower() or s.strip().lower().startswith(nd)
+            for nd in _SECCIONES_NO_DIDACTICAS
+        )
+    ]
+    secciones = secciones_didacticas or secciones_crudas
+
+    # Conceptos clave derivados de los títulos de secciones sustantivas
+    conceptos: list[str] = []
+    for s in secciones:
+        if s and s.lower() != "general" and s not in conceptos:
+            conceptos.append(s)
+    if not conceptos and coleccion.titulo:
+        conceptos.append(coleccion.titulo)
+
+    # Inferir prerrequisitos pedagógicos según perfil y nicho
+    prerreqs: list[str] = []
+    for s in secciones:
+        s_low = s.lower()
+        if any(kw in s_low for kw in ("introduc", "fundamento", "requisito", "conceptos previos", "definici", "norma")):
+            prerreqs.append(f"Lectura previa de: {s}")
+
+    if not prerreqs:
+        if perfil == "Principiante":
+            if nicho == "Salud":
+                prerreqs.append("Conceptos básicos de higiene y bioseguridad sanitaria.")
+            elif nicho == "Fintech":
+                prerreqs.append("Familiaridad con términos financieros básicos.")
+            elif nicho == "E-commerce":
+                prerreqs.append("Comprensión general de comercio electrónico y ventas.")
+            else:
+                prerreqs.append("Comprensión lectora general del tema.")
+        elif perfil == "Desarrollador Junior/Semi Senior":
+            prerreqs.append("Conocimiento técnico fundamental del flujo y la arquitectura base.")
+        elif perfil == "Líder Técnico/Arquitecto":
+            prerreqs.append("Criterio en diseño de sistemas, estándares de seguridad y dependencias.")
+        elif perfil == "Gestor/Ejecutivo":
+            prerreqs.append("Visión general de impacto operacional, gestión de riesgos y normativas.")
+
+    return PlanPedagogico(
+        secciones=secciones,
+        conceptos_clave=conceptos[:6],
+        prerrequisitos=prerreqs[:3],
+    )
 
 
 # Cuántos chunks de evidencia recibe el Redactor en total (los formatos usan hasta 8-12).
@@ -240,13 +312,23 @@ def generar_contenido_educativo(
     t0 = time.perf_counter()
     llm = llm or crear_llm()
 
+    t_idx0 = time.perf_counter()
     coleccion = indexar_documento(documento_titulo, documento_contenido)
+    t_idx = round((time.perf_counter() - t_idx0) * 1000, 2)
+
     schema = _SCHEMA_POR_FORMATO.get(formato)
     if schema is None:
         raise ValueError(f"Formato no soportado: {formato}")
 
-    secciones = _planificar(coleccion, formato)
-    chunks_evidencia = _investigar(coleccion, secciones)
+    # 1. Agente Planificador: traza secuencia didáctica, conceptos clave y prerrequisitos (< 1ms)
+    t_plan0 = time.perf_counter()
+    plan = _planificar(coleccion, formato, perfil=perfil, nicho=nicho)
+    t_plan = round((time.perf_counter() - t_plan0) * 1000, 2)
+
+    # 2. Agente Investigador: recupera evidencia por sección mediante RAG local (< 5ms)
+    t_inv0 = time.perf_counter()
+    chunks_evidencia = _investigar(coleccion, plan.secciones)
+    t_inv = round((time.perf_counter() - t_inv0) * 1000, 2)
     if not chunks_evidencia:
         raise LLMError("El Investigador no encontró evidencia recuperable en el documento.")
 
@@ -257,12 +339,22 @@ def generar_contenido_educativo(
     evaluacion_fidelidad: ResultadoFidelidad | None = None
     aprobado = False
 
+    t_red_total = 0.0
+    t_crit_total = 0.0
+
     intentos = settings.max_reintentos_critico + 1
     for intento in range(1, intentos + 1):
+        # 3. Agente Redactor: única llamada pesada al LLM generativo estructurado
+        t_red0 = time.perf_counter()
         contenido = _depurar(
             _redactar(llm, schema, documento_titulo, perfil, nicho, nivel_detalle, chunks_evidencia, retroalimentacion)
         )
+        t_red_total += (time.perf_counter() - t_red0)
+
+        # 4. Agente Crítico Guardián: evaluación matemática instantánea de fidelidad (< 2ms)
+        t_crit0 = time.perf_counter()
         evaluacion_fidelidad = evaluar_fidelidad(contenido, coleccion)
+        t_crit_total += (time.perf_counter() - t_crit0)
 
         if evaluacion_fidelidad.total == 0:
             # Sin afirmaciones con fuente no hay nada que verificar: no se aprueba
@@ -273,12 +365,27 @@ def generar_contenido_educativo(
             aprobado = True
             break
 
-        # El Crítico rechaza y da retroalimentación concreta para el reintento.
+        # El Crítico rechaza y da retroalimentación concreta y específica para el reintento
         no_sustentadas = evaluacion_fidelidad.no_sustentadas
-        retroalimentacion = (
-            f"El intento anterior tuvo afirmaciones no sustentadas por la fuente: "
-            f"{no_sustentadas}. Elimínalas o ajústalas para que solo usen la evidencia dada."
-        )
+        parciales = getattr(evaluacion_fidelidad, "parciales_afirmaciones", [])
+        partes_retro: list[str] = []
+        if no_sustentadas:
+            partes_retro.append(
+                f"Afirmaciones NO sustentadas por la fuente: {no_sustentadas[:3]}. "
+                "Elimínalas o ajústalas para que solo usen la evidencia textual dada."
+            )
+        if parciales:
+            partes_retro.append(
+                f"Afirmaciones con anclaje débil o parcial: {parciales[:3]}. "
+                "Asegura una conexión conceptual y terminológica más estrecha con el chunk citado."
+            )
+        if not partes_retro:
+            partes_retro.append(
+                f"El score de fidelidad ({evaluacion_fidelidad.score:.2f}) no alcanzó el umbral requerido ({umbral:.2f}). "
+                "Alinea las afirmaciones con mayor fidelidad a los hechos y términos de los chunks de evidencia."
+            )
+        retroalimentacion = " ".join(partes_retro)
+
         if contenido == contenido_anterior:
             # Generador determinista (p. ej. TemplateLLM): ignora la retroalimentación
             # y repetiría el mismo resultado, así que reintentar no aporta nada.
@@ -290,15 +397,24 @@ def generar_contenido_educativo(
     sin_afirmaciones = evaluacion_fidelidad is None or evaluacion_fidelidad.total == 0
     score_final = 0.0 if sin_afirmaciones else evaluacion_fidelidad.score
 
+    tiempos_por_agente = {
+        "indexacion_rag_ms": t_idx,
+        "planificador_ms": t_plan,
+        "investigador_ms": t_inv,
+        "redactor_segundos": round(t_red_total, 3),
+        "critico_ms": round(t_crit_total * 1000, 2),
+    }
+
     metadatos = Metadatos(
         perfil_aplicado=perfil,
         formato_generado=formato,
         tiempo_estimado_estudio_minutos=_calcular_tiempo_estudio(contenido),
-        conceptos_clave=_conceptos_clave(chunks_evidencia),
-        prerrequisitos=[],
+        conceptos_clave=plan.conceptos_clave or _conceptos_clave(chunks_evidencia),
+        prerrequisitos=plan.prerrequisitos,
         tiempo_generacion_segundos=tiempo_generacion,
         modelo_llm=llm.nombre_modelo,
         desde_cache=False,
+        tiempos_por_agente=tiempos_por_agente,
     )
 
     evaluacion = EvaluacionCalidad(

@@ -155,6 +155,10 @@ class TemplateLLM:
         self.etiqueta = "template"
         self.nombre_modelo = "template-extractivo-v1"
 
+    @property
+    def clave_proveedor(self) -> str:
+        return self.etiqueta
+
     def generar_estructurado(self, schema: type, system: str, user: str):
         try:
             payload = json.loads(user)

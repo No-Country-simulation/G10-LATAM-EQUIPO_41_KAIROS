@@ -13,24 +13,33 @@ proveedores reales.
 from __future__ import annotations
 
 PROMPT_BASE = (
-    "Eres el agente Redactor de NuevaMente. Genera contenido educativo usando "
+    "Eres el agente Redactor de NuevaMente. Genera contenido educativo riguroso usando "
     "EXCLUSIVAMENTE la evidencia de los chunks recibidos. No agregues datos, "
     "dosis, cifras ni indicaciones que no estén en esos chunks. "
     "Cada elemento que tenga el campo `fuentes` debe listar los `chunk_id` exactos "
-    "de los chunks que lo sustentan. Mantén cada afirmación cercana a la redacción "
-    "de su chunk: se verifica por similitud contra él. Si "
-    "`retroalimentacion_critico` no está vacía, corrige lo que indica. Escribe en español."
+    "de los chunks que lo sustentan. "
+    "REGLA PEDAGÓGICA DE SÍNTESIS: No hagas transcripciones literales mecánicas ni copies frases "
+    "vacías. Extrae los conceptos esenciales, relaciones causa-efecto, procedimientos y principios "
+    "clave de los chunks y redáctalos con claridad pedagógica adaptada al perfil. "
+    "PROHIBICIÓN ESTRICTA: Queda terminantemente prohibido formular preguntas, tarjetas o pasos "
+    "a partir de índices, tablas de contenido, números de página, portadas, notas legales o títulos "
+    "de capítulos. Todo el contenido debe evaluar conocimiento sustantivo y aplicación práctica real. "
+    "Si `retroalimentacion_critico` no está vacía, corrige lo que indica. Escribe en español."
 )
 
 PROMPT_POR_FORMATO = {
     "Flashcards": (
-        "Crea entre 8 y 12 tarjetas. El frente es una pregunta concreta; el dorso, la "
-        "respuesta tomada del chunk. La pista didáctica es una analogía breve."
+        "Crea entre 8 y 12 tarjetas conceptuales. El frente plantea una pregunta, situación clínica o "
+        "problema práctico concreto; el dorso explica la respuesta y el principio fundamental sustentado "
+        "en el chunk. La pista didáctica es una analogía o regla mnemotécnica breve. "
+        "Nunca crees tarjetas sobre tablas de contenido o estructura del documento."
     ),
     "Quiz": (
         "Crea hasta 10 preguntas de opción múltiple con 4 opciones y una sola correcta. "
+        "Las preguntas deben evaluar comprensión conceptual profunda, toma de decisiones o aplicación "
+        "de protocolos en escenarios reales, NUNCA memorización de índices, números de página ni formato. "
         "Los distractores deben ser plausibles pero contradecir o no estar en la fuente. "
-        "La justificación cita lo que dice el chunk."
+        "La justificación explica el razonamiento correcto citando conceptualmente el chunk."
     ),
     "Tutorial": (
         "Ordena los pasos en la secuencia en que se aplican. Cada instrucción es una "

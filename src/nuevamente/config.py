@@ -47,6 +47,25 @@ def _env_tuple_keys(*names: str) -> tuple[str, ...]:
     return tuple(encontradas)
 
 
+def _env_latencias(nombre: str) -> dict[str, float]:
+    """Latencia de partida por proveedor, escrita como `gemini:4.0,groq:1.2`.
+
+    Son los tiempos medidos a mano en esta máquina, y solo existen para que la *primera*
+    petición no pague un proveedor saturado antes de que el router tenga historial propio.
+    A partir de la segunda, manda lo observado (ver llm/salud.py)."""
+    salida: dict[str, float] = {}
+    for par in (os.getenv(nombre) or "").split(","):
+        par = par.strip()
+        if not par or ":" not in par:
+            continue
+        clave, _, valor = par.partition(":")
+        try:
+            salida[clave.strip().lower()] = float(valor)
+        except ValueError:
+            continue
+    return salida
+
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -70,6 +89,32 @@ class Settings:
     llm_cadena: tuple[str, ...] = tuple(
         p.strip() for p in os.getenv("LLM_CADENA", "gemini,groq,cerebras,openrouter").split(",") if p.strip()
     )
+
+    # --- Enrutado por salud (ver llm/salud.py) ---
+    # La cadena de arriba es el orden *deseado*; el router lo reordena en cada petición según
+    # cómo se estén portando de verdad. Con esto apagado, la cadena siempre se recorre desde
+    # el principio y un proveedor lento se paga entero en cada request.
+    salud_activada: bool = os.getenv("LLM_SALUD_ACTIVADA", "true").strip().lower() in ("1", "true", "si", "sí")
+    # Fallos *consecutivos* que abren el circuito de un proveedor. Con 2, un 503 aislado no
+    # apaga a nadie y una racha de 503 sí lo aparta.
+    salud_umbral_fallos: int = _env_int("LLM_SALUD_UMBRAL_FALLOS", 2)
+    # Pausa antes de volver a probar un proveedor caído; se dobla en cada apertura hasta el
+    # tope, para no gastar cuota insistiendo en un servicio que no vuelve.
+    salud_cooldown: float = _env_float("LLM_SALUD_COOLDOWN_S", 45.0)
+    salud_cooldown_max: float = _env_float("LLM_SALUD_COOLDOWN_MAX_S", 300.0)
+    # Peso de la última latencia en la media móvil. Alto = reacciona rápido a un proveedor que
+    # se degrada; bajo = olvida el historial más despacio.
+    salud_alfa: float = _env_float("LLM_SALUD_ALFA", 0.3)
+    # Latencias medidas a mano, solo para arrancar en frío (ver _env_latencias).
+    salud_latencia_inicial: dict[str, float] = field(default_factory=lambda: _env_latencias("LLM_SALUD_LATENCIA"))
+    # Carrera: pedir el mismo prompt a los N proveedores más sanos a la vez y quedarse con la
+    # primera respuesta. Es lo que hace que nunca se espere a un proveedor lento. Cuesta el
+    # doble de llamadas (la perdedora se desperdicia), así que va apagada por defecto.
+    carrera_activada: bool = os.getenv("LLM_CARRERA", "false").strip().lower() in ("1", "true", "si", "sí")
+    carrera_cuantos: int = _env_int("LLM_CARRERA_CUANTOS", 2)
+    # Espera antes de lanzar al segundo de la carrera. 0 = salen los dos juntos (lo más
+    # rápido, lo que más cuota gasta); 1.5 = sale el segundo solo si el primero no contestó.
+    carrera_espera: float = _env_float("LLM_CARRERA_ESPERA_S", 0.0)
     # Claves de Gemini: admite una sola clave o varias separadas por coma para rotar si se agota la cuota
     gemini_api_keys: tuple[str, ...] = field(
         default_factory=lambda: _env_tuple_keys("GEMINI_API_KEYS", "GEMINI_API_KEY"),
