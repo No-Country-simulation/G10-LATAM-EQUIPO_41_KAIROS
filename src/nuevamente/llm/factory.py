@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import logging
+import os
+import threading
 
 from nuevamente.config import settings
 from nuevamente.llm.base import LLMClient, LLMError
@@ -99,4 +101,62 @@ def crear_llm(proveedor: str | None = None) -> LLMClient:
             f"{', '.join(sorted(_FACTORIES))}, o implementa una clase con la interfaz "
             "LLMClient (ver llm/base.py) y regístrala en _FACTORIES."
         )
-    return _FACTORIES[proveedor]()
+    return _con_cache(proveedor, _FACTORIES[proveedor])
+
+
+# --- Cache de clientes -------------------------------------------------------
+# Los clientes se construyen por petición, pero construir uno es caro: abrir la cadena
+# costaba ~460 ms y, con Gemini dentro, crear su `genai.Client` y su `httpx.Client` sumaba
+# unos ~700 ms más de handshake TLS. Reconstruirlos en cada request era overhead puro.
+#
+# Reutilizarlos además es lo correcto por diseño, no solo por velocidad: la rotación de
+# claves de Gemini (rotacion.py) y el historial de salud de los proveedores (salud.py)
+# viven en el objeto. Un cliente por petición los tiraría a la basura en cada llamada y el
+# sistema no podría aprender de lo que le pasó en la anterior.
+_clientes: dict[tuple, LLMClient] = {}
+_cargo_lock = threading.Lock()
+
+#: Variables que cambian cómo se construye un cliente. Si cambia alguna, la cache no sirve.
+_VARIABLES_DE_CLIENTE = (
+    "LLM_MODEL",
+    "LLM_MODELOS_RESPALDO",
+    "LLM_CADENA",
+    "LLM_MODELOS_GROQ",
+    "LLM_MODELOS_CEREBRAS",
+    "LLM_MODELOS_OPENROUTER",
+    "GEMINI_API_KEY",
+    "GEMINI_API_KEYS",
+    "GROQ_API_KEY",
+    "CEREBRAS_API_KEY",
+    "OPENROUTER_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_PREFERIR_FLASH",
+    "GEMINI_MAX_REINTENTOS",
+    "GEMINI_RPM_DELAY",
+    "GEMINI_TIMEOUT",
+    "GEMINI_DELAY_BASE",
+    "CLAUDE_MODEL",
+)
+
+
+def _huella(proveedor: str) -> tuple:
+    return (proveedor, *(os.getenv(v, "") for v in _VARIABLES_DE_CLIENTE))
+
+
+def _con_cache(proveedor: str, construir: Callable[[], LLMClient]) -> LLMClient:
+    huella = _huella(proveedor)
+    cliente = _clientes.get(huella)
+    if cliente is not None:
+        return cliente
+    with _cargo_lock:
+        cliente = _clientes.get(huella)
+        if cliente is None:
+            cliente = construir()
+            _clientes[huella] = cliente
+    return cliente
+
+
+def limpiar_cache_llm() -> None:
+    """Vacía la cache de clientes. Para los tests y para recuperar tras un cambio de credenciales."""
+    with _cargo_lock:
+        _clientes.clear()

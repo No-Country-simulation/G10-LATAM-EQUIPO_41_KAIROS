@@ -15,6 +15,20 @@ os.environ["VIDEO_TTS"] = "off"  # videos en silencio: rápidos y sin depender d
 os.environ["PODCAST_VOCES"] = "sistema"  # sin llamadas a Gemini TTS en los tests
 os.environ["LLM_PROVIDER"] = "template"  # sin llamadas a Gemini aunque el .env lo active
 
+# Lo mismo con el enrutado por salud: los priors de latencia del `.env` de quien esté en la
+# máquina son para arrancar el proceso en frío, y si se cuelan aquí reordenan los dobles de
+# prueba y rompen tests que dan por hecho el orden de LLM_CADENA. La carrera se apaga por lo
+# mismo: cada test decide si la quiere con su propio ajuste.
+os.environ["LLM_SALUD_LATENCIA"] = ""
+os.environ["LLM_SALUD_ACTIVADA"] = "true"
+os.environ["LLM_CARRERA"] = "false"
+os.environ["LLM_CARRERA_ESPERA_S"] = "0"
+
+# Los reintentos de fidelidad son una decisión de producción (en el `.env` valen 2 para no
+# bajar del 0.90 de Salud). En los tests estorban: multiplican las generaciones del doble por
+# tres y, cuando un test comprueba que no se reintenta, le cambian el resultado.
+os.environ["MAX_REINTENTOS_CRITICO"] = "0"
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest

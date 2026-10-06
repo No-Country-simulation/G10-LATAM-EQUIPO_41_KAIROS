@@ -23,8 +23,8 @@ from nuevamente.schemas.enums import VeredictoFidelidad
 
 # Bajo este score de similitud, una afirmación se considera no sustentada.
 UMBRAL_NO_SUSTENTADA = 0.08
-# Entre este umbral y 1.0, se considera parcialmente sustentada.
-UMBRAL_PARCIAL = 0.20
+# Entre este umbral y 1.0, se considera sustentada (0.15 reconoce paráfrasis pedagógicas precisas).
+UMBRAL_PARCIAL = 0.15
 
 _SEP_ORACIONES = re.compile(r"(?<=[.!?…])\s+")
 
@@ -56,6 +56,10 @@ class ResultadoFidelidad:
     @property
     def no_sustentadas(self) -> list[str]:
         return [v.afirmacion for v in self.veredictos if v.veredicto == VeredictoFidelidad.NO_SUSTENTADA]
+
+    @property
+    def parciales_afirmaciones(self) -> list[str]:
+        return [v.afirmacion for v in self.veredictos if v.veredicto == VeredictoFidelidad.PARCIAL]
 
     @property
     def score(self) -> float:
