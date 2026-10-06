@@ -18,3 +18,4 @@ vector_store/
 vector_store_app/
 *.safetensors
 *.sqlite3
+CONTEXTO_PROYECTO.txt

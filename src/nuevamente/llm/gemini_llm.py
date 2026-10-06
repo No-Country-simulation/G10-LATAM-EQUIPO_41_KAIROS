@@ -256,6 +256,10 @@ class GeminiLLM:
         self._timeout = float(timeout if timeout is not None else settings.gemini_timeout)
 
     @property
+    def clave_proveedor(self) -> str:
+        return self.etiqueta
+
+    @property
     def api_key_actual(self) -> str:
         """Devuelve la clave API actualmente activa."""
         return self._rotacion_keys.key_actual
