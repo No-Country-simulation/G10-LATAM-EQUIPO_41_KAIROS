@@ -302,7 +302,22 @@ def exportar_contenido(objeto_id: str, formato: str = "markdown", titulo: str = 
             headers={"Content-Disposition": 'attachment; filename="presentacion.pptx"'},
         )
 
-    raise HTTPException(status_code=400, detail="formato debe ser 'markdown', 'anki_csv' o 'pptx'")
+    if formato == "docx":
+        from nuevamente.exports.documento import generar_documento
+
+        datos = generar_documento(
+            respuesta.contenido_adaptado,
+            titulo.strip()[:200] or "Material de estudio",
+            perfil=respuesta.metadatos.perfil_aplicado,
+            score_fidelidad=respuesta.evaluacion_calidad.anclaje_fuente_score,
+        )
+        return Response(
+            datos,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="material.docx"'},
+        )
+
+    raise HTTPException(status_code=400, detail="formato debe ser 'markdown', 'anki_csv', 'pptx' o 'docx'")
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/video")

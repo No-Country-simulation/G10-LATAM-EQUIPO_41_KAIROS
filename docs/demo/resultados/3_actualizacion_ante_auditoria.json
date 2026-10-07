@@ -1,0 +1,59 @@
+{
+  "escenario": {
+    "nombre": "3_actualizacion_ante_auditoria",
+    "caso_de_uso": "Actualización de protocolos ante una auditoría",
+    "perfil": "Gestor/Ejecutivo",
+    "formato": "Resumen Ejecutivo",
+    "nicho": "Salud",
+    "nivel_detalle": "Conciso"
+  },
+  "tiempo_generacion_segundos": 0.038,
+  "metadatos": {
+    "perfil_aplicado": "Gestor/Ejecutivo",
+    "formato_generado": "Resumen Ejecutivo",
+    "tiempo_estimado_estudio_minutos": 2,
+    "conceptos_clave": [
+      "Introducción",
+      "Higiene de manos",
+      "Equipo de protección personal (EPP)",
+      "Manejo de residuos biocontaminados",
+      "Limpieza y desinfección de superficies",
+      "Notificación de incidentes y exposiciones"
+    ],
+    "prerrequisitos": [],
+    "tiempo_generacion_segundos": 0.038,
+    "modelo_llm": "template-extractivo-v1",
+    "desde_cache": false
+  },
+  "evaluacion_calidad": {
+    "anclaje_fuente_score": 1.0,
+    "claridad_pedagogica": "Alta",
+    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 4,
+    "afirmaciones_sustentadas": 4,
+    "afirmaciones_no_sustentadas": [],
+    "umbral_aplicado": 0.9,
+    "aprobado_por_critico": true
+  },
+  "contenido_adaptado": {
+    "formato": "Resumen Ejecutivo",
+    "resumen": "La bioseguridad hospitalaria es el conjunto de normas y procedimientos destinados a proteger la salud del personal, los pacientes y la comunidad frente a riesgos biológicos, físicos y químicos presentes en los entornos de atención de salud. El lavado de manos con agua y jabón durante al menos 20 segundos es la medida individual más efectiva y de menor costo para prevenir la transmisión de microorganismos en el entorno de salud. La fricción debe mantenerse hasta que el producto se seque por completo sobre la piel, cubriendo palmas, dorso, espacios interdigitales y uñas. El equipo de protección personal comprende guantes, mascarillas, protección ocular, batas y calzado cerrado, seleccionados según el nivel de exposición esperado en cada procedimiento.",
+    "puntos_clave": [
+      "Introducción",
+      "Higiene de manos",
+      "Equipo de protección personal (EPP)",
+      "Manejo de residuos biocontaminados",
+      "Limpieza y desinfección de superficies"
+    ],
+    "decisiones_o_riesgos": [
+      "Un error aquí puede afectar la seguridad del paciente o incumplir normativa sanitaria."
+    ],
+    "impacto_de_negocio": "Adoptar lo descrito en \"Protocolo General de Bioseguridad para Personal de Salud\" reduce el riesgo operativo y facilita el cumplimiento en el sector Salud.",
+    "fuentes": [
+      "fde32e7836d7b185-c000",
+      "fde32e7836d7b185-c001",
+      "fde32e7836d7b185-c002",
+      "fde32e7836d7b185-c003"
+    ]
+  }
+}

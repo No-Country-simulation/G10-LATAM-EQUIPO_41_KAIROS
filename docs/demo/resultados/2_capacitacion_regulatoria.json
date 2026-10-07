@@ -1,0 +1,101 @@
+{
+  "escenario": {
+    "nombre": "2_capacitacion_regulatoria",
+    "caso_de_uso": "Capacitación regulatoria interna con certificación",
+    "perfil": "Desarrollador Junior/Semi Senior",
+    "formato": "Quiz",
+    "nicho": "Salud",
+    "nivel_detalle": "Didáctico"
+  },
+  "tiempo_generacion_segundos": 367.18,
+  "metadatos": {
+    "perfil_aplicado": "Desarrollador Junior/Semi Senior",
+    "formato_generado": "Quiz",
+    "tiempo_estimado_estudio_minutos": 3,
+    "conceptos_clave": [
+      "Introducción",
+      "Higiene de manos",
+      "Equipo de protección personal (EPP)",
+      "Manejo de residuos biocontaminados",
+      "Limpieza y desinfección de superficies",
+      "Notificación de incidentes y exposiciones"
+    ],
+    "prerrequisitos": [],
+    "tiempo_generacion_segundos": 367.18,
+    "modelo_llm": "gemini-flash-latest",
+    "desde_cache": false
+  },
+  "evaluacion_calidad": {
+    "anclaje_fuente_score": 1.0,
+    "claridad_pedagogica": "Alta",
+    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 4,
+    "afirmaciones_sustentadas": 4,
+    "afirmaciones_no_sustentadas": [],
+    "umbral_aplicado": 0.9,
+    "aprobado_por_critico": true
+  },
+  "contenido_adaptado": {
+    "formato": "Quiz",
+    "titulo": "Evaluación Didáctica sobre Protocolos de Bioseguridad en Salud",
+    "preguntas": [
+      {
+        "enunciado": "Según el protocolo de higiene de manos, ¿cuál es la condición requerida para que el uso de una solución a base de alcohol en gel sea una alternativa aceptable al lavado con agua y jabón?",
+        "opciones": [
+          "Que se aplique únicamente antes de realizar procedimientos asépticos invasivos.",
+          "Que las manos no se encuentren visiblemente sucias.",
+          "Que se acompañe inmediatamente con la colocación de guantes estériles.",
+          "Que el tiempo de fricción sea inferior a 10 segundos en superficies palmares."
+        ],
+        "indice_correcto": 1,
+        "justificacion": "El protocolo indica que el uso de alcohol en gel es una alternativa aceptable al lavado con agua y jabón siempre que las manos no estén visiblemente sucias, manteniendo la fricción hasta que el producto seque por completo.",
+        "fuentes": [
+          "fde32e7836d7b185-c001",
+          "fde32e7836d7b185-c002"
+        ]
+      },
+      {
+        "enunciado": "¿Cuál es la secuencia correcta establecida para el retiro del equipo de protección personal (EPP)?",
+        "opciones": [
+          "Mascarilla, bata, protección ocular y guantes.",
+          "Bata, guantes, mascarilla y protección ocular.",
+          "Guantes, protección ocular, bata y finalmente mascarilla.",
+          "Protección ocular, bata, mascarilla y finalmente guantes."
+        ],
+        "indice_correcto": 2,
+        "justificacion": "Para retirar el EPP, el orden prioriza evitar el contacto con superficies contaminadas: primero se retiran los guantes, luego la protección ocular, la bata y finalmente la mascarilla, realizando higiene de manos tras cada elemento.",
+        "fuentes": [
+          "fde32e7836d7b185-c004"
+        ]
+      },
+      {
+        "enunciado": "¿Cómo deben descartarse los materiales punzocortantes, tales como agujas y hojas de bisturí?",
+        "opciones": [
+          "En bolsas de color rojo tras reencapuchar cuidadosamente las agujas.",
+          "De inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas.",
+          "En recipientes plásticos comunes una vez finalizado el turno laboral.",
+          "En contenedores flexibles forzando su entrada para aprovechar la capacidad máxima."
+        ],
+        "indice_correcto": 1,
+        "justificacion": "Los materiales punzocortantes deben descartarse de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas y sin forzar su entrada si se ha alcanzado el límite indicado.",
+        "fuentes": [
+          "fde32e7836d7b185-c005"
+        ]
+      },
+      {
+        "enunciado": "¿Por qué es necesario limpiar una superficie antes de proceder a su desinfección química?",
+        "opciones": [
+          "Porque la materia orgánica puede inactivar parcialmente algunos desinfectantes.",
+          "Para acelerar la evaporación del producto químico y acortar el tiempo de contacto.",
+          "Porque la desinfección solo es aplicable en superficies de bajo contacto.",
+          "Para evitar retirar el producto desinfectante antes de su tiempo de secado."
+        ],
+        "indice_correcto": 0,
+        "justificacion": "La limpieza y la desinfección son procesos secuenciales. La superficie debe limpiarse antes de desinfectarse debido a que la materia orgánica puede inactivar parcialmente algunos productos desinfectantes.",
+        "fuentes": [
+          "fde32e7836d7b185-c007"
+        ]
+      }
+    ]
+  }
+}

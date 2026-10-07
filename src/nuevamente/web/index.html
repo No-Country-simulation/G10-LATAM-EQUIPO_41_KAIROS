@@ -35,9 +35,18 @@
 
       <div id="menu" class="menu">
         <ul class="menu-enlaces">
-          <li><a href="#inicio" data-seccion="inicio" class="activo" aria-current="true"><span aria-hidden="true">✨</span> Crear</a></li>
-          <li><a href="#resultado" data-seccion="material" aria-disabled="true"><span aria-hidden="true">📖</span> Mi material</a></li>
-          <li><a href="#historial-caja" data-seccion="historial" aria-disabled="true"><span aria-hidden="true">🕘</span> Historial <span id="contador-historial" class="insignia" hidden></span></a></li>
+          <li><button type="button" id="btn-crear" data-seccion="inicio" class="activo" aria-current="true" title="Empezar un material nuevo"><span aria-hidden="true">✨</span> Crear</button></li>
+          <li><button type="button" id="btn-material" data-seccion="material" disabled title="Aún no has creado ningún material"><span aria-hidden="true">📖</span> Mi material</button></li>
+          <li class="menu-desplegable">
+            <button type="button" id="btn-historial" aria-haspopup="true" aria-expanded="false" aria-controls="historial-menu" disabled title="Aún no hay materiales en el historial">
+              <span aria-hidden="true">🕘</span> Historial <span id="contador-historial" class="insignia" hidden></span><span class="flecha" aria-hidden="true">▾</span>
+            </button>
+            <div id="historial-menu" class="desplegable" hidden>
+              <p class="desplegable-titulo">Generados recientemente</p>
+              <ul id="historial-lista-menu" class="historial-lista"></ul>
+              <button type="button" id="btn-borrar-historial" class="enlace">🗑️ Borrar historial</button>
+            </div>
+          </li>
           <li><button type="button" id="btn-como"><span aria-hidden="true">💡</span> Cómo funciona</button></li>
         </ul>
 
@@ -80,11 +89,11 @@
         <div id="modo-texto">
           <label class="campo">
             <span>Título</span>
-            <input id="titulo" type="text" maxlength="300" placeholder="Ej.: Protocolo de bioseguridad">
+            <input id="titulo" type="text" maxlength="300" placeholder="Opcional: si lo dejas vacío, se toma del texto">
           </label>
           <label class="campo">
             <span>Contenido</span>
-            <textarea id="contenido" rows="9" placeholder="Pega aquí el texto del documento (Markdown o texto plano)…"></textarea>
+            <textarea id="contenido" rows="9" placeholder="Pega aquí el texto que quieres estudiar o convertir en material de estudio. Debe tener entre 20 y 20 000 caracteres. Puedes usar texto plano o Markdown."></textarea>
           </label>
           <button type="button" id="btn-ejemplo" class="enlace">✨ Usar un documento de ejemplo</button>
         </div>
@@ -150,6 +159,14 @@
 
       <div id="progreso" class="progreso" hidden>
         <h2>Preparando tu material…</h2>
+        <div id="progreso-avance" class="avance" role="progressbar" aria-label="Avance de la creación del material"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="avance-cabecera">
+            <span id="avance-etapa" class="avance-etapa">Iniciando…</span>
+            <strong id="avance-porcentaje" class="avance-porcentaje">0%</strong>
+          </div>
+          <div class="avance-pista"><span id="avance-relleno" class="avance-relleno"></span></div>
+        </div>
         <ol id="etapas" class="etapas"></ol>
       </div>
 
@@ -160,9 +177,10 @@
             <h2 id="res-titulo"></h2>
           </div>
           <div class="descargas">
-            <button type="button" class="btn-secundario" data-exportar="markdown">⬇️ Markdown</button>
-            <button type="button" class="btn-secundario" data-exportar="anki_csv">⬇️ Anki</button>
-            <button type="button" class="btn-secundario btn-destacado" data-exportar="pptx">📊 PowerPoint</button>
+            <button type="button" class="btn-secundario btn-destacado" data-exportar="docx" title="Descargar como documento de Word (.docx)">📝 Word</button>
+            <button type="button" class="btn-secundario btn-destacado" data-exportar="pptx" title="Descargar como presentación (.pptx)">📊 PowerPoint</button>
+            <button type="button" class="btn-secundario" data-exportar="markdown" title="Descargar como texto Markdown (.md)">⬇️ Markdown</button>
+            <button type="button" class="btn-secundario" data-exportar="anki_csv" title="Descargar tarjetas para importar en Anki (.csv)">⬇️ Anki</button>
           </div>
         </div>
 
@@ -183,7 +201,7 @@
 
       <aside id="historial-caja" class="historial" hidden>
         <h3>🕘 Generados recientemente</h3>
-        <ul id="historial"></ul>
+        <ul id="historial" class="historial-lista"></ul>
       </aside>
     </section>
   </main>

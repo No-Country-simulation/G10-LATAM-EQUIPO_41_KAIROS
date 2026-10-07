@@ -94,7 +94,7 @@ button { cursor: pointer; }
 
 /* ---------- Menú superior ---------- */
 html { scroll-behavior: smooth; }
-#inicio, #resultado, #historial-caja { scroll-margin-top: 96px; }
+#inicio, #resultado { scroll-margin-top: 96px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 .navbar {
@@ -145,7 +145,7 @@ html { scroll-behavior: smooth; }
   border-radius: 16px;
   background: var(--fondo-alt);
 }
-.menu-enlaces a, .menu-enlaces button {
+.menu-enlaces > li > button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -160,9 +160,60 @@ html { scroll-behavior: smooth; }
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
-.menu-enlaces a:hover, .menu-enlaces button:hover { color: var(--texto); background: color-mix(in srgb, var(--superficie) 60%, transparent); }
-.menu-enlaces a.activo { background: var(--superficie); color: var(--primario); box-shadow: var(--sombra); }
-.menu-enlaces a[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.menu-enlaces > li > button:hover:not(:disabled),
+.menu-enlaces > li > button[aria-expanded="true"] { color: var(--texto); background: color-mix(in srgb, var(--superficie) 60%, transparent); }
+.menu-enlaces .activo, .menu-enlaces .activo:hover:not(:disabled) { background: var(--superficie); color: var(--primario); box-shadow: var(--sombra); }
+.menu-enlaces button:disabled { opacity: 0.45; cursor: not-allowed; }
+.flecha { font-size: 0.7rem; transition: transform 0.15s; }
+[aria-expanded="true"] > .flecha { transform: rotate(180deg); }
+
+/* Desplegable del historial */
+.menu-desplegable { position: relative; }
+.desplegable {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(60vh, 460px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  background: var(--superficie);
+  box-shadow: var(--sombra-fuerte);
+}
+.desplegable-titulo { margin: 0 0 8px; color: var(--texto-suave); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.desplegable .enlace { margin-top: 10px; }
+
+/* Lista del historial: la misma en el desplegable del menú y al pie de la página */
+.historial-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.historial-lista button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fondo-alt);
+  color: var(--texto);
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: normal;
+}
+.historial-lista button:hover { background: var(--primario-suave); }
+.historial-lista span { overflow-wrap: anywhere; }
+.historial-lista small { color: var(--texto-suave); font-weight: 600; }
+
+/* "Crear" resalta un momento el formulario al que lleva */
+.panel.resaltado { animation: resaltar 1.1s ease-out; }
+@keyframes resaltar {
+  0% { box-shadow: 0 0 0 4px var(--primario); }
+  100% { box-shadow: var(--sombra); }
+}
+@media (prefers-reduced-motion: reduce) { .panel.resaltado { animation: none; } }
 .insignia {
   display: inline-grid;
   place-items: center;
@@ -246,7 +297,10 @@ html { scroll-behavior: smooth; }
   .menu { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 10px; padding: 6px 0 4px; }
   .menu.abierto { display: flex; }
   .menu-enlaces { flex-direction: column; margin: 0; }
-  .menu-enlaces a, .menu-enlaces button { width: 100%; padding: 12px 14px; }
+  .menu-enlaces > li > button { width: 100%; padding: 12px 14px; }
+  .menu-enlaces .flecha { margin-left: auto; }
+  /* en el móvil el historial se abre dentro del propio menú, no flotando */
+  .desplegable { position: static; transform: none; width: 100%; max-height: 45vh; margin-top: 6px; box-shadow: none; }
   .menu-acciones { justify-content: space-between; }
   .estado-texto { display: inline; }
   .estado { padding: 6px 12px; }
@@ -516,6 +570,22 @@ html { scroll-behavior: smooth; }
 .vacio-pasos li { padding: 12px 14px; border-radius: 14px; background: var(--fondo-alt); font-weight: 700; font-size: 0.9rem; }
 
 .progreso h2 { font-size: 1.2rem; font-weight: 900; margin-bottom: 16px; }
+/* Barra de avance en porcentaje mientras se crea el material */
+.avance { margin: 0 0 18px; padding: 16px 18px; border-radius: 16px; background: var(--fondo-alt); }
+.avance-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.avance-etapa { color: var(--texto-suave); font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
+.avance-porcentaje { flex: none; font-size: 1.8rem; font-weight: 900; line-height: 1; color: var(--primario); font-variant-numeric: tabular-nums; }
+.avance-pista { height: 16px; border-radius: 999px; background: var(--superficie); border: 1px solid var(--borde); overflow: hidden; }
+.avance-relleno {
+  display: block; width: 0; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, var(--menta), var(--primario));
+  background-size: 200% 100%;
+  transition: width 0.15s linear;
+  animation: avance-brillo 1.6s linear infinite;
+}
+@keyframes avance-brillo { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .avance-relleno { animation: none; transition: none; } }
+
 .etapas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .etapas li {
   display: flex;
@@ -813,21 +883,6 @@ pre {
 /* ---------- Historial ---------- */
 .historial { padding: 18px 22px; }
 .historial h3 { font-size: 1rem; font-weight: 800; margin-bottom: 10px; }
-.historial ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.historial button {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--fondo-alt);
-  text-align: left;
-  font-size: 0.9rem;
-}
-.historial button:hover { background: var(--primario-suave); }
-.historial small { color: var(--texto-suave); white-space: nowrap; }
 
 .pie { text-align: center; color: var(--texto-suave); font-size: 0.85rem; padding: 8px 16px 28px; }
 
