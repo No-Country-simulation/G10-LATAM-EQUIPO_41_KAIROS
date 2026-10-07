@@ -145,7 +145,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (168 pruebas, deben pasar todas)                           |
+| `make test`    | Corre los tests (168 pruebas, deben pasar todas; ver sección 13)           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -359,3 +359,90 @@ nuevamente/
   los reintentos cuando el resultado sale idéntico al intento anterior.
 - En el Quiz, los distractores son oraciones reales de *otras* secciones del
   documento; la correcta es la que corresponde a la sección que nombra la pregunta.
+
+## 13. Pruebas
+
+El proyecto tiene **168 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
+voces simuladas, así que dan el mismo resultado en cualquier máquina.
+
+### Cómo ejecutarlas
+
+```bash
+pip install -e ".[dev]"
+pytest -q                          # todas (≈20 s)
+pytest tests/test_api.py -q        # un archivo
+pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
+```
+
+Resultado esperado: `168 passed`.
+
+### Qué cubre cada archivo
+
+| Archivo | Pruebas | Qué verifica |
+|---|---:|---|
+| `tests/test_api.py` | 42 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), archivo demasiado grande (413), exportación a Markdown, Anki, Word y PowerPoint, video MP4 del Guion y podcast MP3 |
+| `tests/test_llm_rotacion.py` | 41 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
+| `tests/test_llm_salud.py` | 28 | Enrutado por salud de los proveedores: circuit breaker, orden por latencia y carrera entre proveedores |
+| `tests/test_generacion.py` | 15 | Flujo completo de agentes: fidelidad de los formatos de síntesis, reintento del Crítico, nivel de detalle, agrupación por sección, la portada no llega al Redactor y la evidencia cubre todo el documento |
+| `tests/test_ingest.py` | 14 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, y extracción de **conceptos clave** de un texto sin títulos |
+| `tests/test_schemas.py` | 7 | Esquemas Pydantic de cada formato y limpieza de referencias internas (los `chunk_id` no aparecen en el texto que ve el estudiante) |
+| `tests/test_fidelity.py` | 5 | Verificador de fidelidad: afirmaciones sustentadas, parciales e inventadas |
+| `tests/test_narracion.py` | 5 | Narración del video del Guion de Clase |
+| `tests/test_depuracion.py` | 3 | Eliminación de partes duplicadas en el material generado |
+| `tests/test_disponibilidad.py` | 3 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
+| `tests/test_vectorstore.py` | 3 | Indexación y búsqueda por similitud en el vector store |
+| `tests/test_security.py` | 2 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real |
+
+### Prueba manual con la solicitud del enunciado
+
+Con la API en marcha (`make run-api`), la solicitud de ejemplo del enunciado, tal cual:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/adaptar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documento_titulo": "Introduccion a la Arquitectura de Redes VCN en OCI",
+    "documento_contenido": "La Virtual Cloud Network (VCN) es una red privada y personalizable configurada en Oracle Cloud Infrastructure. Similar a una red de centro de datos tradicional, la VCN ofrece control total sobre su entorno de red, incluyendo subredes publicas y privadas, tablas de enrutamiento, Internet Gateways, NAT Gateways y Security Lists para control de trafico mediante reglas de entrada (ingress) y salida (egress).",
+    "perfil_destinatario": "Principiante",
+    "formato_salida": "Flashcards",
+    "nicho_sector": "General",
+    "nivel_detalle": "Didactico"
+  }'
+```
+
+Responde `200` con la misma forma que el ejemplo del enunciado (el texto de las tarjetas
+varía según el modelo que las genere):
+
+```json
+{
+  "status": "exito",
+  "metadatos": {
+    "perfil_aplicado": "Principiante",
+    "formato_generado": "Flashcards",
+    "tiempo_estimado_estudio_minutos": 1,
+    "conceptos_clave": ["VCN", "Oracle Cloud Infrastructure", "Internet Gateways", "NAT Gateways", "Security Lists"]
+  },
+  "contenido_adaptado": {
+    "titulo": "…",
+    "introduccion_contextualizada": "…",
+    "items": [
+      { "frente": "…", "dorso": "…", "pista_didactica": "…" }
+    ]
+  },
+  "evaluacion_calidad": {
+    "anclaje_fuente_score": 1.0,
+    "claridad_pedagogica": "Alta",
+    "observaciones": "Lenguaje ajustado con explicaciones simples y analogías para público principiante, sin tecnicismos excesivos. Aprobado por el Crítico dentro del umbral de fidelidad."
+  },
+  "almacenamiento_oci": {
+    "bucket": "nuevamente-contenidos-educativos",
+    "objeto_id": "contenidos/<doc_id>/flashcards-principiante-<id>.json",
+    "status_upload": "completado"
+  }
+}
+```
+
+`status_upload` es `"completado"` cuando OCI Object Storage está configurado y
+`"fallido_local"` cuando el material se guardó en el respaldo local (`data/fallback/`).
+Esta misma solicitud está automatizada en `test_solicitud_exacta_del_enunciado`.
