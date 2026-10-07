@@ -27,6 +27,7 @@ from nuevamente.schemas.response import (
     ErrorResponse,
     EvaluacionCalidad,
     Metadatos,
+    RegistroAdaptacion,
     RespuestaAdaptacion,
 )
 
@@ -51,6 +52,7 @@ __all__ = [
     "PodcastContenido",
     "PodcastIntervencion",
     "RespuestaAdaptacion",
+    "RegistroAdaptacion",
     "Metadatos",
     "EvaluacionCalidad",
     "AlmacenamientoOCI",

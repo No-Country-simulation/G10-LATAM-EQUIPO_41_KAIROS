@@ -49,6 +49,7 @@ const estado = {
   voz: "femenina",
   respuesta: null,
   tituloDocumento: "",
+  textoUsado: "", // contenido con el que se generó el último material
 };
 
 // ---------- Utilidades ----------
@@ -164,10 +165,23 @@ async function cargarEstado() {
   };
   try {
     const salud = await (await fetch("/health")).json();
-    if (salud.oci_disponible) poner("ok", "Guardando en OCI");
-    else poner("aviso", "Guardado local");
+    if (salud.oci_disponible) {
+      poner("ok", "Guardando en OCI");
+      $("#estado-detalle").textContent =
+        "Cada material se guarda en OCI Object Storage, en la nube de Oracle. Puedes volver a abrirlo desde el Historial.";
+    } else {
+      poner("aviso", "Guardado local");
+      $("#estado-detalle").replaceChildren(
+        "OCI Object Storage no está configurado, así que cada material se guarda en este equipo (",
+        h("code", {}, "data/fallback/"),
+        "). Sigue disponible en el Historial. Para guardarlo en la nube, configura las credenciales de OCI (ver ",
+        h("code", {}, "docs/SETUP_OCI.md"),
+        ").",
+      );
+    }
   } catch {
     poner("error", "API sin conexión");
+    $("#estado-detalle").textContent = "No se pudo contactar con la API. Revisa que el servidor esté en marcha.";
   }
 }
 
@@ -364,10 +378,11 @@ async function generar(evento) {
 
   try {
     await animarEtapas(llamada);
-    const respuesta = await llamada;
+    const publica = await llamada;
     estado.tituloDocumento = peticion.titulo;
-    mostrarResultado(respuesta, peticion.titulo);
-    agregarAlHistorial(respuesta, peticion.titulo);
+    estado.textoUsado = $("#contenido").value;
+    mostrarResultado(await cargarRegistro(publica), peticion.titulo, publica);
+    agregarAlHistorial(publica, peticion.titulo);
   } catch (err) {
     mostrarVista(vistaAnterior);
     mostrarError(
@@ -381,7 +396,34 @@ async function generar(evento) {
 
 // ---------- Resultado ----------
 
-function mostrarResultado(respuesta, tituloDocumento) {
+// La API devuelve la forma pública del enunciado (sin fuentes, secciones ni el detalle de
+// la verificación). Para pintar el material con sus secciones y el panel de calidad, la
+// interfaz lee el registro completo guardado. Si no se puede, usa la respuesta pública con
+// valores por defecto en lo que falta.
+async function cargarRegistro(publica) {
+  try {
+    const resp = await fetch(`/api/v1/contenidos/${publica.almacenamiento_oci.objeto_id}/detalle`);
+    if (resp.ok) return { ...(await resp.json()), almacenamiento_oci: publica.almacenamiento_oci };
+  } catch {
+    // sigue con la respuesta pública
+  }
+  const ev = publica.evaluacion_calidad;
+  return {
+    ...publica,
+    metadatos: { modelo_llm: "", tiempo_generacion_segundos: 0, ...publica.metadatos },
+    contenido_adaptado: { formato: publica.metadatos.formato_generado, ...publica.contenido_adaptado },
+    evaluacion_calidad: {
+      afirmaciones_total: 0,
+      afirmaciones_sustentadas: 0,
+      afirmaciones_no_sustentadas: [],
+      umbral_aplicado: 0,
+      aprobado_por_critico: ev.claridad_pedagogica !== "Baja",
+      ...ev,
+    },
+  };
+}
+
+function mostrarResultado(respuesta, tituloDocumento, publica = respuesta) {
   estado.respuesta = respuesta;
   const c = respuesta.contenido_adaptado;
   const m = respuesta.metadatos;
@@ -400,7 +442,7 @@ function mostrarResultado(respuesta, tituloDocumento) {
   $("#p-contenido").replaceChildren(...[aviso, renderContenido(c)].filter(Boolean));
   $("#p-calidad").replaceChildren(renderCalidad(respuesta.evaluacion_calidad));
   $("#p-almacenamiento").replaceChildren(renderAlmacenamiento(respuesta.almacenamiento_oci));
-  $("#json").textContent = JSON.stringify(respuesta, null, 2);
+  $("#json").textContent = JSON.stringify(publica, null, 2);
 
   activarPestana("contenido");
   mostrarVista("resultado");
@@ -539,17 +581,112 @@ function renderFlashcards(c) {
   );
 }
 
+// El quiz se califica sobre 100 y todas las preguntas valen lo mismo.
+const PUNTAJE_QUIZ = 100;
+const formatoPuntos = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+// Nivel según la nota final: icono, título, mensaje y clase de color.
+function nivelQuiz(nota) {
+  if (nota >= 90) return ["🏆", "Excelente", "Dominas el contenido del documento.", "nivel-alto"];
+  if (nota >= 70) return ["✅", "Aprobado", "Tienes una buena base; repasa los temas de abajo para afianzarla.", "nivel-alto"];
+  if (nota >= 50) return ["📚", "En progreso", "Vas por buen camino, pero aún hay temas por reforzar.", "nivel-medio"];
+  return ["🔁", "Necesitas repasar", "Vuelve a estudiar los temas de abajo antes de intentarlo de nuevo.", "nivel-bajo"];
+}
+
+// Preguntas falladas agrupadas por el tema (sección del documento) que hay que estudiar.
+function puntosDeMejora(fallos) {
+  if (!fallos.length) {
+    return h("p", { class: "mejora-vacia" }, "🎯 ¡Sin errores! No tienes temas pendientes de repaso.");
+  }
+  const temas = new Map();
+  for (const f of fallos) {
+    const seccion = tituloSeccion(f.p.seccion);
+    const tema = seccion && seccion !== "Documento completo" ? seccion : "Tema general del documento";
+    if (!temas.has(tema)) temas.set(tema, []);
+    temas.get(tema).push(f);
+  }
+  return h(
+    "div",
+    { class: "mejora-temas" },
+    [...temas].map(([tema, items]) =>
+      h(
+        "div",
+        { class: "mejora-tema" },
+        h("h5", {}, `📌 ${tema}`),
+        h(
+          "ul",
+          { class: "lista" },
+          items.map(({ p, i }) =>
+            h(
+              "li",
+              {},
+              h("strong", {}, `Pregunta ${i + 1}: `),
+              p.enunciado,
+              h("span", { class: "mejora-correcta" }, `Respuesta correcta: ${p.opciones[p.indice_correcto]}`),
+              h("span", { class: "mejora-estudiar" }, `Qué estudiar: ${p.justificacion}`),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 function renderQuiz(c) {
+  const total = c.preguntas.length;
+  const valor = PUNTAJE_QUIZ / total;
+  const fallos = [];
   let respondidas = 0;
   let aciertos = 0;
+  const puntaje = () => Math.round(aciertos * valor);
   const progreso = barraProgreso("");
   const actualizar = () => {
-    progreso.actualizar(respondidas, c.preguntas.length, `respondidas · ${aciertos} correctas`);
+    progreso.actualizar(respondidas, total, `respondidas · ${puntaje()} / ${PUNTAJE_QUIZ} pts`);
   };
   actualizar();
 
+  const resultado = h("section", { class: "quiz-resultado", hidden: true, "aria-live": "polite" });
+  const mostrarResultado = () => {
+    const nota = puntaje();
+    const [icono, titulo, mensaje, clase] = nivelQuiz(nota);
+    resultado.className = `quiz-resultado ${clase}`;
+    resultado.replaceChildren(
+      h(
+        "div",
+        { class: "resultado-nota" },
+        h("span", { class: "resultado-icono" }, icono),
+        h(
+          "div",
+          {},
+          h("span", { class: "numero-parte" }, "Resultado final"),
+          h("strong", { class: "resultado-puntaje" }, `${nota} / ${PUNTAJE_QUIZ} pts`),
+          h("span", { class: "resultado-nivel" }, `${titulo} · ${aciertos} de ${total} correctas`),
+        ),
+      ),
+      h("p", { class: "resultado-mensaje" }, mensaje),
+      h("h4", {}, "Puntos de mejora"),
+      puntosDeMejora(fallos),
+      h(
+        "button",
+        {
+          type: "button",
+          class: "btn-secundario",
+          onclick: () => {
+            const nuevo = renderQuiz(c);
+            raiz.replaceWith(nuevo);
+            nuevo.scrollIntoView({ behavior: "smooth", block: "start" });
+          },
+        },
+        "↻ Volver a intentar",
+      ),
+    );
+    resultado.hidden = false;
+    resultado.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
   const pregunta = ([p, i]) => {
     const retro = h("p", { class: "retro", hidden: true });
+    const chip = h("span", { class: "puntos-pregunta" }, `${formatoPuntos(valor)} pts`);
     const botones = p.opciones.map((opcion, j) =>
       h(
         "button",
@@ -561,11 +698,18 @@ function renderQuiz(c) {
             botones[p.indice_correcto].classList.add("correcta");
             const acerto = j === p.indice_correcto;
             if (!acerto) botones[j].classList.add("incorrecta");
-            retro.textContent = `${acerto ? "🎉 ¡Correcto! " : "💭 Casi. "}${p.justificacion}`;
+            const letraCorrecta = String.fromCharCode(65 + p.indice_correcto);
+            retro.textContent = acerto
+              ? `🎉 ¡Correcto! ${p.justificacion}`
+              : `❌ Incorrecto. La respuesta correcta es la ${letraCorrecta}. ${p.justificacion}`;
             retro.hidden = false;
+            chip.textContent = acerto ? `+${formatoPuntos(valor)} pts` : `0 de ${formatoPuntos(valor)} pts`;
+            chip.classList.add(acerto ? "ganados" : "perdidos");
             respondidas += 1;
             if (acerto) aciertos += 1;
+            else fallos.push({ p, i });
             actualizar();
+            if (respondidas === total) mostrarResultado();
           },
         },
         h("span", { class: "letra" }, String.fromCharCode(65 + j)),
@@ -575,20 +719,25 @@ function renderQuiz(c) {
     return h(
       "div",
       { class: "pregunta" },
-      h("span", { class: "numero-parte" }, `Pregunta ${i + 1}`),
+      h("div", { class: "pregunta-cabecera" }, h("span", { class: "numero-parte" }, `Pregunta ${i + 1}`), chip),
       h("h4", {}, p.enunciado),
       h("div", { class: "opciones" }, botones),
       retro,
     );
   };
 
-  return h(
+  const raiz = h(
     "div",
     {},
-    cabeceraMaterial(c.titulo, `${c.preguntas.length} preguntas de opción múltiple sobre el documento.`),
+    cabeceraMaterial(
+      c.titulo,
+      `${total} preguntas de opción múltiple · cada una vale ${formatoPuntos(valor)} pts · total ${PUNTAJE_QUIZ} pts.`,
+    ),
     progreso.el,
     porSeccion(c.preguntas, (partes) => partes.map(pregunta)),
+    resultado,
   );
+  return raiz;
 }
 
 function renderTutorial(c) {
@@ -935,7 +1084,7 @@ function agregarAlHistorial(respuesta, titulo) {
   lista.unshift({
     objeto_id: objetoId,
     titulo,
-    formato: respuesta.contenido_adaptado.formato,
+    formato: respuesta.metadatos.formato_generado,
     perfil: respuesta.metadatos.perfil_aplicado,
     fecha: new Date().toISOString(),
   });
@@ -981,8 +1130,9 @@ async function abrirDelHistorial(item) {
   try {
     const resp = await fetch(`/api/v1/contenidos/${item.objeto_id}`);
     if (!resp.ok) throw new Error(await mensajeDeError(resp));
+    const publica = await resp.json();
     estado.tituloDocumento = item.titulo;
-    mostrarResultado(await resp.json(), item.titulo);
+    mostrarResultado(await cargarRegistro(publica), item.titulo, publica);
   } catch (err) {
     mostrarError(`No se pudo abrir "${item.titulo}": ${err.message}`);
     if (/no encontrado/i.test(err.message)) {
@@ -1047,10 +1197,32 @@ function abrirHistorial(abierto) {
   $("#btn-historial").setAttribute("aria-expanded", String(abierto));
 }
 
-// "Crear": vuelve al formulario para empezar otro material. El texto del documento
-// se conserva (lo habitual es pedir otro formato del mismo documento) y el material
-// anterior sigue a un clic en "Mi material".
+// Panel del indicador de almacenamiento ("Guardado local" / "Guardando en OCI").
+function abrirEstado(abierto) {
+  $("#estado-menu").hidden = !abierto;
+  $("#estado-oci").setAttribute("aria-expanded", String(abierto));
+  $("#btn-ver-guardado").hidden = !estado.respuesta;
+}
+
+// Vacía el formulario. Si hay texto escrito que todavía no se usó para generar nada,
+// pide confirmación antes de borrarlo.
+function vaciarFormulario() {
+  const contenido = $("#contenido").value.trim();
+  if (contenido && contenido !== estado.textoUsado.trim() && contenido !== EJEMPLO.trim()) {
+    if (!confirm("¿Empezar un material nuevo? Se borrará el texto que escribiste y aún no usaste.")) return false;
+  }
+  $("#titulo").value = "";
+  $("#contenido").value = "";
+  $("#contenido").dispatchEvent(new Event("input", { bubbles: true }));
+  $("#archivo").value = "";
+  elegirArchivo(null);
+  return true;
+}
+
+// "Crear": vuelve al formulario vacío para empezar otro material. El material anterior
+// sigue a un clic en "Mi material" y en el Historial.
 function crearNuevo() {
+  if (!vaciarFormulario()) return;
   mostrarError("");
   if ($("#progreso").hidden) mostrarVista("vacio"); // mientras se genera, no se interrumpe
   marcarSeccion("inicio");
@@ -1093,19 +1265,29 @@ function iniciarMenu() {
   });
 
   $("#btn-historial").addEventListener("click", () => abrirHistorial($("#historial-menu").hidden));
+  $("#estado-oci").addEventListener("click", () => abrirEstado($("#estado-menu").hidden));
+  $("#btn-ver-guardado").addEventListener("click", () => {
+    abrirEstado(false);
+    abrirMenu(false);
+    verMaterial();
+    activarPestana("almacenamiento");
+  });
   $("#btn-borrar-historial").addEventListener("click", () => {
     guardarHistorial([]);
     renderHistorial();
   });
   // clic fuera: cierra el desplegable del historial y el menú del móvil
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".menu-desplegable")) abrirHistorial(false);
+    if (!e.target.closest("#btn-historial, #historial-menu")) abrirHistorial(false);
+    if (!e.target.closest("#estado-oci, #estado-menu")) abrirEstado(false);
     if (!e.target.closest(".navbar")) abrirMenu(false);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!$("#historial-menu").hidden) $("#btn-historial").focus();
+    if (!$("#estado-menu").hidden) $("#estado-oci").focus();
     abrirHistorial(false);
+    abrirEstado(false);
     abrirMenu(false);
   });
 

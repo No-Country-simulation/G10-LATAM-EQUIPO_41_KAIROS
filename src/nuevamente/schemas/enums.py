@@ -6,17 +6,38 @@ NuevaMente), más "Salud" ya incluido como nicho de foco del equipo.
 """
 from __future__ import annotations
 
+import unicodedata
 from enum import Enum
 
 
-class PerfilDestinatario(str, Enum):
+def _clave(texto: str) -> str:
+    """Forma comparable de una opción: sin tildes, en minúsculas y con los espacios unificados."""
+    sin_tildes = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+    return " ".join(sin_tildes.lower().replace(" / ", "/").split())
+
+
+class _OpcionFlexible(str, Enum):
+    """Acepta el valor escrito sin tildes o con otras mayúsculas: el ejemplo de solicitud del
+    enunciado envía "Didactico", y un cliente puede escribir "lider tecnico/arquitecto". La
+    respuesta siempre usa el valor canónico ("Didáctico")."""
+
+    @classmethod
+    def _missing_(cls, valor):
+        if isinstance(valor, str):
+            for opcion in cls:
+                if _clave(opcion.value) == _clave(valor):
+                    return opcion
+        return None
+
+
+class PerfilDestinatario(_OpcionFlexible):
     PRINCIPIANTE = "Principiante"
     DESARROLLADOR_JUNIOR = "Desarrollador Junior/Semi Senior"
     LIDER_TECNICO = "Líder Técnico/Arquitecto"
     GESTOR_EJECUTIVO = "Gestor/Ejecutivo"
 
 
-class FormatoSalida(str, Enum):
+class FormatoSalida(_OpcionFlexible):
     TUTORIAL = "Tutorial"
     FLASHCARDS = "Flashcards"
     QUIZ = "Quiz"
@@ -25,14 +46,14 @@ class FormatoSalida(str, Enum):
     PODCAST = "Podcast"
 
 
-class NichoSector(str, Enum):
+class NichoSector(_OpcionFlexible):
     GENERAL = "General"
     FINTECH = "Fintech"
     SALUD = "Salud"
     ECOMMERCE = "E-commerce"
 
 
-class NivelDetalle(str, Enum):
+class NivelDetalle(_OpcionFlexible):
     CONCISO = "Conciso"
     DIDACTICO = "Didáctico"
     PROFUNDO = "Profundo"

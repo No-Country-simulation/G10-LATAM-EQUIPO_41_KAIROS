@@ -51,9 +51,16 @@
         </ul>
 
         <div class="menu-acciones">
-          <span id="estado-oci" class="estado" title="Dónde se guarda el material">
-            <span class="punto" aria-hidden="true"></span><span class="estado-texto">Conectando…</span>
-          </span>
+          <div class="menu-desplegable estado-desplegable">
+            <button type="button" id="estado-oci" class="estado" aria-haspopup="true" aria-expanded="false" aria-controls="estado-menu" title="Dónde se guarda el material">
+              <span class="punto" aria-hidden="true"></span><span class="estado-texto">Conectando…</span>
+            </button>
+            <div id="estado-menu" class="desplegable desplegable-derecha" hidden>
+              <p class="desplegable-titulo">Dónde se guardan tus materiales</p>
+              <p id="estado-detalle" class="estado-detalle"></p>
+              <button type="button" id="btn-ver-guardado" class="enlace" hidden>☁️ Ver dónde se guardó este material</button>
+            </div>
+          </div>
           <a class="btn-api" href="/docs" target="_blank" rel="noopener">API ↗</a>
           <button type="button" id="btn-tema" class="btn-icono" aria-label="Cambiar a modo oscuro" title="Cambiar tema">🌙</button>
         </div>

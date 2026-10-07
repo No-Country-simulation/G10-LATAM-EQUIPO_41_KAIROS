@@ -95,10 +95,10 @@ if generar:
 
             import json as _json
 
-            from nuevamente.schemas.response import AlmacenamientoOCI, Metadatos, RespuestaAdaptacion
+            from nuevamente.schemas.response import AlmacenamientoOCI, Metadatos, RegistroAdaptacion
             import uuid as _uuid
 
-            respuesta = RespuestaAdaptacion(
+            respuesta = RegistroAdaptacion(
                 request_id=str(_uuid.uuid4()),
                 metadatos=resultado.metadatos,
                 contenido_adaptado=resultado.contenido,
@@ -187,7 +187,7 @@ if st.session_state.historial:
             st.download_button("⬇️ Descargar CSV (Anki)", csv_data, file_name="contenido_anki.csv")
 
     with tab_json:
-        st.json(respuesta.model_dump(mode="json"))
+        st.json(respuesta.a_publica().model_dump(mode="json"))
 
     with tab_calidad:
         ev = respuesta.evaluacion_calidad
