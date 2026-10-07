@@ -13,6 +13,9 @@ Diseño:
     lo corrija, hasta `max_intentos`.
   - Errores transitorios (cuota 429, 5xx) se reintentan con backoff exponencial y,
     si el modelo sigue saturado, se pasa a los de LLM_MODELOS_RESPALDO.
+  - Cada llamada tiene un tiempo máximo (LLM_TIMEOUT_S) y todo el intento con Gemini
+    un presupuesto total (LLM_PRESUPUESTO_S): si se agota, se abandona y el pipeline
+    usa el respaldo local, en vez de dejar al usuario esperando minutos.
 """
 from __future__ import annotations
 
@@ -27,7 +30,9 @@ from nuevamente.llm.base import LLMError
 _CODIGOS_TRANSITORIOS = {429, 500, 502, 503, 504}
 # Intentos por modelo ante errores transitorios, antes de pasar al de respaldo.
 # Cada intento cuenta para la cuota diaria (20 peticiones/modelo en el plan gratuito).
-_REINTENTOS_RED = 3
+_REINTENTOS_RED = 2
+# Sin tiempo suficiente para una llamada útil, no vale la pena empezarla.
+_MINIMO_PARA_LLAMAR_S = 8
 
 
 def _cuota_diaria_agotada(exc) -> bool:
@@ -64,23 +69,44 @@ class GeminiLLM:
         self.nombre_modelo = modelo or settings.llm_model
         # Modelo principal primero y luego los de respaldo, sin repetidos.
         self._modelos = list(dict.fromkeys([self.nombre_modelo, *settings.llm_modelos_respaldo]))
-        self._client = genai.Client(api_key=api_key)
+        from google.genai import types
+
+        # Los reintentos los maneja _llamar (con presupuesto total); los del SDK se
+        # desactivan para que no multipliquen la espera.
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(
+                timeout=settings.llm_timeout_s * 1000,
+                retry_options=types.HttpRetryOptions(attempts=1),
+            ),
+        )
         self._max_intentos = max_intentos
         self._temperatura = temperatura
 
-    def _llamar(self, contents: list, config, errors) -> str:
+    def _llamar(self, contents: list, config, errors, limite: float) -> str:
         """Hace una llamada con reintentos ante errores transitorios (429/5xx).
 
         Si el modelo actual sigue saturado tras `_REINTENTOS_RED` intentos, pasa al
         siguiente modelo de respaldo. `nombre_modelo` queda con el que respondió, así
         los metadatos reflejan el modelo que generó el contenido de verdad.
+        `limite` (reloj monotónico) es el fin del presupuesto de todo el material.
         """
+        from google.genai import types
+
         ultimo: Exception | None = None
+        agotado = lambda: limite - time.monotonic() < _MINIMO_PARA_LLAMAR_S  # noqa: E731
         for modelo in self._modelos:
             for intento in range(_REINTENTOS_RED):
+                if agotado():
+                    break
                 try:
+                    # cada llamada espera como mucho lo que queda del presupuesto
+                    restante_ms = int(min(settings.llm_timeout_s, limite - time.monotonic()) * 1000)
+                    config_llamada = config.model_copy(update={"http_options": types.HttpOptions(
+                        timeout=restante_ms, retry_options=types.HttpRetryOptions(attempts=1),
+                    )})
                     respuesta = self._client.models.generate_content(
-                        model=modelo, contents=contents, config=config
+                        model=modelo, contents=contents, config=config_llamada
                     )
                     self.nombre_modelo = modelo
                     return respuesta.text or ""
@@ -90,13 +116,20 @@ class GeminiLLM:
                     ultimo = exc
                     if _cuota_diaria_agotada(exc):
                         break  # reintentar no sirve hasta mañana: siguiente modelo
-                    if intento < _REINTENTOS_RED - 1:
+                    if intento < _REINTENTOS_RED - 1 and not agotado():
                         time.sleep(min(2 ** (intento + 1), 20))
                 except httpx.HTTPError as exc:
-                    # Sin conexión, DNS o SSL cortado: transitorio, igual que un 503.
+                    # Sin conexión, DNS, SSL cortado o sin respuesta a tiempo: transitorio, igual que un 503.
                     ultimo = exc
-                    if intento < _REINTENTOS_RED - 1:
+                    if intento < _REINTENTOS_RED - 1 and not agotado():
                         time.sleep(min(2 ** (intento + 1), 20))
+            if agotado():
+                break
+        if agotado():
+            raise LLMError(
+                f"Gemini no respondió dentro de {settings.llm_presupuesto_s} s "
+                f"(modelos probados hasta agotar el tiempo; último error: {ultimo})."
+            ) from ultimo
         if isinstance(ultimo, httpx.HTTPError):
             raise LLMError(
                 f"No hay conexión con Gemini. Revisa tu conexión a internet ({ultimo})."
@@ -116,9 +149,10 @@ class GeminiLLM:
         )
         contents: list = [types.Content(role="user", parts=[types.Part(text=user)])]
         ultimo_error = ""
+        limite = time.monotonic() + settings.llm_presupuesto_s
 
         for _ in range(self._max_intentos):
-            texto = self._llamar(contents, config, errors)
+            texto = self._llamar(contents, config, errors, limite)
             try:
                 return schema.model_validate_json(texto)
             except ValidationError as exc:

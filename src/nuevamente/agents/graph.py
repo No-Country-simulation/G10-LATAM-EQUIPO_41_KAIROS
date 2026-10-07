@@ -23,7 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from nuevamente.config import settings
-from nuevamente.fidelity.verifier import ResultadoFidelidad, evaluar_fidelidad
+from nuevamente.fidelity.verifier import ResultadoFidelidad, _fuente_mas_cercana, evaluar_fidelidad
 from nuevamente.llm.base import LLMClient, LLMError
 from nuevamente.llm.factory import crear_llm
 from nuevamente.llm.prompts import construir_prompt_sistema
@@ -75,6 +75,12 @@ def _planificar(coleccion: ColeccionDocumento, formato: str) -> list[str]:
 _EVIDENCIA_OBJETIVO = 12
 
 
+def _es_texto_corrido(texto: str) -> bool:
+    """Si el fragmento trae al menos una oración de verdad (8+ palabras terminadas en
+    punto). Una portada o unos créditos son rótulos sueltos: título, institución, código, año."""
+    return any(len(o.split()) >= 8 for o in re.split(r"(?<=[.!?])\s+", texto) if o.rstrip().endswith((".", "!", "?")))
+
+
 def _investigar(coleccion: ColeccionDocumento, secciones: list[str], top_k_por_seccion: int | None = None) -> list[dict]:
     """Recupera evidencia por sección (no un único top-k global) y arma la lista
     de chunks que verá el Redactor, con su chunk_id para trazabilidad.
@@ -88,8 +94,24 @@ def _investigar(coleccion: ColeccionDocumento, secciones: list[str], top_k_por_s
         top_k_por_seccion = max(2, math.ceil(_EVIDENCIA_OBJETIVO / max(1, len(secciones))))
     seleccionados = {}
     for seccion in secciones:
-        for r in coleccion.buscar_por_seccion(seccion, consulta=seccion, top_k=top_k_por_seccion):
-            seleccionados.setdefault(r.chunk.chunk_id, r.chunk)
+        if seccion == "Documento completo":
+            # Sin títulos no hay consulta útil (el nombre de la sección no dice nada del
+            # texto): se toman fragmentos repartidos por todo el documento, no los primeros.
+            todos = [c for c in coleccion.chunks if c.seccion == seccion]
+            cupo = max(_EVIDENCIA_OBJETIVO, top_k_por_seccion)
+            paso = max(1, len(todos) / cupo)
+            elegidos = [todos[int(i * paso)] for i in range(min(cupo, len(todos)))]
+        elif seccion == "Introducción" and len(secciones) > 1:
+            # Lo que va antes del primer título: portada, créditos o una presentación.
+            # Aporta como mucho un fragmento, y solo si es texto corrido.
+            elegidos = [
+                r.chunk for r in coleccion.buscar_por_seccion(seccion, consulta=seccion, top_k=top_k_por_seccion)
+                if _es_texto_corrido(r.chunk.texto)
+            ][:1]
+        else:
+            elegidos = [r.chunk for r in coleccion.buscar_por_seccion(seccion, consulta=seccion, top_k=top_k_por_seccion)]
+        for chunk in elegidos:
+            seleccionados.setdefault(chunk.chunk_id, chunk)
     return [
         {"chunk_id": c.chunk_id, "texto": c.texto, "seccion": c.seccion}
         for c in sorted(seleccionados.values(), key=lambda c: c.orden)
@@ -188,16 +210,49 @@ def _depurar(contenido: ContenidoAdaptado) -> ContenidoAdaptado:
     return type(contenido).model_validate(datos)
 
 
+_CAMPOS_DE_TEXTO = ("dorso", "justificacion", "instruccion", "narracion", "texto")
+
+
 def _asignar_secciones(contenido: ContenidoAdaptado, coleccion: ColeccionDocumento) -> None:
     """Anota en cada parte generada (tarjeta, pregunta, paso, escena, intervención) la
-    sección del documento de la que sale, a partir de su primera fuente. Así la interfaz
-    y las exportaciones pueden mostrar el título de cada parte. No lo decide el LLM."""
+    sección del documento de la que sale. Así la interfaz y las exportaciones pueden
+    mostrar el título de cada parte. No lo decide el LLM.
+
+    Si una parte cita chunks de varias secciones, su sección es la del chunk que de
+    verdad sustenta su texto (no simplemente el primero que citó), para que el título
+    bajo el que aparece corresponda a lo que dice.
+    """
     partes = []
     for campo in ("items", "preguntas", "pasos", "escenas", "intervenciones"):
         partes.extend(getattr(contenido, campo, None) or [])
     for parte in partes:
-        chunk = coleccion.get_chunk(parte.fuentes[0]) if parte.fuentes else None
-        parte.seccion = chunk.seccion if chunk else ""
+        fuentes = [f for f in parte.fuentes if coleccion.get_chunk(f)]
+        if len(fuentes) > 1:
+            texto = next((getattr(parte, c) for c in _CAMPOS_DE_TEXTO if getattr(parte, c, "")), "")
+            fuentes = [_fuente_mas_cercana(texto, fuentes, coleccion)]
+        parte.seccion = coleccion.get_chunk(fuentes[0]).seccion if fuentes else ""
+
+
+def _agrupar_por_seccion(contenido: ContenidoAdaptado, coleccion: ColeccionDocumento) -> None:
+    """Deja juntas las partes de una misma sección, en el orden del documento, y vuelve a
+    numerar. Un LLM puede alternar temas (sección A, B, A…): en pantalla el mismo título
+    aparecería varias veces con los contenidos entremezclados. Dentro de cada sección se
+    respeta el orden que eligió el Redactor. El podcast no se toca: es una conversación."""
+    posicion = {s: i for i, s in enumerate(coleccion.secciones())}
+    for campo in ("items", "preguntas", "pasos", "escenas"):
+        partes = getattr(contenido, campo, None)
+        if not partes:
+            continue
+        claves, anterior = [], 0
+        for parte in partes:
+            # una parte sin sección conocida se queda junto a la que la precede
+            anterior = posicion.get(parte.seccion, anterior)
+            claves.append(anterior)
+        ordenadas = [p for _, p in sorted(zip(claves, partes), key=lambda par: par[0])]
+        for i, parte in enumerate(ordenadas, start=1):
+            if hasattr(parte, "orden"):
+                parte.orden = i
+        setattr(contenido, campo, ordenadas)
 
 
 def _calcular_tiempo_estudio(contenido: ContenidoAdaptado) -> int:
@@ -286,6 +341,7 @@ def generar_contenido_educativo(
         contenido_anterior = contenido
 
     _asignar_secciones(contenido, coleccion)
+    _agrupar_por_seccion(contenido, coleccion)
     tiempo_generacion = round(time.perf_counter() - t0, 3)
     sin_afirmaciones = evaluacion_fidelidad is None or evaluacion_fidelidad.total == 0
     score_final = 0.0 if sin_afirmaciones else evaluacion_fidelidad.score

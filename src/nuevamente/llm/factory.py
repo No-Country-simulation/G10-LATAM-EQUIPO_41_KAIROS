@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from nuevamente.config import settings
+from nuevamente.llm import disponibilidad
 from nuevamente.llm.base import LLMClient, LLMError
 from nuevamente.llm.template_llm import TemplateLLM
 
@@ -21,20 +22,27 @@ class ConRespaldoLocal:
     def __init__(self, principal: LLMClient, respaldo: LLMClient) -> None:
         self._principal = principal
         self._respaldo = respaldo
-        self._usar_respaldo = False
+        self._servicio = f"llm:{type(principal).__name__}"
         self.nombre_modelo = principal.nombre_modelo
-        self.motivo_respaldo = ""
+        # si el proveedor falló hace poco, se va directo al respaldo sin volver a esperarlo
+        self.motivo_respaldo = disponibilidad.en_pausa(self._servicio) or ""
+        self._usar_respaldo = bool(self.motivo_respaldo)
 
     def generar_estructurado(self, schema, system: str, user: str):
         if not self._usar_respaldo:
             try:
                 resultado = self._principal.generar_estructurado(schema, system, user)
                 self.nombre_modelo = self._principal.nombre_modelo
+                disponibilidad.reanudar(self._servicio)
                 return resultado
             except LLMError as exc:
-                logger.warning("Proveedor principal no disponible, se usa el respaldo local: %s", exc)
+                logger.warning(
+                    "Proveedor principal no disponible, se usa el respaldo local por %s min: %s",
+                    settings.llm_pausa_min, exc,
+                )
                 self._usar_respaldo = True
                 self.motivo_respaldo = str(exc)
+                disponibilidad.pausar(self._servicio, self.motivo_respaldo)
         self.nombre_modelo = f"{self._respaldo.nombre_modelo} (respaldo: {self._principal.nombre_modelo} no disponible)"
         return self._respaldo.generar_estructurado(schema, system, user)
 

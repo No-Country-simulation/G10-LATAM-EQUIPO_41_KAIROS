@@ -1,4 +1,4 @@
-# Kairos - NuevaMente 🎓  
+# NuevaMente 🎓 — Kairos G10
 
 Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
 **Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
@@ -21,9 +21,10 @@ transforma en contenido educativo personalizado según:
   de Clase, Podcast (solo en audio).
 - **Nicho/sector:** General, Fintech, Salud, E-commerce.
 
-Cualquier resultado se puede descargar como **presentación PowerPoint (.pptx)**,
-además de Markdown y CSV para Anki (botón "📊 PowerPoint" en la interfaz, o
-`GET /api/v1/contenidos/{objeto_id}/exportar?formato=pptx&titulo=...`). Cada formato
+Cualquier resultado se puede descargar como **documento Word (.docx)** o
+**presentación PowerPoint (.pptx)**, además de Markdown y CSV para Anki (botones
+"📝 Word" y "📊 PowerPoint" en la interfaz, o
+`GET /api/v1/contenidos/{objeto_id}/exportar?formato=docx|pptx&titulo=...`). Cada formato
 tiene su propio diseño: tarjetas pregunta/respuesta, cada pregunta del quiz seguida
 de su respuesta, un paso por diapositiva, puntos clave, y las escenas del guion con
 la narración en las **notas del orador**.
@@ -86,15 +87,15 @@ flowchart LR
 
 ## 3. Equipo de trabajo (Kairos G10)
 
-| Persona | Rol | Reemplazo | 
-|---|---|---|
-| Juan Pablo Calla | Project Manager | |
-| Gaspar Martinez Paiva | Data Engineer | |
-| Bryan Infante | AI Engineer | Ethan Espinoza Acosta | 
-| Adrian Gil | ML Engineer | Gaspar Martinez Paiva | 
-| Ethan Espinoza Acosta | Backend Developer | |
-| Dario Higuera Moreno | No Code Developer | |
-| Diana Dure | QA Tester | |
+| Persona | Rol |
+|---|---|
+| Juan Pablo Calla (PM) | Project Manager |
+| Gaspar Martinez Paiva | Data Engineer |
+| Bryan Infante | AI Engineer |
+| Adrian Gil | ML Engineer |
+| Ethan Espinoza Acosta | Backend Developer |
+| Dario Higuera Moreno | No Code Developer |
+| Diana Dure | QA Tester |
 
 ### Quién construyó qué
 
@@ -110,17 +111,15 @@ flowchart LR
 
 ## 4. Decisiones de diseño importantes (léelo antes de evaluar el código)
 
-Este entorno de desarrollo **no tiene acceso de red a APIs externas** (Gemini,
-OpenAI, Anthropic, ChromaDB Cloud, HuggingFace, OCI real). En vez de simular
-resultados con datos inventados, el equipo tomó decisiones de arquitectura que
-mantienen el pipeline **100% real y ejecutable**, con una interfaz clara para
-conectar los servicios en la nube en la máquina del equipo:
+El pipeline es **100% real y ejecutable** también sin servicios en la nube: cada
+pieza externa tiene una alternativa local con la misma interfaz, y la app usa la
+local cuando la externa no está configurada o falla.
 
-| Pieza | En este entorno | En producción (con credenciales) |
+| Pieza | Sin credenciales / respaldo | Con credenciales |
 |---|---|---|
 | Embeddings | `LocalTfidfEmbeddings` (scikit-learn, sin red) | `GeminiEmbeddings` (por implementar) — mismo contrato `EmbeddingsProvider` |
 | Vector store | Store propio en numpy, aislado por `doc_id` | ChromaDB — misma interfaz `buscar`/`buscar_por_seccion` |
-| LLM generador | `TemplateLLM` (extractivo, determinista) | `GeminiLLMClient` (por implementar) — misma interfaz `LLMClient` |
+| LLM generador | `TemplateLLM` (extractivo, determinista), también respaldo si el LLM falla (`LLM_RESPALDO_LOCAL`) | `GeminiLLM` (`LLM_PROVIDER=gemini`, con modelos de respaldo) o `ClaudeLLM` (`LLM_PROVIDER=claude`) — misma interfaz `LLMClient` |
 | Juez de fidelidad | Similitud TF-IDF contra el chunk citado | LLM juez con cita textual |
 | Orquestación | Función Python secuencial con reintento | Migrable a `StateGraph` de LangGraph sin cambiar las etapas |
 | OCI Object Storage | Fallback a `data/fallback/` si no hay credenciales | Cliente real vía `oci` SDK (ya integrado, solo requiere `.env`) |
@@ -133,11 +132,32 @@ componente de generación/embeddings, no si el flujo funciona.
 
 ## 5. Instalación y uso
 
+Requiere Python 3.10 o superior. Se recomienda un entorno virtual:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+cp .env.example .env
+```
+
+Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del repo):
+
+| Comando        | Qué hace                                                                 |
+|----------------|--------------------------------------------------------------------------|
+| `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
+| `make test`    | Corre los tests (93 pruebas, deben pasar todas)                           |
+| `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
+| `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
+| `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
+
+Equivalentes sin `make`:
+
 ```bash
 # 1. Instalar el paquete y dependencias
-pip install -e ".[dev,ui]"
+pip install -e ".[dev,ui,gemini]"
+# (o versiones fijadas: pip install -r requirements.txt)
 
-# 2. Correr los tests (72 pruebas, deben pasar todas)
+# 2. Correr los tests
 pytest tests/ -v
 
 # 3. Levantar la API y la interfaz web (un solo proceso)
@@ -148,9 +168,15 @@ uvicorn nuevamente.api.app:app --reload
 # 4. (Opcional) la interfaz Streamlit anterior sigue disponible
 streamlit run ui/app.py
 
-# 5. Ejecutar los 3 escenarios de demo (Salud, B2B) y guardar evidencia
+# 5. Ejecutar los 3 escenarios de demo y guardar evidencia en docs/demo/resultados/
 python scripts/run_demo.py
 ```
+
+Extras opcionales de `pyproject.toml`: `claude` (Anthropic) y `oci` (OCI Object Storage),
+por ejemplo `pip install -e ".[claude,oci]"`.
+
+> Las rutas de datos (`data/vectorstore`, `data/fallback`, `data/videos`) son relativas al
+> directorio desde donde se ejecuta el comando: correr todo desde la raíz del repo.
 
 ### Variables de entorno (`.env`, ver `.env.example`)
 
@@ -208,12 +234,14 @@ Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
 - [x] Orquestación tipo agentes (Planificador → Investigador → Redactor → Crítico, con reintento)
 - [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
 - [x] Salida JSON estructurada, interfaz web propia + API REST operativa
-- [x] Integración con OCI Object Storage, con fallback local documentado y visible
+- [x] Orquestación con LLM real: Google Gemini (`GeminiLLM`), con Claude como alternativa
+- [ ] Integración con OCI Object Storage **verificada**: el cliente está integrado y el
+      fallback local es visible (`status_upload`), pero falta configurar las credenciales
+      (`~/.oci/config`, `OCI_COMPARTMENT_ID`) e instalar el extra `oci`; ver `docs/SETUP_OCI.md`
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
 - [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
-- [x] Tests automatizados (72), incluida seguridad ante inyección de instrucciones
+- [x] Tests automatizados (93), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
-- [ ] Conectar `GeminiLLMClient` real en la máquina del equipo (con API key)
 
 ## 9. Estructura del repositorio
 
@@ -235,13 +263,15 @@ nuevamente/
 ├── scripts/
 │   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 72 pruebas (Diana)
+├── tests/                  # 93 pruebas (Diana)
 ├── docs/
 │   ├── SETUP_OCI.md
 │   └── demo/
 │       ├── protocolo_bioseguridad_salud.md
 │       └── resultados/
-├── pyproject.toml
+├── pyproject.toml         # paquete instalable (pip install -e .)
+├── requirements.txt       # dependencias fijadas
+├── Makefile               # install / test / run-api / run-ui / demo
 ├── .env.example
 └── README.md
 ```

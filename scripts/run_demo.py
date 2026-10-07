@@ -79,6 +79,9 @@ def main() -> int:
         print(f"Score de fidelidad: {resultado.evaluacion.anclaje_fuente_score:.2f} "
               f"(umbral aplicado: {resultado.evaluacion.umbral_aplicado})")
         print(f"Aprobado por el Crítico: {resultado.evaluacion.aprobado_por_critico}")
+        print(f"Modelo: {resultado.metadatos.modelo_llm}")
+        if resultado.metadatos.modelo_llm.startswith("template"):
+            print("⚠ Se usó el generador local de respaldo, no el LLM configurado.")
         if resultado.evaluacion.afirmaciones_no_sustentadas:
             print(f"⚠ Afirmaciones no sustentadas: {resultado.evaluacion.afirmaciones_no_sustentadas}")
 
@@ -107,6 +110,7 @@ def main() -> int:
                 "tiempo_generacion_segundos": duracion,
                 "anclaje_fuente_score": resultado.evaluacion.anclaje_fuente_score,
                 "aprobado_por_critico": resultado.evaluacion.aprobado_por_critico,
+                "modelo_llm": resultado.metadatos.modelo_llm,
             }
         )
 

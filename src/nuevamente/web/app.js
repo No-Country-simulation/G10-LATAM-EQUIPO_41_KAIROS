@@ -199,7 +199,25 @@ function mostrarError(mensaje) {
   el.hidden = !mensaje;
 }
 
+// Sin título escrito, se usa el del propio documento: su primera línea si parece un
+// título (corta y sin punto final). Si esa línea es solo el primer apartado ("# Lavado
+// de manos" seguido de más "# ...", o "1. Acceso"), no titula todo el documento.
+function tituloDesdeContenido(contenido) {
+  const lineas = contenido.split("\n").map((l) => l.trim()).filter(Boolean);
+  const primera = lineas[0] || "";
+  const nivel = primera.match(/^#+(?=\s)/)?.[0];
+  const esApartado = nivel
+    ? lineas.filter((l) => l.startsWith(`${nivel} `)).length > 1
+    : /^\d{1,2}(?:\.\d{1,2})*[.)]?\s/.test(primera);
+  const titulo = primera.replace(/^#+\s*/, "");
+  const valido = !esApartado && titulo.length >= 3 && titulo.length <= 90 && !/[.;,:]$/.test(titulo);
+  return valido ? titulo : "Documento sin título";
+}
+
 function construirPeticion() {
+  if (!estado.perfil || !estado.formato) {
+    throw new Error("Las opciones aún se están cargando. Espera un momento y vuelve a intentarlo.");
+  }
   const comunes = {
     perfil_destinatario: estado.perfil,
     formato_salida: estado.formato,
@@ -222,7 +240,7 @@ function construirPeticion() {
   const contenido = $("#contenido").value.trim();
   if (contenido.length < 20) throw new Error("Pega un texto de al menos 20 caracteres.");
   let titulo = $("#titulo").value.trim();
-  if (titulo.length < 3) titulo = "Documento sin título";
+  if (titulo.length < 3) titulo = tituloDesdeContenido(contenido);
   return {
     url: "/api/v1/adaptar",
     opciones: {
@@ -242,22 +260,83 @@ function mostrarVista(vista) {
   $("#resultado").hidden = vista !== "resultado";
 }
 
+// Barra de avance en porcentaje. La API responde en una sola llamada, sin avance
+// intermedio: cada etapa tiene su tramo del 0-100% y, mientras se redacta (lo que
+// más tarda), el porcentaje se acerca poco a poco al final del tramo sin llegar a
+// él. Solo marca 100% cuando la respuesta ya llegó.
+const TRAMOS = [
+  [0, 10], // leer y dividir
+  [10, 25], // buscar evidencia
+  [25, 90], // redactar (espera la respuesta de la API)
+  [90, 100], // verificar
+];
+const RITMO_REDACCION_MS = 12000; // a los ~12 s se ha recorrido el 63% del tramo de redacción
+
+function barraAvance() {
+  const caja = $("#progreso-avance");
+  let actual = 0;
+  const pintar = (valor, etapa) => {
+    actual = Math.max(actual, Math.min(100, valor)); // nunca retrocede
+    const redondeado = Math.floor(actual);
+    $("#avance-relleno").style.width = `${actual}%`;
+    $("#avance-porcentaje").textContent = `${redondeado}%`;
+    caja.setAttribute("aria-valuenow", String(redondeado));
+    if (etapa) {
+      $("#avance-etapa").textContent = etapa;
+      caja.setAttribute("aria-valuetext", `${redondeado}% · ${etapa}`);
+    }
+  };
+  $("#avance-relleno").style.width = "0%";
+  pintar(0, "Iniciando…");
+  return { pintar, valor: () => actual };
+}
+
+// Lleva la barra de `desde` a `hasta` en `ms` milisegundos, con un paso suave.
+async function avanzar(barra, desde, hasta, ms, etapa) {
+  const inicio = performance.now();
+  barra.pintar(desde, etapa);
+  while (performance.now() - inicio < ms) {
+    await esperar(50);
+    barra.pintar(desde + ((hasta - desde) * (performance.now() - inicio)) / ms);
+  }
+  barra.pintar(hasta);
+}
+
 async function animarEtapas(peticion) {
   const lista = $("#etapas");
   const items = ETAPAS.map((texto) => h("li", {}, texto));
   lista.replaceChildren(...items);
+  const barra = barraAvance();
   mostrarVista("progreso");
 
-  // El flujo es rápido: cada etapa se muestra un momento para que se entienda
-  // el recorrido, y la última espera a que responda la API. Si la API falla,
-  // generar() captura el error; aquí solo se deja de animar.
+  let termino = false;
+  peticion.then(
+    () => (termino = true),
+    () => (termino = true),
+  );
+
+  // Si la API falla, generar() captura el error; aquí solo se deja de animar.
   for (let i = 0; i < items.length; i++) {
+    const [desde, hasta] = TRAMOS[i];
     items[i].classList.add("activa");
-    if (i < items.length - 1) await esperar(380);
-    else await peticion;
+    if (i === 2) {
+      // redacción: avanza en forma asintótica mientras la API trabaja
+      const inicio = performance.now();
+      barra.pintar(desde, ETAPAS[i]);
+      while (!termino) {
+        await esperar(100);
+        const t = performance.now() - inicio;
+        barra.pintar(desde + (hasta - desde) * 0.97 * (1 - Math.exp(-t / RITMO_REDACCION_MS)));
+      }
+      await peticion;
+      await avanzar(barra, barra.valor(), hasta, 200, ETAPAS[i]);
+    } else {
+      await avanzar(barra, Math.max(desde, barra.valor()), hasta, i === 3 ? 300 : 380, ETAPAS[i]);
+    }
     items[i].classList.replace("activa", "hecha");
   }
-  await esperar(250);
+  barra.pintar(100, "✅ Material listo");
+  await esperar(350);
 }
 
 async function generar(evento) {
@@ -325,7 +404,7 @@ function mostrarResultado(respuesta, tituloDocumento) {
 
   activarPestana("contenido");
   mostrarVista("resultado");
-  habilitarEnlace("material", true);
+  habilitarBoton($("#btn-material"), true);
   marcarSeccion("material");
   $("#resultado").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -546,6 +625,7 @@ function renderTutorial(c) {
     c.errores_comunes.length > 0 &&
       caja("⚠️ Errores comunes", lista(c.errores_comunes)),
     checklist.length > 0 && caja("✅ Checklist final", progreso.el, checklist),
+    c.reto_practico && caja("🏆 Reto práctico", h("p", {}, c.reto_practico)),
   );
 }
 
@@ -823,9 +903,11 @@ function activarPestana(nombre) {
   document.querySelectorAll(".panel-pestana").forEach((p) => (p.hidden = p.id !== `p-${nombre}`));
 }
 
-async function exportar(formato) {
+async function exportar(formato, boton) {
   const objetoId = estado.respuesta?.almacenamiento_oci?.objeto_id;
   if (!objetoId) return;
+  mostrarError("");
+  boton.disabled = true;
   try {
     const parametros = new URLSearchParams({ formato, titulo: estado.tituloDocumento || "" });
     const resp = await fetch(`/api/v1/contenidos/${objetoId}/exportar?${parametros}`);
@@ -834,12 +916,14 @@ async function exportar(formato) {
     const nombreBase = estado.tituloDocumento.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "") || "material";
     const enlace = h("a", {
       href: URL.createObjectURL(blob),
-      download: `${nombreBase}${{ markdown: ".md", anki_csv: "_anki.csv", pptx: ".pptx" }[formato]}`,
+      download: `${nombreBase}${{ markdown: ".md", anki_csv: "_anki.csv", pptx: ".pptx", docx: ".docx" }[formato]}`,
     });
     enlace.click();
     URL.revokeObjectURL(enlace.href);
   } catch (err) {
     mostrarError(`No se pudo descargar: ${err.message}`);
+  } finally {
+    boton.disabled = false;
   }
 }
 
@@ -862,24 +946,34 @@ function agregarAlHistorial(respuesta, titulo) {
 function renderHistorial() {
   const lista = leerHistorial();
   $("#historial-caja").hidden = lista.length === 0;
-  habilitarEnlace("historial", lista.length > 0);
+  habilitarBoton($("#btn-historial"), lista.length > 0, "Aún no hay materiales en el historial");
+  if (lista.length === 0) abrirHistorial(false);
   const contador = $("#contador-historial");
   contador.textContent = lista.length;
   contador.hidden = lista.length === 0;
-  $("#historial").replaceChildren(
-    ...lista.map((item) =>
+  // la misma lista en el desplegable del menú y al pie de la página
+  const elementos = () =>
+    lista.map((item) =>
       h(
         "li",
         {},
         h(
           "button",
-          { type: "button", onclick: () => abrirDelHistorial(item) },
+          {
+            type: "button",
+            onclick: () => {
+              abrirHistorial(false);
+              abrirMenu(false);
+              abrirDelHistorial(item);
+            },
+          },
           h("span", {}, `${FORMATOS[item.formato]?.icono || "📄"} ${item.titulo}`),
-          h("small", {}, `${item.perfil} · ${new Date(item.fecha).toLocaleString()}`),
+          h("small", {}, `${item.formato} · ${item.perfil} · ${new Date(item.fecha).toLocaleString()}`),
         ),
       ),
-    ),
-  );
+    );
+  $("#historial").replaceChildren(...elementos());
+  $("#historial-lista-menu").replaceChildren(...elementos());
 }
 
 async function abrirDelHistorial(item) {
@@ -934,18 +1028,47 @@ function abrirMenu(abierto) {
 }
 
 function marcarSeccion(nombre) {
-  document.querySelectorAll(".menu-enlaces a").forEach((a) => {
-    const activo = a.dataset.seccion === nombre;
-    a.classList.toggle("activo", activo);
-    if (activo) a.setAttribute("aria-current", "true");
-    else a.removeAttribute("aria-current");
+  document.querySelectorAll(".menu-enlaces [data-seccion]").forEach((b) => {
+    const activo = b.dataset.seccion === nombre;
+    b.classList.toggle("activo", activo);
+    if (activo) b.setAttribute("aria-current", "true");
+    else b.removeAttribute("aria-current");
   });
 }
 
-function habilitarEnlace(seccion, habilitado) {
-  const enlace = document.querySelector(`.menu-enlaces a[data-seccion="${seccion}"]`);
-  if (habilitado) enlace.removeAttribute("aria-disabled");
-  else enlace.setAttribute("aria-disabled", "true");
+// Un botón del menú sin nada que mostrar se desactiva y explica por qué al pasar el cursor.
+function habilitarBoton(boton, habilitado, motivo = "") {
+  boton.disabled = !habilitado;
+  boton.title = habilitado ? "" : motivo;
+}
+
+function abrirHistorial(abierto) {
+  $("#historial-menu").hidden = !abierto;
+  $("#btn-historial").setAttribute("aria-expanded", String(abierto));
+}
+
+// "Crear": vuelve al formulario para empezar otro material. El texto del documento
+// se conserva (lo habitual es pedir otro formato del mismo documento) y el material
+// anterior sigue a un clic en "Mi material".
+function crearNuevo() {
+  mostrarError("");
+  if ($("#progreso").hidden) mostrarVista("vacio"); // mientras se genera, no se interrumpe
+  marcarSeccion("inicio");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  const formulario = $("#form");
+  formulario.classList.remove("resaltado");
+  void formulario.offsetWidth; // reinicia la animación si se pulsa dos veces seguidas
+  formulario.classList.add("resaltado");
+  const campo = estado.modo === "archivo" ? $("#archivo") : $("#titulo");
+  campo.focus({ preventScroll: true });
+  if (campo.select) campo.select();
+}
+
+function verMaterial() {
+  if (!estado.respuesta) return;
+  if ($("#progreso").hidden) mostrarVista("resultado");
+  marcarSeccion("material");
+  $("#resultado").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function iniciarMenu() {
@@ -956,18 +1079,40 @@ function iniciarMenu() {
   $("#btn-menu").addEventListener("click", () => abrirMenu(!$("#menu").classList.contains("abierto")));
   // En escritorio el formulario y el material se ven lado a lado, así que no se
   // deduce la sección por el scroll: se resalta la que el usuario eligió.
-  document.querySelectorAll(".menu-enlaces a").forEach((a) =>
-    a.addEventListener("click", () => {
-      abrirMenu(false);
-      marcarSeccion(a.dataset.seccion);
-      if (a.dataset.seccion === "inicio") setTimeout(() => $("#titulo").focus({ preventScroll: true }), 400);
-    }),
-  );
-  document.addEventListener("keydown", (e) => e.key === "Escape" && abrirMenu(false));
+  $("#btn-crear").addEventListener("click", () => {
+    abrirMenu(false);
+    crearNuevo();
+  });
+  $(".marca").addEventListener("click", (e) => {
+    e.preventDefault();
+    crearNuevo();
+  });
+  $("#btn-material").addEventListener("click", () => {
+    abrirMenu(false);
+    verMaterial();
+  });
+
+  $("#btn-historial").addEventListener("click", () => abrirHistorial($("#historial-menu").hidden));
+  $("#btn-borrar-historial").addEventListener("click", () => {
+    guardarHistorial([]);
+    renderHistorial();
+  });
+  // clic fuera: cierra el desplegable del historial y el menú del móvil
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".menu-desplegable")) abrirHistorial(false);
+    if (!e.target.closest(".navbar")) abrirMenu(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("#historial-menu").hidden) $("#btn-historial").focus();
+    abrirHistorial(false);
+    abrirMenu(false);
+  });
 
   const dialogo = $("#dialogo-como");
   $("#btn-como").addEventListener("click", () => {
     abrirMenu(false);
+    abrirHistorial(false);
     dialogo.showModal();
   });
   dialogo.addEventListener("click", (e) => e.target === dialogo && dialogo.close()); // clic fuera cierra
@@ -979,7 +1124,7 @@ function iniciar() {
   iniciarMenu();
   document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
   document.querySelectorAll(".pestana").forEach((b) => b.addEventListener("click", () => activarPestana(b.dataset.pestana)));
-  document.querySelectorAll("[data-exportar]").forEach((b) => b.addEventListener("click", () => exportar(b.dataset.exportar)));
+  document.querySelectorAll("[data-exportar]").forEach((b) => b.addEventListener("click", () => exportar(b.dataset.exportar, b)));
 
   $("#nicho").addEventListener("change", actualizarAvisoSalud);
   $("#form").addEventListener("submit", generar);

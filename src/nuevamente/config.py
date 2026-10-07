@@ -54,6 +54,11 @@ class Settings:
     )
     # Si el proveedor real falla (cuota, saturación, sin red), generar con TemplateLLM
     llm_respaldo_local: bool = os.getenv("LLM_RESPALDO_LOCAL", "true").strip().lower() in ("1", "true", "si", "sí")
+    # Tiempos máximos de espera a la IA en la nube, para que una API saturada no deje
+    # al usuario esperando minutos: por llamada, total por material, y pausa tras un fallo.
+    llm_timeout_s: int = _env_int("LLM_TIMEOUT_S", 40)
+    llm_presupuesto_s: int = _env_int("LLM_PRESUPUESTO_S", 75)
+    llm_pausa_min: int = _env_int("LLM_PAUSA_TRAS_FALLO_MIN", 10)
     gemini_api_key: str = field(default=os.getenv("GEMINI_API_KEY", ""), repr=False)
     anthropic_api_key: str = field(default=os.getenv("ANTHROPIC_API_KEY", ""), repr=False)
     claude_model: str = os.getenv("CLAUDE_MODEL", "claude-opus-5")
