@@ -23,6 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from nuevamente.config import settings
+from nuevamente.ingest.conceptos import extraer_conceptos
 from nuevamente.fidelity.verifier import ResultadoFidelidad, _fuente_mas_cercana, evaluar_fidelidad
 from nuevamente.llm.base import LLMClient, LLMError
 from nuevamente.llm.factory import crear_llm
@@ -104,13 +105,18 @@ def _planificar(
     ]
     secciones = secciones_didacticas or secciones_crudas
 
-    # Conceptos clave derivados de los títulos de secciones sustantivas
+    # Conceptos clave derivados de los títulos de secciones sustantivas. Un documento sin
+    # títulos queda en "Documento completo", que no es un concepto: entonces se completan
+    # con los términos técnicos de su texto ("VCN", "Security Lists").
     conceptos: list[str] = []
     for s in secciones:
-        if s and s.lower() != "general" and s not in conceptos:
+        if s and s.lower() != "general" and s not in ("Documento completo", "Introducción") and s not in conceptos:
             conceptos.append(s)
-    if not conceptos and coleccion.titulo:
-        conceptos.append(coleccion.titulo)
+    if len(conceptos) < 3:
+        texto = "\n".join(c.texto for c in coleccion.chunks)
+        conceptos += extraer_conceptos(texto, maximo=6 - len(conceptos), excluir=set(conceptos))
+    if not conceptos:  # ni títulos ni términos técnicos: queda el nombre de la sección
+        conceptos = list(secciones)
 
     # Inferir prerrequisitos pedagógicos según perfil y nicho
     prerreqs: list[str] = []
@@ -336,13 +342,26 @@ def _calcular_tiempo_estudio(contenido: ContenidoAdaptado) -> int:
 
 
 def _conceptos_clave(chunks_evidencia: list[dict], maximo: int = 6) -> list[str]:
-    vistos: list[str] = []
+    """Los títulos de sección del documento; si no tiene títulos útiles (texto pegado, PDF
+    sin encabezados), los términos técnicos de su texto ("VCN", "Security Lists")."""
+    conceptos: list[str] = []
     for c in chunks_evidencia:
-        if c["seccion"] not in vistos:
-            vistos.append(c["seccion"])
-        if len(vistos) >= maximo:
-            break
-    return vistos
+        if c["seccion"] not in conceptos and c["seccion"] not in ("Documento completo", "Introducción"):
+            conceptos.append(c["seccion"])
+    if len(conceptos) < 3:
+        texto = "\n".join(c["texto"] for c in chunks_evidencia)
+        conceptos += extraer_conceptos(texto, maximo=maximo - len(conceptos), excluir=set(conceptos))
+    return conceptos[:maximo]
+
+
+# Cómo se adaptó el lenguaje a cada perfil (el ejemplo del enunciado describe la adaptación
+# en `observaciones`); va antes del veredicto de fidelidad.
+_ADAPTACION_POR_PERFIL = {
+    "Principiante": "Lenguaje ajustado con explicaciones simples y analogías para público principiante, sin tecnicismos excesivos. ",
+    "Desarrollador Junior/Semi Senior": "Enfoque práctico y paso a paso, orientado a la implementación. ",
+    "Líder Técnico/Arquitecto": "Enfoque en criterios de diseño, dependencias y riesgos técnicos. ",
+    "Gestor/Ejecutivo": "Enfoque en impacto, riesgos y decisiones, con la jerga técnica justa. ",
+}
 
 
 def _claridad_desde_score(score: float) -> ClaridadPedagogica:
@@ -476,7 +495,7 @@ def generar_contenido_educativo(
     evaluacion = EvaluacionCalidad(
         anclaje_fuente_score=round(score_final, 4),
         claridad_pedagogica=_claridad_desde_score(score_final),
-        observaciones=(
+        observaciones=_ADAPTACION_POR_PERFIL.get(perfil, "") + (
             "Aprobado por el Crítico dentro del umbral de fidelidad."
             if aprobado
             else "El contenido no trae afirmaciones con fuente declarada; no se pudo verificar "
