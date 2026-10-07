@@ -145,7 +145,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (163 pruebas, deben pasar todas)                           |
+| `make test`    | Corre los tests (168 pruebas, deben pasar todas)                           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -284,7 +284,7 @@ Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
       (`~/.oci/config`, `OCI_COMPARTMENT_ID`) e instalar el extra `oci`; ver `docs/SETUP_OCI.md`
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
 - [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
-- [x] Tests automatizados (163), incluida seguridad ante inyección de instrucciones
+- [x] Tests automatizados (168), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
 
 ## 9. Estructura del repositorio
@@ -307,7 +307,7 @@ nuevamente/
 ├── scripts/
 │   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 163 pruebas (Diana)
+├── tests/                  # 168 pruebas (Diana)
 ├── docs/
 │   ├── SETUP_OCI.md
 │   └── demo/

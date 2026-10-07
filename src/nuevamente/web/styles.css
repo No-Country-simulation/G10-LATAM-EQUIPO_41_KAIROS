@@ -245,6 +245,12 @@ html { scroll-behavior: smooth; }
 .estado-aviso .punto { background: var(--sol); box-shadow: 0 0 0 4px var(--sol-suave); }
 .estado-error .punto { background: var(--rojo); box-shadow: 0 0 0 4px var(--rojo-suave); }
 .estado-error { color: var(--rojo); }
+button.estado { border: 0; cursor: pointer; font-family: inherit; }
+button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(--borde); }
+/* el panel del estado se abre bajo el botón, alineado a la derecha para no salirse de la pantalla */
+.desplegable-derecha { left: auto; right: 0; transform: none; width: min(340px, calc(100vw - 32px)); }
+.estado-detalle { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+.estado-detalle code { font-size: 0.85em; }
 .btn-api {
   padding: 7px 12px;
   border-radius: 12px;
@@ -301,7 +307,10 @@ html { scroll-behavior: smooth; }
   .menu-enlaces .flecha { margin-left: auto; }
   /* en el móvil el historial se abre dentro del propio menú, no flotando */
   .desplegable { position: static; transform: none; width: 100%; max-height: 45vh; margin-top: 6px; box-shadow: none; }
-  .menu-acciones { justify-content: space-between; }
+  .menu-acciones { justify-content: space-between; flex-wrap: wrap; }
+  /* el panel del estado ocupa su propia fila, debajo de los botones */
+  .estado-desplegable { display: contents; }
+  .estado-desplegable .desplegable { flex-basis: 100%; order: 1; }
   .estado-texto { display: inline; }
   .estado { padding: 6px 12px; }
 }
@@ -713,6 +722,44 @@ html { scroll-behavior: smooth; }
 .opcion.correcta { border-color: var(--menta); background: var(--menta-suave); }
 .opcion.incorrecta { border-color: var(--rojo); background: var(--rojo-suave); }
 .retro { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 0.9rem; background: var(--superficie); }
+.pregunta-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.puntos-pregunta {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--primario-suave);
+  color: var(--primario);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+.puntos-pregunta.ganados { background: var(--menta-suave); color: var(--menta); }
+.puntos-pregunta.perdidos { background: var(--rojo-suave); color: var(--rojo); }
+
+.quiz-resultado {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: var(--radio);
+  border: 2px solid var(--borde);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+.quiz-resultado.nivel-alto { border-color: var(--menta); }
+.quiz-resultado.nivel-medio { border-color: var(--sol); }
+.quiz-resultado.nivel-bajo { border-color: var(--rojo); }
+.resultado-nota { display: flex; align-items: center; gap: 14px; }
+.resultado-icono { font-size: 2.4rem; line-height: 1; }
+.resultado-puntaje { display: block; font-size: 1.8rem; font-weight: 900; }
+.resultado-nivel { color: var(--texto-suave); font-weight: 700; font-size: 0.9rem; }
+.resultado-mensaje { margin: 12px 0 16px; }
+.quiz-resultado > h4 { margin: 0 0 10px; }
+.mejora-tema { padding: 14px 16px; border-radius: var(--radio-sm); background: var(--fondo-alt); margin-bottom: 10px; }
+.mejora-tema h5 { margin: 0 0 6px; font-size: 0.95rem; }
+.mejora-correcta,
+.mejora-estudiar { display: block; margin-top: 4px; font-size: 0.88rem; }
+.mejora-correcta { color: var(--menta); font-weight: 700; }
+.mejora-estudiar { color: var(--texto-suave); }
+.mejora-vacia { margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radio-sm); background: var(--menta-suave); }
+.quiz-resultado .btn-secundario { margin-top: 8px; }
 
 /* ---------- Tutorial ---------- */
 .linea-tiempo { list-style: none; padding: 0; margin: 0; }

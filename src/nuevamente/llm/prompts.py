@@ -37,6 +37,10 @@ PROMPT_FIDELIDAD = (
     "frases vacías, pero conserva los términos y datos clave de su chunk: cada afirmación "
     "se verifica por similitud contra él. Si "
     "`retroalimentacion_critico` no está vacía, corrige lo que indica.\n\n"
+    "Los `chunk_id` y la palabra «chunk» son internos: van solo en `fuentes`. En los textos "
+    "que lee el estudiante (enunciados, opciones, respuestas, justificaciones, pasos, "
+    "narraciones e intervenciones) nunca los menciones; si necesitas citar la fuente, di "
+    "«el documento».\n\n"
     "No mezcles contenidos. Cada chunk trae la `seccion` del documento a la que pertenece. "
     "Cada elemento (tarjeta, pregunta, paso, escena o intervención) trata un solo tema: "
     "usa en él chunks de una única `seccion` y no juntes información de secciones distintas. "
@@ -146,14 +150,15 @@ PROMPT_POR_FORMATO = {
         "Crea entre 8 y 12 tarjetas, cada una sobre un concepto o definición distinto, "
         "priorizando cubrir todos los conceptos de los chunks. El frente es una pregunta, "
         "situación o problema práctico concreto sobre ese concepto, nunca sobre el documento "
-        "(«¿De qué trata el documento?»); el dorso, la respuesta sustentada en el chunk. La "
+        "(«¿De qué trata el documento?»); el dorso, la respuesta sustentada en el documento. La "
         "pista didáctica es una analogía o regla mnemotécnica breve."
     ),
     "Quiz": (
         "Quiz: entre 5 y 10 preguntas de opción múltiple, cada una con 4 opciones, una sola "
-        "correcta y una justificación detallada que cita lo que dice el chunk. Cada pregunta "
-        "evalúa un concepto distinto, con comprensión o aplicación en escenarios reales, no "
-        "memorización; no preguntes por el objetivo, la estructura o el índice del documento. Los distractores deben ser plausibles pero contradecir o no estar en la "
+        "correcta y una justificación detallada que explica la respuesta con lo que dice el "
+        "documento. Cada pregunta evalúa un concepto distinto, con comprensión o aplicación en "
+        "escenarios reales, no memorización; no preguntes por el objetivo, la estructura o el "
+        "índice del documento. Los distractores deben ser plausibles pero contradecir o no estar en la "
         "fuente."
     ),
     "Resumen Ejecutivo": (
