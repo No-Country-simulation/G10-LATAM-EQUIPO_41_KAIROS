@@ -157,3 +157,17 @@ def test_pdf_corto_conserva_lineas_que_no_se_repiten():
         ["Introducción", "Primera idea del texto."],
         ["Conclusión", "Última idea."],
     ]
+
+
+def test_conceptos_clave_de_un_texto_sin_titulos():
+    from nuevamente.ingest.conceptos import extraer_conceptos
+
+    texto = (
+        "La Virtual Cloud Network (VCN) es una red privada configurada en Oracle Cloud Infrastructure. "
+        "Similar a una red tradicional, incluye Internet Gateways, NAT Gateways y Security Lists. "
+        "La Organización Mundial de la Salud publica guías."
+    )
+    assert extraer_conceptos(texto) == [
+        "VCN", "Oracle Cloud Infrastructure", "Internet Gateways", "NAT Gateways", "Security Lists",
+        "Organización Mundial de la Salud",
+    ]

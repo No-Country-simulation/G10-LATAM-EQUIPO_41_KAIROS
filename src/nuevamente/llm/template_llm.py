@@ -23,6 +23,7 @@ import hashlib
 import json
 import re
 
+from nuevamente.ingest.conceptos import extraer_conceptos
 from nuevamente.llm.base import LLMError
 from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
@@ -98,6 +99,19 @@ def _oraciones(texto: str) -> list[str]:
     if len(partes) > 1 and partes[0] and not partes[0][0].isupper():
         partes = partes[1:]
     return partes
+
+
+# Secciones que no nombran un tema: el texto sin títulos y lo que va antes del primero.
+_SECCIONES_GENERICAS = {"Documento completo", "Introducción"}
+
+
+def _tema(seccion: str, texto: str, respaldo: str) -> str:
+    """Nombre del tema de una parte: su sección si es un título real del documento; si no,
+    el concepto principal de su texto ("VCN"), para no titular todo «Documento completo»."""
+    if seccion not in _SECCIONES_GENERICAS:
+        return seccion
+    conceptos = extraer_conceptos(texto, maximo=1)
+    return conceptos[0] if conceptos else respaldo
 
 
 def _primeras(texto: str, n: int = 1) -> str:
@@ -192,14 +206,22 @@ class TemplateLLM:
     # ---- Flashcards ----
     def _flashcards(self, titulo, perfil, nicho, nivel, chunks) -> FlashcardsContenido:
         items = []
-        por_seccion: dict[str, int] = {}
-        for c in _repartir(chunks, 12):
-            dorso = _adaptar_por_perfil(c["texto"], perfil, nivel)
-            k = por_seccion.get(c["seccion"], 0)
-            por_seccion[c["seccion"]] = k + 1
+        por_tema: dict[str, int] = {}
+        elegidos = _repartir(chunks, 12)
+        # Un documento corto da pocos chunks: se hace una tarjeta por oración para que el
+        # mazo cubra todo lo que dice, no una sola tarjeta con el texto entero.
+        if len(elegidos) < 6:
+            unidades = [(c, o) for c in elegidos for o in (_oraciones(c["texto"]) or [c["texto"]])][:12]
+        else:
+            unidades = [(c, c["texto"]) for c in elegidos]
+        for c, texto in unidades:
+            dorso = _adaptar_por_perfil(texto, perfil, nivel)
+            tema = _tema(c["seccion"], texto, titulo)
+            k = por_tema.get(tema, 0)
+            por_tema[tema] = k + 1
             items.append(
                 FlashcardItem(
-                    frente=_FRENTES_FLASHCARD[k % len(_FRENTES_FLASHCARD)].format(s=c["seccion"]),
+                    frente=_FRENTES_FLASHCARD[k % len(_FRENTES_FLASHCARD)].format(s=tema),
                     dorso=dorso,
                     pista_didactica=_ANALOGIA_POR_NICHO.get(nicho, _ANALOGIA_POR_NICHO["General"]),
                     fuentes=[c["chunk_id"]],
@@ -218,11 +240,12 @@ class TemplateLLM:
     def _quiz(self, titulo, chunks) -> QuizContenido:
         preguntas = []
         primeras_por_chunk = [_primeras(c["texto"], 1) for c in chunks]
-        por_seccion: dict[str, int] = {}
+        por_tema: dict[str, int] = {}
         for c in _repartir(chunks, 10):
-            k = por_seccion.get(c["seccion"], 0)
-            por_seccion[c["seccion"]] = k + 1
             correcta = _primeras(c["texto"], 1)
+            tema = _tema(c["seccion"], correcta, titulo)
+            k = por_tema.get(tema, 0)
+            por_tema[tema] = k + 1
             # Distractores sin repetidos ni iguales a la correcta; si el documento no da
             # suficientes, se completan con opciones de relleno distintas entre sí.
             candidatos = [s for s in primeras_por_chunk if s != correcta] + _RELLENO_QUIZ
@@ -233,7 +256,7 @@ class TemplateLLM:
             opciones = opciones[:4]
             preguntas.append(
                 QuizPregunta(
-                    enunciado=_ENUNCIADOS_QUIZ[k % len(_ENUNCIADOS_QUIZ)].format(s=c["seccion"]),
+                    enunciado=_ENUNCIADOS_QUIZ[k % len(_ENUNCIADOS_QUIZ)].format(s=tema),
                     opciones=opciones,
                     indice_correcto=posicion_correcta,
                     justificacion=f"La fuente indica: {correcta}",
@@ -252,7 +275,7 @@ class TemplateLLM:
             pasos.append(
                 TutorialPaso(
                     orden=i,
-                    titulo=c["seccion"],
+                    titulo=_tema(c["seccion"], instruccion, titulo),
                     instruccion=instruccion,
                     resultado_esperado=resultado,
                     fuentes=[c["chunk_id"]],
@@ -266,7 +289,7 @@ class TemplateLLM:
                 f"Omitir un paso porque parece obvio. {_RIESGO_POR_NICHO.get(nicho, _RIESGO_POR_NICHO['General'])}"
             ],
             # una sección puede aportar varios chunks: el checklist lista cada sección una vez
-            checklist_final=[f"Verificado: {s}" for s in dict.fromkeys(c["seccion"] for c in _repartir(chunks, 10))],
+            checklist_final=[f"Verificado: {p.titulo}" for p in {p.titulo: p for p in pasos}.values()],
         )
 
     # ---- Resumen Ejecutivo ----
@@ -279,10 +302,13 @@ class TemplateLLM:
             resumen = resumen[:1700].rsplit(" ", 1)[0] + "…"
         puntos_clave: list[str] = []
         for c in chunks:
-            if c["seccion"] not in puntos_clave:
+            if c["seccion"] not in puntos_clave and c["seccion"] not in _SECCIONES_GENERICAS:
                 puntos_clave.append(c["seccion"])
             if len(puntos_clave) >= 5:
                 break
+        if len(puntos_clave) < 3:  # documento sin títulos: los conceptos de su texto
+            texto = " ".join(c["texto"] for c in chunks)
+            puntos_clave += extraer_conceptos(texto, maximo=5 - len(puntos_clave), excluir=set(puntos_clave))
         return ResumenEjecutivoContenido(
             resumen=resumen or f"Resumen de «{titulo}».",
             puntos_clave=puntos_clave or [titulo],
@@ -307,7 +333,7 @@ class TemplateLLM:
                 GuionEscena(
                     orden=i,
                     narracion=narracion,
-                    apoyo_visual=f"Diapositiva: {c['seccion']}",
+                    apoyo_visual=f"Diapositiva: {_tema(c['seccion'], narracion, titulo)}",
                     duracion_seg=duracion,
                     fuentes=[c["chunk_id"]],
                 )
@@ -341,7 +367,8 @@ class TemplateLLM:
         usados = _repartir(chunks, 8)
         for i, c in enumerate(usados):
             seccion = c["seccion"]
-            tema = "el documento" if seccion == "Documento completo" else f"«{seccion}»"
+            nombre = _tema(seccion, c["texto"], "")
+            tema = f"«{nombre}»" if nombre else "el documento"
             if i > 0:
                 decir("Ana", _PREGUNTAS_PODCAST[(i - 1) % len(_PREGUNTAS_PODCAST)].format(tema=tema))
             decir("Leo", _primeras(c["texto"], _oraciones_por_nivel(2, nivel)), [c["chunk_id"]])

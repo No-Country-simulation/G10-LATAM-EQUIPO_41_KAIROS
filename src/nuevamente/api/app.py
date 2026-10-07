@@ -25,7 +25,7 @@ from nuevamente.ingest.readers import DocumentoInvalidoError, leer_documento
 from nuevamente.llm.base import LLMError
 from nuevamente.schemas.enums import FormatoSalida, NichoSector, NivelDetalle, PerfilDestinatario
 from nuevamente.schemas.request import SolicitudAdaptacion
-from nuevamente.schemas.response import AlmacenamientoOCI, ErrorResponse, RespuestaAdaptacion
+from nuevamente.schemas.response import AlmacenamientoOCI, ErrorResponse, RegistroAdaptacion, RespuestaAdaptacion
 from nuevamente.storage.oci_client import get_storage_service
 
 app = FastAPI(
@@ -238,24 +238,29 @@ def _procesar_adaptacion(
     objeto_id = f"contenidos/{resultado.coleccion.doc_id}/{slug_formato}-{slug_perfil}-{request_id[:8]}.json"
     objeto_original_id = f"originals/{resultado.coleccion.doc_id}.txt"
 
-    respuesta = RespuestaAdaptacion(
+    # El registro completo (con fuentes, secciones y el detalle de fidelidad) es lo que se
+    # guarda; la API devuelve su forma pública. Se guarda ya con el destino previsto, y si
+    # la subida a OCI falla se vuelve a escribir con el estado real (el respaldo local).
+    almacenamiento = AlmacenamientoOCI(
+        bucket=settings.oci_bucket,
+        objeto_id=objeto_id,
+        objeto_documento_original=objeto_original_id,
+        status_upload="completado" if storage.disponible_oci() else "fallido_local",
+    )
+    registro = RegistroAdaptacion(
         request_id=request_id,
         metadatos=resultado.metadatos,
         contenido_adaptado=resultado.contenido,
         evaluacion_calidad=resultado.evaluacion,
-        almacenamiento_oci=AlmacenamientoOCI(bucket="", objeto_id="", status_upload="pendiente"),
+        almacenamiento_oci=almacenamiento,
     )
 
     storage.subir_texto(objeto_original_id, contenido, content_type="text/plain")
-    subida = storage.subir_json(objeto_id, respuesta.model_dump(mode="json"))
-
-    respuesta.almacenamiento_oci = AlmacenamientoOCI(
-        bucket=subida.bucket,
-        objeto_id=subida.objeto_id,
-        objeto_documento_original=objeto_original_id,
-        status_upload=subida.status_upload,
-    )
-    return respuesta
+    subida = storage.subir_json(objeto_id, registro.model_dump(mode="json"))
+    if subida.status_upload != almacenamiento.status_upload:
+        registro.almacenamiento_oci = almacenamiento.model_copy(update={"status_upload": subida.status_upload})
+        storage.subir_json(objeto_id, registro.model_dump(mode="json"))
+    return registro.a_publica()
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/exportar")
@@ -263,15 +268,13 @@ def exportar_contenido(objeto_id: str, formato: str = "markdown", titulo: str = 
     from fastapi.responses import PlainTextResponse, Response
 
     from nuevamente.exports import exportar_anki_csv, exportar_markdown
-    from nuevamente.schemas.response import RespuestaAdaptacion
-
     storage = get_storage_service()
     crudo = storage.descargar_texto(objeto_id)
     if crudo is None:
         raise HTTPException(status_code=404, detail="Contenido no encontrado")
 
     try:
-        respuesta = RespuestaAdaptacion.model_validate_json(crudo)
+        respuesta = RegistroAdaptacion.model_validate_json(crudo)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado exportable") from exc
     if respuesta.contenido_adaptado.formato == "Podcast":
@@ -334,7 +337,7 @@ def video_contenido(
     if crudo is None:
         raise HTTPException(status_code=404, detail="Contenido no encontrado")
     try:
-        respuesta = RespuestaAdaptacion.model_validate_json(crudo)
+        respuesta = RegistroAdaptacion.model_validate_json(crudo)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado") from exc
     if respuesta.contenido_adaptado.formato != "Guion de Clase":
@@ -372,7 +375,7 @@ def podcast_contenido(objeto_id: str):
     if crudo is None:
         raise HTTPException(status_code=404, detail="Contenido no encontrado")
     try:
-        respuesta = RespuestaAdaptacion.model_validate_json(crudo)
+        respuesta = RegistroAdaptacion.model_validate_json(crudo)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado") from exc
     if respuesta.contenido_adaptado.formato != "Podcast":
@@ -411,13 +414,43 @@ def podcast_contenido(objeto_id: str):
     return entregar(motor)
 
 
-@app.get("/api/v1/contenidos/{objeto_id:path}")
-def obtener_contenido(objeto_id: str):
+def _leer_registro(objeto_id: str) -> tuple[RegistroAdaptacion | None, str]:
+    """El registro guardado y su texto crudo. Validar el registro limpia los textos de un
+    material guardado antes (ver schemas/formatos.py); a los guardados antes de registrar
+    su destino se les completa el almacenamiento."""
     storage = get_storage_service()
-    contenido = storage.descargar_texto(objeto_id)
-    if contenido is None:
+    crudo = storage.descargar_texto(objeto_id)
+    if crudo is None:
         raise HTTPException(status_code=404, detail="Contenido no encontrado")
     try:
-        return json.loads(contenido)
+        registro = RegistroAdaptacion.model_validate_json(crudo)
+    except ValueError:
+        return None, crudo
+    if not registro.almacenamiento_oci.objeto_id:
+        registro.almacenamiento_oci = AlmacenamientoOCI(
+            bucket=settings.oci_bucket,
+            objeto_id=objeto_id,
+            status_upload="completado" if storage.disponible_oci() else "fallido_local",
+        )
+    return registro, crudo
+
+
+@app.get("/api/v1/contenidos/{objeto_id:path}/detalle", include_in_schema=False)
+def obtener_detalle(objeto_id: str):
+    """Registro completo (fuentes, secciones, detalle de fidelidad), para la interfaz web."""
+    registro, _ = _leer_registro(objeto_id)
+    if registro is None:
+        raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado")
+    return registro.model_dump(mode="json")
+
+
+@app.get("/api/v1/contenidos/{objeto_id:path}", response_model=None)
+def obtener_contenido(objeto_id: str):
+    """El contenido guardado, con la misma forma pública que devuelve /api/v1/adaptar."""
+    registro, crudo = _leer_registro(objeto_id)
+    if registro is not None:
+        return registro.a_publica().model_dump(mode="json")
+    try:
+        return json.loads(crudo)
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=422, detail="El objeto no es un contenido JSON") from exc

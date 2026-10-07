@@ -20,8 +20,39 @@ def test_adaptar_flashcards_salud(api_client, documento_salud):
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "exito"
-    assert data["evaluacion_calidad"]["umbral_aplicado"] == 0.9
     assert data["almacenamiento_oci"]["status_upload"] in ("completado", "fallido_local")
+    # el umbral reforzado de Salud queda en el registro completo, no en la respuesta pública
+    detalle = api_client.get(f"/api/v1/contenidos/{data['almacenamiento_oci']['objeto_id']}/detalle").json()
+    assert detalle["evaluacion_calidad"]["umbral_aplicado"] == 0.9
+
+
+def _claves_internas(valor) -> set[str]:
+    """Campos internos (trazabilidad) que aparezcan en cualquier nivel del JSON."""
+    if isinstance(valor, dict):
+        propias = {"formato", "fuentes", "seccion"} & set(valor)
+        return propias.union(*(_claves_internas(v) for v in valor.values()))
+    if isinstance(valor, list):
+        return set().union(*(_claves_internas(v) for v in valor))
+    return set()
+
+
+def test_respuesta_tiene_exactamente_la_forma_del_enunciado(api_client, documento_salud):
+    body = {
+        "documento_titulo": "Protocolo de Bioseguridad",
+        "documento_contenido": documento_salud,
+        "perfil_destinatario": "Principiante",
+        "formato_salida": "Flashcards",
+        "nicho_sector": "Salud",
+    }
+    data = api_client.post("/api/v1/adaptar", json=body).json()
+    assert list(data) == ["status", "metadatos", "contenido_adaptado", "evaluacion_calidad", "almacenamiento_oci"]
+    assert set(data["metadatos"]) == {
+        "perfil_aplicado", "formato_generado", "tiempo_estimado_estudio_minutos", "conceptos_clave"
+    }
+    assert set(data["contenido_adaptado"]) == {"titulo", "introduccion_contextualizada", "items"}
+    assert all(set(i) == {"frente", "dorso", "pista_didactica"} for i in data["contenido_adaptado"]["items"])
+    assert set(data["evaluacion_calidad"]) == {"anclaje_fuente_score", "claridad_pedagogica", "observaciones"}
+    assert set(data["almacenamiento_oci"]) == {"bucket", "objeto_id", "status_upload"}
 
 
 @pytest.mark.parametrize(
@@ -46,7 +77,8 @@ def test_adaptar_todos_los_formatos(api_client, documento_salud, formato, perfil
     }
     r = api_client.post("/api/v1/adaptar", json=body)
     assert r.status_code == 200, r.text
-    assert r.json()["contenido_adaptado"]["formato"] == formato
+    assert r.json()["metadatos"]["formato_generado"] == formato
+    assert not _claves_internas(r.json()["contenido_adaptado"])
 
 
 def test_adaptar_valida_campos_faltantes(api_client):
@@ -98,7 +130,11 @@ def test_flujo_completo_guarda_y_recupera(api_client, documento_salud):
 
     r2 = api_client.get(f"/api/v1/contenidos/{objeto_id}")
     assert r2.status_code == 200
-    assert r2.json()["request_id"] == r1.json()["request_id"]
+    assert r2.json() == r1.json()  # se recupera con la misma forma pública que se entregó
+
+    detalle = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()
+    assert detalle["request_id"] and detalle["contenido_adaptado"]["formato"] == "Flashcards"
+    assert all(i["fuentes"] for i in detalle["contenido_adaptado"]["items"])
 
 
 def test_contenido_inexistente_da_404(api_client):
@@ -203,7 +239,7 @@ def test_exportar_documento_word(api_client, documento_salud, formato):
 
 def test_podcast_alterna_locutores_y_es_solo_audio(api_client, documento_salud):
     objeto_id = _crear(api_client, documento_salud, "Podcast")
-    podcast = api_client.get(f"/api/v1/contenidos/{objeto_id}").json()["contenido_adaptado"]
+    podcast = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()["contenido_adaptado"]
     locutores = [i["locutor"] for i in podcast["intervenciones"]]
     assert locutores[0] == "Ana" and locutores[-1] == "Ana" and "Leo" in locutores
     # solo Leo cita el documento: es lo que verifica el Crítico
@@ -347,3 +383,30 @@ def test_bloques_de_dialogo_respetan_turnos_completos():
     assert len(bloques) > 1
     assert all(len(b) <= _MAX_CARACTERES_POR_PETICION for b in bloques)
     assert sum(b.count("\n") + 1 for b in bloques) == 12  # ningún turno se parte ni se pierde
+
+
+def test_solicitud_exacta_del_enunciado(api_client):
+    """El ejemplo de solicitud del enunciado, tal cual (con "Didactico" sin tilde)."""
+    body = {
+        "documento_titulo": "Introduccion a la Arquitectura de Redes VCN en OCI",
+        "documento_contenido": (
+            "La Virtual Cloud Network (VCN) es una red privada y personalizable configurada en Oracle "
+            "Cloud Infrastructure. Similar a una red de centro de datos tradicional, la VCN ofrece control "
+            "total sobre su entorno de red, incluyendo subredes publicas y privadas, tablas de enrutamiento, "
+            "Internet Gateways, NAT Gateways y Security Lists para control de trafico mediante reglas de "
+            "entrada (ingress) y salida (egress)."
+        ),
+        "perfil_destinatario": "Principiante",
+        "formato_salida": "Flashcards",
+        "nicho_sector": "General",
+        "nivel_detalle": "Didactico",
+    }
+    r = api_client.post("/api/v1/adaptar", json=body)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["metadatos"]["perfil_aplicado"] == "Principiante"
+    assert data["metadatos"]["formato_generado"] == "Flashcards"
+    # sin títulos en el texto, los conceptos clave salen de sus términos, no de "Documento completo"
+    assert {"VCN", "Security Lists"} <= set(data["metadatos"]["conceptos_clave"])
+    assert "Documento completo" not in data["metadatos"]["conceptos_clave"]
+    assert all("Documento completo" not in i["frente"] for i in data["contenido_adaptado"]["items"])
