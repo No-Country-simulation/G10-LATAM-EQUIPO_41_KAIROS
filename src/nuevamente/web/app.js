@@ -49,8 +49,7 @@ const estado = {
   voz: "femenina",
   respuesta: null,
   tituloDocumento: "",
-  textoUsado: "", // contenido con el que se generó el último material
-  documentoAnterior: null, // lo que había en el formulario al pulsar "Nuevo material"
+  controlador: null, // AbortController de la creación en curso; null si no hay ninguna
 };
 
 // ---------- Utilidades ----------
@@ -355,7 +354,6 @@ async function animarEtapas(peticion) {
 }
 
 async function generar(evento) {
-  ocultarAvisoReutilizar();
   evento.preventDefault();
   mostrarError("");
 
@@ -372,7 +370,10 @@ async function generar(evento) {
   $(".btn-texto").textContent = "Creando…";
 
   const vistaAnterior = estado.respuesta ? "resultado" : "vacio";
-  const llamada = fetch(peticion.url, peticion.opciones).then(async (resp) => {
+  const controlador = new AbortController();
+  estado.controlador = controlador;
+  habilitarBoton($("#btn-cancelar"), true);
+  const llamada = fetch(peticion.url, { ...peticion.opciones, signal: controlador.signal }).then(async (resp) => {
     if (!resp.ok) throw new Error(await mensajeDeError(resp));
     return resp.json();
   });
@@ -381,19 +382,31 @@ async function generar(evento) {
   try {
     await animarEtapas(llamada);
     const publica = await llamada;
+    const registro = await cargarRegistro(publica);
+    if (controlador.signal.aborted) throw new DOMException("Cancelado", "AbortError");
     estado.tituloDocumento = peticion.titulo;
-    estado.textoUsado = $("#contenido").value;
-    mostrarResultado(await cargarRegistro(publica), peticion.titulo, publica);
+    mostrarResultado(registro, peticion.titulo, publica);
     agregarAlHistorial(publica, peticion.titulo);
   } catch (err) {
     mostrarVista(vistaAnterior);
-    mostrarError(
-      err instanceof TypeError ? "No se pudo conectar con la API. ¿Está corriendo el servidor?" : err.message,
-    );
+    if (controlador.signal.aborted) {
+      mostrarError("⛔ Creación cancelada. Puedes cambiar las opciones y volver a crear tu material.");
+    } else {
+      mostrarError(
+        err instanceof TypeError ? "No se pudo conectar con la API. ¿Está corriendo el servidor?" : err.message,
+      );
+    }
   } finally {
+    estado.controlador = null;
+    habilitarBoton($("#btn-cancelar"), false, "No hay ninguna creación en curso");
     boton.disabled = false;
     $(".btn-texto").textContent = "Crear mi material";
   }
+}
+
+// "Cancelar": deja de esperar la creación en curso y vuelve a lo que se veía antes.
+function cancelarCreacion() {
+  estado.controlador?.abort();
 }
 
 // ---------- Resultado ----------
@@ -1220,46 +1233,6 @@ function abrirEstado(abierto) {
   $("#btn-ver-guardado").hidden = !estado.respuesta;
 }
 
-// Vacía el formulario. Si hay texto escrito que todavía no se usó para generar nada,
-// pide confirmación antes de borrarlo.
-function vaciarFormulario() {
-  const contenido = $("#contenido").value.trim();
-  if (contenido && contenido !== estado.textoUsado.trim() && contenido !== EJEMPLO.trim()) {
-    if (!confirm("¿Empezar un material nuevo? Se borrará el texto que escribiste y aún no usaste.")) return false;
-  }
-  const anterior = {
-    modo: estado.modo,
-    titulo: $("#titulo").value,
-    contenido: $("#contenido").value,
-    archivo: estado.archivo,
-  };
-  estado.documentoAnterior = anterior.contenido.trim() || anterior.archivo ? anterior : null;
-  $("#titulo").value = "";
-  $("#contenido").value = "";
-  $("#contenido").dispatchEvent(new Event("input", { bubbles: true }));
-  $("#archivo").value = "";
-  elegirArchivo(null);
-  return true;
-}
-
-function ocultarAvisoReutilizar() {
-  $("#aviso-reutilizar").hidden = true;
-}
-
-// "Usar el mismo documento": vuelve a poner el documento anterior para generar otra
-// versión (otro perfil o formato) sin pegarlo ni subirlo de nuevo.
-function reutilizarDocumento() {
-  const doc = estado.documentoAnterior;
-  if (!doc) return;
-  cambiarModo(doc.modo);
-  $("#titulo").value = doc.titulo;
-  $("#contenido").value = doc.contenido;
-  $("#contenido").dispatchEvent(new Event("input", { bubbles: true }));
-  if (doc.archivo) elegirArchivo(doc.archivo);
-  ocultarAvisoReutilizar();
-  document.querySelectorAll(".paso")[1]?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 // Lleva al formulario y lo resalta, sin borrar nada.
 function irAlFormulario() {
   mostrarError("");
@@ -1275,21 +1248,14 @@ function irAlFormulario() {
   if (campo.select) campo.select();
 }
 
-// "Nuevo material": formulario vacío para otro documento. El material anterior sigue en
-// "Mi material" y en el Historial, y su documento se puede recuperar con un clic.
-function nuevoMaterial() {
-  if (!vaciarFormulario()) return;
-  $("#aviso-reutilizar").hidden = !estado.documentoAnterior;
-  irAlFormulario();
-}
-
-// Atajos de teclado del menú: N, M, H y ?. No actúan mientras se escribe en un campo ni
-// con un diálogo abierto.
+// Atajos de teclado del menú: Esc, M, H y ?. No actúan mientras se escribe en un campo
+// ni con un diálogo abierto. Esc cancela solo si no hay un desplegable abierto que cerrar.
 function atajoDeTeclado(e) {
   if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
   if (e.target.closest("input, textarea, select, [contenteditable]") || $("#dialogo-como").open) return;
+  const desplegableAbierto = !$("#historial-menu").hidden || !$("#estado-menu").hidden;
   const accion = {
-    n: () => nuevoMaterial(),
+    escape: () => estado.controlador && !desplegableAbierto && cancelarCreacion(),
     m: () => !$("#btn-material").disabled && verMaterial(),
     h: () => !$("#btn-historial").disabled && abrirHistorial($("#historial-menu").hidden),
     "?": () => $("#btn-como").click(),
@@ -1314,16 +1280,12 @@ function iniciarMenu() {
   $("#btn-menu").addEventListener("click", () => abrirMenu(!$("#menu").classList.contains("abierto")));
   // En escritorio el formulario y el material se ven lado a lado, así que no se
   // deduce la sección por el scroll: se resalta la que el usuario eligió.
-  $("#btn-nuevo").addEventListener("click", () => {
+  $("#btn-cancelar").addEventListener("click", () => {
     abrirMenu(false);
-    nuevoMaterial();
+    cancelarCreacion();
   });
-  $("#btn-reutilizar").addEventListener("click", reutilizarDocumento);
   $("#buscar-historial").addEventListener("input", renderHistorial);
   document.addEventListener("keydown", atajoDeTeclado);
-  // escribir o elegir otro documento descarta la oferta de reutilizar el anterior
-  ["#titulo", "#contenido"].forEach((sel) => $(sel).addEventListener("input", (e) => e.isTrusted && ocultarAvisoReutilizar()));
-  $("#archivo").addEventListener("change", ocultarAvisoReutilizar);
   $(".marca").addEventListener("click", (e) => {
     e.preventDefault();
     irAlFormulario();

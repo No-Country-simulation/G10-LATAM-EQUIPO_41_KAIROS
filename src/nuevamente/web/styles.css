@@ -183,21 +183,9 @@ html { scroll-behavior: smooth; }
 }
 .buscador:focus { outline: 2px solid var(--primario); outline-offset: 1px; }
 .sin-resultados { margin: 4px 0 0; color: var(--texto-suave); font-size: 0.88rem; }
-/* oferta de reutilizar el documento anterior tras "Nuevo material" */
-.aviso-reutilizar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: var(--primario-suave);
-  font-size: 0.88rem;
-}
-.aviso-reutilizar[hidden] { display: none; }
-.aviso-reutilizar .enlace { margin: 0; font-weight: 800; }
+/* "Cancelar" solo se activa mientras se crea un material; entonces se destaca en rojo */
+.menu-enlaces > li > .btn-cancelar:not(:disabled) { color: var(--rojo); background: var(--rojo-suave); }
+.menu-enlaces > li > .btn-cancelar:not(:disabled):hover { color: var(--primario-texto); background: var(--rojo); }
 .atajos kbd {
   display: inline-block;
   min-width: 1.5em;
