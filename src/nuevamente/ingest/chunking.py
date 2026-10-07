@@ -40,6 +40,9 @@ _ENCABEZADO_MD = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
 _ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)[.)]?\s+([^\W\d_].{1,90})$")
 
 
+# emoji o símbolo decorativo delante de un título ("🏥 1. Ámbito de la Salud")
+_SIMBOLO_INICIAL = re.compile(r"^(?:[\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?\s*)+")
+
 _PALABRAS_CORTAS = {"a", "al", "de", "del", "e", "el", "en", "la", "las", "lo", "los", "o", "por", "se", "su", "sus", "u", "un", "una", "y", "que", "con", "sin"}
 
 
@@ -68,12 +71,13 @@ def _es_encabezado_texto(linea: str) -> str | None:
     Acepta títulos numerados ("1. Acceso a la consola") y líneas completas en
     mayúsculas de al menos dos palabras. Devuelve el título legible, o None.
     """
-    linea = linea.strip()
+    linea = _SIMBOLO_INICIAL.sub("", linea.strip())
     if not linea or len(linea) > 100 or linea[-1] in ".,;":
         return None
     m = _ENCABEZADO_NUMERADO.match(linea)
-    # un título no trae comas ni punto seguido; una oración numerada sí suele traerlos
-    if m and len(m.group(2).split()) <= 10 and not re.search(r"[,;]|\.\s", m.group(2)):
+    # un título no trae comas ni punto seguido; una oración numerada sí suele traerlos,
+    # y si termina en ":" es un punto de una lista que presenta lo que sigue
+    if m and len(m.group(2).split()) <= 10 and not re.search(r"[,;]|\.\s|:$", m.group(2)):
         return _titulo_legible(m.group(2))
     palabras = linea.split()
     letras = [c for c in linea if c.isalpha()]
@@ -82,20 +86,46 @@ def _es_encabezado_texto(linea: str) -> str | None:
     return None
 
 
-def _secciones_desde(contenido: str, marcas: list[tuple[int, int, str]]) -> list[tuple[str, str]]:
-    """Arma (título, cuerpo) a partir de las posiciones (inicio, fin, título) de cada encabezado.
+def _nivel_numerado(linea: str) -> int:
+    """Profundidad de la numeración de un encabezado: "2 Visitas" -> 1, "2.3 Modos" -> 2, sin número -> 0."""
+    m = _ENCABEZADO_NUMERADO.match(_SIMBOLO_INICIAL.sub("", linea.strip()))
+    return m.group(1).count(".") + 1 if m else 0
+
+
+# Más títulos seguidos que estos son un índice, no apartados que compartan texto.
+_MAX_TITULOS_APILADOS = 3
+
+
+def _secciones_desde(contenido: str, marcas: list[tuple]) -> list[tuple[str, str]]:
+    """Arma (título, cuerpo) a partir de las posiciones (inicio, fin, título[, nivel]) de cada encabezado.
 
     El texto previo al primer encabezado se conserva como "Introducción".
+
+    Algunos PDF entregan juntos los títulos de una página ("1 Conducta", "2 Visitas") y
+    después el texto de todos ellos. No se puede saber qué parte del texto es de cada
+    título, así que la sección lleva los títulos apilados ("Conducta · Visitas"): antes
+    quedaba todo bajo el último, con un título que no correspondía al contenido.
     """
     secciones: list[tuple[str, str]] = []
     preambulo = contenido[: marcas[0][0]].strip()
     if preambulo:
         secciones.append(("Introducción", preambulo))
-    for i, (_, fin_titulo, titulo) in enumerate(marcas):
+    niveles = [m[3] if len(m) > 3 else 0 for m in marcas]
+    titulos = [m[2] for m in marcas]
+    apilados: list[str] = []
+    for i, (_, fin_titulo, titulo, *_resto) in enumerate(marcas):
         fin = marcas[i + 1][0] if i + 1 < len(marcas) else len(contenido)
         cuerpo = contenido[fin_titulo:fin].strip()
-        if cuerpo:
-            secciones.append((titulo, cuerpo))
+        if not cuerpo:
+            # numerado, no vuelve a aparecer (no es un índice) y lo que sigue no es un
+            # subapartado suyo ("5 OSPF" / "5.1 Arranque"): su texto quedó en la sección siguiente
+            hermano = niveles[i] and i + 1 < len(marcas) and niveles[i + 1] <= niveles[i]
+            apilados = [*apilados, titulo] if hermano and titulo not in titulos[i + 1 :] else []
+            continue
+        if apilados and len(apilados) < _MAX_TITULOS_APILADOS:
+            titulo = " · ".join([*apilados, titulo])
+        apilados = []
+        secciones.append((titulo, cuerpo))
     return secciones
 
 
@@ -109,7 +139,7 @@ def _detectar_secciones(contenido: str) -> list[tuple[str, str]]:
         for linea in contenido.split("\n"):
             titulo = _es_encabezado_texto(linea)
             if titulo:
-                marcas.append((posicion, posicion + len(linea), titulo))
+                marcas.append((posicion, posicion + len(linea), titulo, _nivel_numerado(linea)))
             posicion += len(linea) + 1
         if len(marcas) < 2:  # un único "encabezado" suele ser ruido, no estructura
             marcas = []

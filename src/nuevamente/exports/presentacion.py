@@ -354,6 +354,12 @@ def _tutorial(deck: _Deck, c: TutorialContenido):
         _columnas(slide, y, bloques, maximo=20)
         _pie(slide)
 
+    if c.reto_practico:
+        slide = deck.diapositiva()
+        y = _encabezado(slide, "Tutorial", "Reto práctico")
+        _columnas(slide, y, [("Ahora tú", c.reto_practico, SOL_SUAVE)], maximo=24)
+        _pie(slide)
+
 
 def _resumen(deck: _Deck, c: ResumenEjecutivoContenido):
     slide = deck.diapositiva()

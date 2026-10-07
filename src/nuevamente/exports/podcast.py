@@ -23,6 +23,7 @@ from pathlib import Path
 from nuevamente.config import settings
 from nuevamente.exports.narracion import nombre_voz, preparar_texto, sintetizar
 from nuevamente.exports.video import VideoError, _ejecutar, _ffmpeg
+from nuevamente.llm import disponibilidad
 from nuevamente.schemas.formatos import PodcastContenido
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,11 @@ def _generar_con_sistema(podcast: PodcastContenido, carpeta: Path, ffmpeg: str) 
 
 # ---------- Motor "gemini" ----------
 
+_SERVICIO_TTS = "tts:gemini"
+# El audio de un bloque de diálogo tarda más que un texto: se le da el doble de tiempo.
+_FACTOR_TIMEOUT_TTS = 2
+
+
 def gemini_tts_configurado() -> bool:
     return settings.podcast_voces == "gemini" and bool(settings.gemini_api_key)
 
@@ -129,7 +135,13 @@ def _sintetizar_gemini(dialogo: str) -> bytes:
             )
         ),
     )
-    cliente = genai.Client(api_key=settings.gemini_api_key)
+    cliente = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(
+            timeout=settings.llm_timeout_s * _FACTOR_TIMEOUT_TTS * 1000,
+            retry_options=types.HttpRetryOptions(attempts=1),
+        ),
+    )
     respuesta = cliente.models.generate_content(
         model=settings.podcast_tts_model, contents=_INDICACION_GEMINI + dialogo, config=config
     )
@@ -171,12 +183,16 @@ def generar_podcast(podcast: PodcastContenido, destino: Path) -> str:
         carpeta = Path(tmp)
         motor = "sistema"
         turnos: list[Path] = []
-        if gemini_tts_configurado():
+        # si Gemini TTS falló hace poco, se va directo a las voces del sistema sin esperarlo
+        if gemini_tts_configurado() and not disponibilidad.en_pausa(_SERVICIO_TTS):
             try:
                 turnos = _generar_con_gemini(podcast, carpeta, ffmpeg)
                 motor = "gemini"
+                disponibilidad.reanudar(_SERVICIO_TTS)
             except Exception as exc:  # cuota, red, modelo: el episodio sale igual, con otra voz
                 logger.warning("Gemini TTS no disponible, se usan las voces del sistema: %s", exc)
+                disponibilidad.pausar(_SERVICIO_TTS, str(exc))
+                turnos = []
         if not turnos:
             turnos = _generar_con_sistema(podcast, carpeta, ffmpeg)
 

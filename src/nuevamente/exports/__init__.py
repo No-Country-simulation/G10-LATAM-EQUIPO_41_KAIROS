@@ -90,6 +90,10 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
             lineas.append("## Checklist final")
             for c in contenido.checklist_final:
                 lineas.append(f"- [ ] {c}")
+            lineas.append("")
+        if contenido.reto_practico:
+            lineas.append("## Reto práctico")
+            lineas.append(contenido.reto_practico)
 
     elif isinstance(contenido, ResumenEjecutivoContenido):
         lineas.append("# Resumen Ejecutivo")

@@ -143,6 +143,11 @@ class Settings:
     # (hasta 12 chunks de evidencia) un flash tarda varios segundos en responder.
     gemini_timeout: float = _env_float("GEMINI_TIMEOUT", 90.0)
 
+    # Espera máxima de cada llamada a las voces de Gemini (TTS del podcast, que la multiplica) y
+    # minutos que se omite un servicio tras un fallo, para no volver a esperarlo (ver llm/disponibilidad.py).
+    llm_timeout_s: int = _env_int("LLM_TIMEOUT_S", 40)
+    llm_pausa_min: int = _env_int("LLM_PAUSA_TRAS_FALLO_MIN", 10)
+
     # Si el proveedor real falla (cuota, saturación, sin red), generar con TemplateLLM
     llm_respaldo_local: bool = os.getenv("LLM_RESPALDO_LOCAL", "true").strip().lower() in ("1", "true", "si", "sí")
     anthropic_api_key: str = field(default=os.getenv("ANTHROPIC_API_KEY", ""), repr=False)

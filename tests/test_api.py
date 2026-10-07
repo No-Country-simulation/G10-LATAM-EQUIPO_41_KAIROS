@@ -182,6 +182,25 @@ def test_exportar_presentacion_pptx(api_client, documento_salud, formato):
         assert deck.slides[1].notes_slide.notes_text_frame.text.startswith("Narración")
 
 
+@pytest.mark.parametrize("formato", ["Flashcards", "Quiz", "Tutorial", "Resumen Ejecutivo", "Guion de Clase"])
+def test_exportar_documento_word(api_client, documento_salud, formato):
+    import io
+
+    from docx import Document
+
+    objeto_id = _crear(api_client, documento_salud, formato)
+    r = api_client.get(f"/api/v1/contenidos/{objeto_id}/exportar", params={"formato": "docx", "titulo": "Protocolo"})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("application/vnd.openxmlformats-officedocument.wordprocessingml")
+    parrafos = Document(io.BytesIO(r.content)).paragraphs
+    assert parrafos[0].text == "Protocolo" and parrafos[0].style.name == "Title"
+    if formato != "Resumen Ejecutivo":  # cada sección del documento titula sus partes
+        titulos = [p.text for p in parrafos if p.style.name == "Heading 1"]
+        assert titulos[:3] == ["Lavado de manos", "Equipos de proteccion personal", "Manejo de residuos"]
+    if formato == "Quiz":  # las respuestas van aparte, al final
+        assert "Respuestas" in [p.text for p in parrafos if p.style.name == "Heading 1"]
+
+
 def test_podcast_alterna_locutores_y_es_solo_audio(api_client, documento_salud):
     objeto_id = _crear(api_client, documento_salud, "Podcast")
     podcast = api_client.get(f"/api/v1/contenidos/{objeto_id}").json()["contenido_adaptado"]
@@ -191,7 +210,7 @@ def test_podcast_alterna_locutores_y_es_solo_audio(api_client, documento_salud):
     assert all(i["fuentes"] for i in podcast["intervenciones"] if i["locutor"] == "Leo")
 
     # el podcast se ofrece solo en audio: no se exporta como texto ni diapositivas
-    for formato in ("markdown", "anki_csv", "pptx"):
+    for formato in ("markdown", "anki_csv", "pptx", "docx"):
         r = api_client.get(f"/api/v1/contenidos/{objeto_id}/exportar", params={"formato": formato})
         assert r.status_code == 422
         assert "audio" in r.json()["detail"]

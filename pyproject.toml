@@ -19,6 +19,7 @@ dependencies = [
     "pillow",
     "imageio-ffmpeg",
     "python-pptx",
+    "python-docx",
 ]
 
 [project.optional-dependencies]

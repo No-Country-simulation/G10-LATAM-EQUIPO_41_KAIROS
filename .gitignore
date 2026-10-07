@@ -11,7 +11,7 @@ data/vectorstore/*
 data/videos/
 !data/vectorstore/.gitkeep
 .streamlit/
-docs/demo/resultados/*.json
+# los JSON de docs/demo/resultados/ son evidencia de las 3 demos: se versionan
 .DS_Store
 .pytest_cache/
 vector_store/
