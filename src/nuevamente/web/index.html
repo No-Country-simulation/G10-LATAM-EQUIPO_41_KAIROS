@@ -35,7 +35,7 @@
 
       <div id="menu" class="menu">
         <ul class="menu-enlaces">
-          <li><button type="button" id="btn-nuevo" data-seccion="inicio" class="activo" aria-current="true" aria-keyshortcuts="N" data-titulo="Empezar un material nuevo (N)" title="Empezar un material nuevo (N)"><span aria-hidden="true">➕</span> Nuevo material</button></li>
+          <li><button type="button" id="btn-cancelar" class="btn-cancelar" aria-keyshortcuts="Escape" data-titulo="Detener la creación del material en curso (Esc)" disabled title="No hay ninguna creación en curso"><span aria-hidden="true">⛔</span> Cancelar</button></li>
           <li><button type="button" id="btn-material" data-seccion="material" aria-keyshortcuts="M" data-titulo="Ver el material abierto (M)" disabled title="Aún no has creado ningún material"><span aria-hidden="true">📖</span> <span class="menu-etiqueta">Mi material<small id="material-actual" class="menu-sub" hidden></small></span></button></li>
           <li class="menu-desplegable">
             <button type="button" id="btn-historial" aria-haspopup="true" aria-expanded="false" aria-controls="historial-menu" aria-keyshortcuts="H" data-titulo="Materiales generados recientemente (H)" disabled title="Aún no hay materiales en el historial">
@@ -81,7 +81,7 @@
       <li><strong>✍️ Redacta el material</strong><span>Lo adapta al perfil, formato y nivel de detalle elegidos, citando el fragmento de origen.</span></li>
       <li><strong>✅ Verifica cada afirmación</strong><span>Compara cada afirmación con su fragmento. Si no alcanza el umbral (90% en Salud), el Crítico lo marca.</span></li>
     </ol>
-    <p class="nota atajos">⌨️ Atajos: <kbd>N</kbd> nuevo material · <kbd>M</kbd> mi material · <kbd>H</kbd> historial · <kbd>?</kbd> esta ayuda.</p>
+    <p class="nota atajos">⌨️ Atajos: <kbd>Esc</kbd> cancelar la creación en curso · <kbd>M</kbd> mi material · <kbd>H</kbd> historial · <kbd>?</kbd> esta ayuda.</p>
     <p class="nota">El contenido se basa solo en el documento que proporcionas y se guarda en OCI Object Storage, o en un respaldo local si OCI no está configurado.</p>
   </dialog>
 
@@ -90,11 +90,6 @@
     <form id="form" class="panel" novalidate>
       <section class="paso">
         <h2><span class="num">1</span> Tu documento</h2>
-
-        <div id="aviso-reutilizar" class="aviso-reutilizar" hidden>
-          <span>¿Quieres otra versión del documento anterior, con otro perfil o formato?</span>
-          <button type="button" id="btn-reutilizar" class="enlace">↩️ Usar el mismo documento</button>
-        </div>
 
         <div class="segmentado" role="tablist" aria-label="Fuente del documento">
           <button type="button" role="tab" class="seg activo" data-modo="texto" aria-selected="true">✍️ Pegar texto</button>
