@@ -1,0 +1,29 @@
+[
+  {
+    "caso_de_uso": "Onboarding de personal clínico nuevo",
+    "perfil": "Principiante",
+    "formato": "Flashcards",
+    "tiempo_generacion_segundos": 67.62,
+    "anclaje_fuente_score": 0.9375,
+    "aprobado_por_critico": true,
+    "modelo_llm": "gemini-3.5-flash"
+  },
+  {
+    "caso_de_uso": "Capacitación regulatoria interna con certificación",
+    "perfil": "Desarrollador Junior/Semi Senior",
+    "formato": "Quiz",
+    "tiempo_generacion_segundos": 367.18,
+    "anclaje_fuente_score": 1.0,
+    "aprobado_por_critico": true,
+    "modelo_llm": "gemini-flash-latest"
+  },
+  {
+    "caso_de_uso": "Actualización de protocolos ante una auditoría",
+    "perfil": "Gestor/Ejecutivo",
+    "formato": "Resumen Ejecutivo",
+    "tiempo_generacion_segundos": 0.038,
+    "anclaje_fuente_score": 1.0,
+    "aprobado_por_critico": true,
+    "modelo_llm": "template-extractivo-v1"
+  }
+]

@@ -60,6 +60,7 @@ class TutorialContenido(_Base):
     pasos: list[TutorialPaso] = Field(min_length=1)
     errores_comunes: list[str] = Field(default_factory=list)
     checklist_final: list[str] = Field(default_factory=list)
+    reto_practico: str = Field(default="", description="ejercicio para aplicar lo aprendido")
 
 
 class ResumenEjecutivoContenido(_Base):
