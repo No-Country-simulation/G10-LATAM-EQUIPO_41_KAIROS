@@ -50,6 +50,7 @@ const estado = {
   respuesta: null,
   tituloDocumento: "",
   textoUsado: "", // contenido con el que se generó el último material
+  documentoAnterior: null, // lo que había en el formulario al pulsar "Nuevo material"
 };
 
 // ---------- Utilidades ----------
@@ -354,6 +355,7 @@ async function animarEtapas(peticion) {
 }
 
 async function generar(evento) {
+  ocultarAvisoReutilizar();
   evento.preventDefault();
   mostrarError("");
 
@@ -430,6 +432,9 @@ function mostrarResultado(respuesta, tituloDocumento, publica = respuesta) {
 
   $("#res-etiqueta").textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${m.perfil_aplicado}`;
   $("#res-titulo").textContent = tituloDocumento;
+  const actual = $("#material-actual");
+  actual.textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${m.perfil_aplicado}`;
+  actual.hidden = false;
   // el podcast es solo audio: se descarga desde su reproductor, no como texto ni diapositivas
   document.querySelector(".descargas").hidden = c.formato === "Podcast";
 
@@ -1092,6 +1097,10 @@ function agregarAlHistorial(respuesta, titulo) {
   renderHistorial();
 }
 
+// Texto comparable para buscar: sin tildes y en minúsculas ("Guión" encuentra "guion").
+const normalizar = (texto) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 function renderHistorial() {
   const lista = leerHistorial();
   $("#historial-caja").hidden = lista.length === 0;
@@ -1100,9 +1109,15 @@ function renderHistorial() {
   const contador = $("#contador-historial");
   contador.textContent = lista.length;
   contador.hidden = lista.length === 0;
-  // la misma lista en el desplegable del menú y al pie de la página
-  const elementos = () =>
-    lista.map((item) =>
+  // la misma lista en el desplegable del menú y al pie de la página; el desplegable se
+  // puede filtrar con su buscador
+  const consulta = normalizar($("#buscar-historial").value);
+  const filtrada = consulta
+    ? lista.filter((item) => normalizar(`${item.titulo} ${item.formato} ${item.perfil}`).includes(consulta))
+    : lista;
+  $("#historial-sin-resultados").hidden = filtrada.length > 0;
+  const elementos = (items) =>
+    items.map((item) =>
       h(
         "li",
         {},
@@ -1121,8 +1136,8 @@ function renderHistorial() {
         ),
       ),
     );
-  $("#historial").replaceChildren(...elementos());
-  $("#historial-lista-menu").replaceChildren(...elementos());
+  $("#historial").replaceChildren(...elementos(lista));
+  $("#historial-lista-menu").replaceChildren(...elementos(filtrada));
 }
 
 async function abrirDelHistorial(item) {
@@ -1189,12 +1204,13 @@ function marcarSeccion(nombre) {
 // Un botón del menú sin nada que mostrar se desactiva y explica por qué al pasar el cursor.
 function habilitarBoton(boton, habilitado, motivo = "") {
   boton.disabled = !habilitado;
-  boton.title = habilitado ? "" : motivo;
+  boton.title = habilitado ? boton.dataset.titulo || "" : motivo;
 }
 
 function abrirHistorial(abierto) {
   $("#historial-menu").hidden = !abierto;
   $("#btn-historial").setAttribute("aria-expanded", String(abierto));
+  if (abierto) $("#buscar-historial").focus();
 }
 
 // Panel del indicador de almacenamiento ("Guardado local" / "Guardando en OCI").
@@ -1211,6 +1227,13 @@ function vaciarFormulario() {
   if (contenido && contenido !== estado.textoUsado.trim() && contenido !== EJEMPLO.trim()) {
     if (!confirm("¿Empezar un material nuevo? Se borrará el texto que escribiste y aún no usaste.")) return false;
   }
+  const anterior = {
+    modo: estado.modo,
+    titulo: $("#titulo").value,
+    contenido: $("#contenido").value,
+    archivo: estado.archivo,
+  };
+  estado.documentoAnterior = anterior.contenido.trim() || anterior.archivo ? anterior : null;
   $("#titulo").value = "";
   $("#contenido").value = "";
   $("#contenido").dispatchEvent(new Event("input", { bubbles: true }));
@@ -1219,10 +1242,26 @@ function vaciarFormulario() {
   return true;
 }
 
-// "Crear": vuelve al formulario vacío para empezar otro material. El material anterior
-// sigue a un clic en "Mi material" y en el Historial.
-function crearNuevo() {
-  if (!vaciarFormulario()) return;
+function ocultarAvisoReutilizar() {
+  $("#aviso-reutilizar").hidden = true;
+}
+
+// "Usar el mismo documento": vuelve a poner el documento anterior para generar otra
+// versión (otro perfil o formato) sin pegarlo ni subirlo de nuevo.
+function reutilizarDocumento() {
+  const doc = estado.documentoAnterior;
+  if (!doc) return;
+  cambiarModo(doc.modo);
+  $("#titulo").value = doc.titulo;
+  $("#contenido").value = doc.contenido;
+  $("#contenido").dispatchEvent(new Event("input", { bubbles: true }));
+  if (doc.archivo) elegirArchivo(doc.archivo);
+  ocultarAvisoReutilizar();
+  document.querySelectorAll(".paso")[1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Lleva al formulario y lo resalta, sin borrar nada.
+function irAlFormulario() {
   mostrarError("");
   if ($("#progreso").hidden) mostrarVista("vacio"); // mientras se genera, no se interrumpe
   marcarSeccion("inicio");
@@ -1234,6 +1273,30 @@ function crearNuevo() {
   const campo = estado.modo === "archivo" ? $("#archivo") : $("#titulo");
   campo.focus({ preventScroll: true });
   if (campo.select) campo.select();
+}
+
+// "Nuevo material": formulario vacío para otro documento. El material anterior sigue en
+// "Mi material" y en el Historial, y su documento se puede recuperar con un clic.
+function nuevoMaterial() {
+  if (!vaciarFormulario()) return;
+  $("#aviso-reutilizar").hidden = !estado.documentoAnterior;
+  irAlFormulario();
+}
+
+// Atajos de teclado del menú: N, M, H y ?. No actúan mientras se escribe en un campo ni
+// con un diálogo abierto.
+function atajoDeTeclado(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]") || $("#dialogo-como").open) return;
+  const accion = {
+    n: () => nuevoMaterial(),
+    m: () => !$("#btn-material").disabled && verMaterial(),
+    h: () => !$("#btn-historial").disabled && abrirHistorial($("#historial-menu").hidden),
+    "?": () => $("#btn-como").click(),
+  }[e.key.toLowerCase()];
+  if (!accion) return;
+  e.preventDefault();
+  accion();
 }
 
 function verMaterial() {
@@ -1251,13 +1314,19 @@ function iniciarMenu() {
   $("#btn-menu").addEventListener("click", () => abrirMenu(!$("#menu").classList.contains("abierto")));
   // En escritorio el formulario y el material se ven lado a lado, así que no se
   // deduce la sección por el scroll: se resalta la que el usuario eligió.
-  $("#btn-crear").addEventListener("click", () => {
+  $("#btn-nuevo").addEventListener("click", () => {
     abrirMenu(false);
-    crearNuevo();
+    nuevoMaterial();
   });
+  $("#btn-reutilizar").addEventListener("click", reutilizarDocumento);
+  $("#buscar-historial").addEventListener("input", renderHistorial);
+  document.addEventListener("keydown", atajoDeTeclado);
+  // escribir o elegir otro documento descarta la oferta de reutilizar el anterior
+  ["#titulo", "#contenido"].forEach((sel) => $(sel).addEventListener("input", (e) => e.isTrusted && ocultarAvisoReutilizar()));
+  $("#archivo").addEventListener("change", ocultarAvisoReutilizar);
   $(".marca").addEventListener("click", (e) => {
     e.preventDefault();
-    crearNuevo();
+    irAlFormulario();
   });
   $("#btn-material").addEventListener("click", () => {
     abrirMenu(false);
