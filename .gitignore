@@ -19,3 +19,6 @@ vector_store_app/
 *.safetensors
 *.sqlite3
 CONTEXTO_PROYECTO.txt
+# historial local del benchmark de latencia (cambia en cada corrida)
+docs/benchmark_api_ultima.json
+REPORTE_ARQUITECTURA_LLM.txt

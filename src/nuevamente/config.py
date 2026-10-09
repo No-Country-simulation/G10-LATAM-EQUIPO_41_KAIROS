@@ -115,6 +115,15 @@ class Settings:
     # Espera antes de lanzar al segundo de la carrera. 0 = salen los dos juntos (lo más
     # rápido, lo que más cuota gasta); 1.5 = sale el segundo solo si el primero no contestó.
     carrera_espera: float = _env_float("LLM_CARRERA_ESPERA_S", 0.0)
+
+    # Caché de contenido generado (post-Crítico). Scoped por defecto: solo Resumen Ejecutivo + Salud
+    cache_contenido_activado: bool = os.getenv("CACHE_CONTENIDO_ACTIVADO", "false").strip().lower() in ("1", "true", "si", "sí", "yes")
+    cache_contenido_scoped: bool = os.getenv("CACHE_CONTENIDO_SCOPED", "true").strip().lower() in ("1", "true", "si", "sí", "yes")
+    cache_contenido_max_entries: int = _env_int("CACHE_CONTENIDO_MAX_ENTRIES", 32)
+    cache_contenido_ttl_s: int = _env_int("CACHE_CONTENIDO_TTL_S", 3600)
+    cache_incluir_prompts_sha: bool = os.getenv("CACHE_INCLUIR_PROMPTS_SHA", "true").strip().lower() in ("1", "true", "si", "sí", "yes")
+    cache_incluir_schema_sha: bool = os.getenv("CACHE_INCLUIR_SCHEMA_SHA", "true").strip().lower() in ("1", "true", "si", "sí", "yes")
+
     # Claves de Gemini: admite una sola clave o varias separadas por coma para rotar si se agota la cuota
     gemini_api_keys: tuple[str, ...] = field(
         default_factory=lambda: _env_tuple_keys("GEMINI_API_KEYS", "GEMINI_API_KEY"),
@@ -179,7 +188,7 @@ class Settings:
     video_tts: str = os.getenv("VIDEO_TTS", "auto")  # auto (voz del sistema si hay) | off (sin narración)
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
 
-    # --- Límites de ingesta ---
+    # ------------------------ Límites de ingesta ------------------------
     max_upload_mb: int = _env_int("MAX_UPLOAD_MB", 10)
 
     def fidelity_min_for(self, nicho_sector: str) -> float:

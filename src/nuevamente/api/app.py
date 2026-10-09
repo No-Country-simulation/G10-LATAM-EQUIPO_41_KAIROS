@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from nuevamente.agents.graph import generar_contenido_educativo
+from nuevamente.cache.contenido import version_prompts_formatos
 from nuevamente.config import settings
 from nuevamente.exports.narracion import TIPOS_VOZ, nombre_voz
 from nuevamente.ingest.readers import DocumentoInvalidoError, leer_documento
@@ -138,6 +139,27 @@ def salud_llm():
     from nuevamente.llm.salud import registrar_y_ver
 
     return registrar_y_ver()
+
+
+@app.get("/api/v1/cache-contenido/stats")
+def cache_contenido_stats():
+    """Estadísticas del caché de contenido aprobado (post-Crítico)."""
+    from nuevamente.agents.graph import _cache_contenido
+
+    s = _cache_contenido.stats()
+    return {
+        "enabled": settings.cache_contenido_activado,
+        "scoped": settings.cache_contenido_scoped,
+        "scope_actual": ["Resumen Ejecutivo", "Salud"] if settings.cache_contenido_scoped else "global",
+        "max_entries": s.max_entries,
+        "ttl_s": s.ttl_s,
+        "entries": s.entries,
+        "hits_total": s.hits_total,
+        "misses_total": s.misses_total,
+        "hit_rate": s.hit_rate,
+        "entries_expirados_limpieza": s.entries_expirados_limpieza,
+        "version_prompts_formatos": version_prompts_formatos(),
+    }
 
 
 _MUESTRA_VOZ = "Hola. Así sonará la narración de tu clase: clara, pausada y en español."
