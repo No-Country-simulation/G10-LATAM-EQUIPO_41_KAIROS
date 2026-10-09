@@ -33,7 +33,7 @@ import httpx
 from pydantic import ValidationError
 
 from nuevamente.config import settings
-from nuevamente.llm.base import LLMError
+from nuevamente.llm.base import LLMError, PROMPT_CORRECCION_JSON
 from nuevamente.llm.rotacion import (
     CODIGOS_TRANSITORIOS,
     CREDENCIAL_INVALIDA,
@@ -42,6 +42,7 @@ from nuevamente.llm.rotacion import (
     TRANSITORIO,
     RateLimiter,
     RotacionKeys,
+    calcular_backoff_con_jitter,
 )
 
 logger = logging.getLogger("nuevamente.llm.gemini")
@@ -338,11 +339,8 @@ class GeminiLLM:
 
                         diag = _extraer_diagnostico(exc)
                         if intento < self._reintentos_red - 1:
-                            # 1. Backoff exponencial con jitter aleatorio
-                            jitter = random.uniform(0.1, 1.0) * min(1.0, float(self._espera_inicial))
-                            espera = min(
-                                float(self._espera_inicial) * (2 ** intento) + jitter,
-                                float(self._espera_maxima),
+                            espera = calcular_backoff_con_jitter(
+                                intento, float(self._espera_inicial), float(self._espera_maxima)
                             )
                             # 4. Diagnóstico de errores durante los reintentos
                             logger.warning(
@@ -416,8 +414,7 @@ class GeminiLLM:
                         role="user",
                         parts=[
                             types.Part(
-                                text="Tu respuesta no cumple el esquema JSON. Corrige estos "
-                                f"errores y devuelve el JSON completo:\n{ultimo_error}"
+                                text=PROMPT_CORRECCION_JSON.format(error=ultimo_error)
                             )
                         ],
                     ),

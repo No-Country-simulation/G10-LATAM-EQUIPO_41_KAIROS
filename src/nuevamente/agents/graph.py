@@ -23,6 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from nuevamente.config import settings
+from nuevamente.cache.contenido import CacheEntry, ContentCache, version_prompts_formatos
 from nuevamente.ingest.conceptos import extraer_conceptos
 from nuevamente.fidelity.verifier import ResultadoFidelidad, _fuente_mas_cercana, evaluar_fidelidad
 from nuevamente.llm.base import LLMClient, LLMError
@@ -372,6 +373,63 @@ def _claridad_desde_score(score: float) -> ClaridadPedagogica:
     return ClaridadPedagogica.BAJA
 
 
+# Caché de contenido aprobado (post-Crítico). Único singleton por proceso.
+_cache_contenido = ContentCache(
+    max_entries=settings.cache_contenido_max_entries,
+    ttl_s=settings.cache_contenido_ttl_s,
+)
+
+
+def _cache_activa_para(formato: str, nicho: str) -> bool:
+    if not settings.cache_contenido_activado:
+        return False
+    if not settings.cache_contenido_scoped:
+        return True
+    # Scoped seguro: solo Resumen Ejecutivo + Salud (tal como se acordó)
+    return formato == "Resumen Ejecutivo" and nicho == "Salud"
+
+
+def _reconstruir_desde_cache(
+    entry: CacheEntry,
+    coleccion: ColeccionDocumento,
+    llm_nombre_modelo: str,
+    tiempos_base: dict[str, float],
+    tiempo_generacion_segundos: float,
+) -> ResultadoGeneracion:
+    from nuevamente.schemas.formatos import _SCHEMA_POR_FORMATO
+    from nuevamente.schemas.response import EvaluacionCalidad, Metadatos
+
+    schema_cls = _SCHEMA_POR_FORMATO.get(entry.metadatos_base_json.get("formato_generado") or "Resumen Ejecutivo")
+    if schema_cls is None:
+        schema_cls = _SCHEMA_POR_FORMATO.get("Resumen Ejecutivo")
+
+    contenido = schema_cls.model_validate(entry.contenido_json)
+
+    tiempos = dict(tiempos_base)
+    try:
+        t_lookup = tiempos.get("_t_cache_lookup0", time.perf_counter())
+        tiempos["cache_hit_ms"] = round(max(0.0, (time.perf_counter() - t_lookup) * 1000), 2)
+    except Exception:
+        tiempos["cache_hit_ms"] = 0.0
+    tiempos["redactor_segundos"] = 0.0
+    tiempos["critico_ms"] = 0.0
+
+    metadatos = Metadatos(
+        perfil_aplicado=entry.metadatos_base_json.get("perfil_aplicado", ""),
+        formato_generado=entry.metadatos_base_json.get("formato_generado", ""),
+        tiempo_estimado_estudio_minutos=int(entry.metadatos_base_json.get("tiempo_estimado_estudio_minutos", 1)),
+        conceptos_clave=list(entry.conceptos_clave_plan or entry.metadatos_base_json.get("conceptos_clave", [])),
+        prerrequisitos=list(entry.prerrequisitos_plan or entry.metadatos_base_json.get("prerrequisitos", [])),
+        tiempo_generacion_segundos=round(tiempo_generacion_segundos, 3),
+        modelo_llm=llm_nombre_modelo or entry.metadatos_base_json.get("modelo_llm", ""),
+        desde_cache=True,
+        tiempos_por_agente=tiempos,
+    )
+
+    evaluacion = EvaluacionCalidad.model_validate(entry.evaluacion_json)
+    return ResultadoGeneracion(contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion)
+
+
 def generar_contenido_educativo(
     documento_titulo: str,
     documento_contenido: str,
@@ -415,6 +473,45 @@ def generar_contenido_educativo(
 
     t_red_total = 0.0
     t_crit_total = 0.0
+
+    # 2b. Caché de contenido aprobado (post-Crítico): lookup ANTES del bucle de reintentos
+    t_cache_lookup0 = time.perf_counter()
+    cache_key = None
+    cache_hit_entry: CacheEntry | None = None
+
+    if _cache_activa_para(formato, nicho):
+        chunk_ids_list = [c["chunk_id"] for c in chunks_evidencia]
+        vpf = version_prompts_formatos() if settings.cache_incluir_prompts_sha else "vpf-off"
+        cache_key = _cache_contenido.make_key(
+            doc_id=coleccion.doc_id,
+            perfil=perfil,
+            formato=formato,
+            nicho=nicho,
+            nivel_detalle=nivel_detalle,
+            umbral_fidelidad=umbral,
+            chunk_ids=chunk_ids_list,
+            prompts_sha=vpf if settings.cache_incluir_prompts_sha else None,
+        )
+        cache_hit_entry = _cache_contenido.get(cache_key)
+
+    if cache_hit_entry is not None:
+        tiempo_generacion_cache = round(time.perf_counter() - t0, 3)
+        tiempos_base_cache = {
+            "indexacion_rag_ms": t_idx,
+            "planificador_ms": t_plan,
+            "investigador_ms": t_inv,
+            "redactor_segundos": 0.0,
+            "critico_ms": 0.0,
+            "_t_cache_lookup0": t_cache_lookup0,
+        }
+        res_cache = _reconstruir_desde_cache(
+            entry=cache_hit_entry,
+            coleccion=coleccion,
+            llm_nombre_modelo=llm.nombre_modelo,
+            tiempos_base=tiempos_base_cache,
+            tiempo_generacion_segundos=tiempo_generacion_cache,
+        )
+        return res_cache
 
     intentos = settings.max_reintentos_critico + 1
     for intento in range(1, intentos + 1):
@@ -471,6 +568,57 @@ def generar_contenido_educativo(
     tiempo_generacion = round(time.perf_counter() - t0, 3)
     sin_afirmaciones = evaluacion_fidelidad is None or evaluacion_fidelidad.total == 0
     score_final = 0.0 if sin_afirmaciones else evaluacion_fidelidad.score
+
+    # Guardar en caché SOLO si aprobado y no fue hit
+    if (
+        _cache_activa_para(formato, nicho)
+        and aprobado
+        and evaluacion_fidelidad is not None
+        and cache_key
+        and cache_hit_entry is None
+    ):
+        try:
+            chunk_ids_list_final = [c["chunk_id"] for c in chunks_evidencia]
+            metadatos_base_json = {
+                "perfil_aplicado": perfil,
+                "formato_generado": formato,
+                "tiempo_estimado_estudio_minutos": _calcular_tiempo_estudio(contenido),
+                "conceptos_clave": plan.conceptos_clave or _conceptos_clave(chunks_evidencia),
+                "prerrequisitos": plan.prerrequisitos,
+                "modelo_llm": llm.nombre_modelo,
+            }
+            evaluacion_json = {
+                "anclaje_fuente_score": round(score_final, 4),
+                "claridad_pedagogica": _claridad_desde_score(score_final).value,
+                "observaciones": _ADAPTACION_POR_PERFIL.get(perfil, "")
+                + ("Aprobado por el Crítico dentro del umbral de fidelidad."),
+                "afirmaciones_total": evaluacion_fidelidad.total,
+                "afirmaciones_sustentadas": evaluacion_fidelidad.sustentadas,
+                "afirmaciones_no_sustentadas": list(evaluacion_fidelidad.no_sustentadas),
+                "umbral_aplicado": umbral,
+                "aprobado_por_critico": True,
+            }
+            entry_new = ContentCache.entry_from_aprobado(
+                key=cache_key,
+                ttl_s=settings.cache_contenido_ttl_s,
+                doc_id=coleccion.doc_id,
+                chunk_ids=chunk_ids_list_final,
+                secciones_plan=list(plan.secciones),
+                conceptos_clave_plan=list(plan.conceptos_clave),
+                prerrequisitos_plan=list(plan.prerrequisitos),
+                contenido=contenido,
+                evaluacion_json=evaluacion_json,
+                metadatos_base_json=metadatos_base_json,
+                umbral_aplicado=umbral,
+                score_final=score_final,
+                afirmaciones_total=evaluacion_fidelidad.total,
+                afirmaciones_sustentadas=evaluacion_fidelidad.sustentadas,
+                afirmaciones_no_sustentadas=list(evaluacion_fidelidad.no_sustentadas),
+                aprobado_por_critico=True,
+            )
+            _cache_contenido.set(cache_key, entry_new)
+        except Exception:
+            pass
 
     tiempos_por_agente = {
         "indexacion_rag_ms": t_idx,

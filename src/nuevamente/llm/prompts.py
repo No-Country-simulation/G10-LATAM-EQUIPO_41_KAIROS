@@ -248,7 +248,12 @@ PROMPT_PLANIFICADOR_POR_NICHO = {
 def construir_prompt_planificador(
     formato: str, perfil: str, nicho: str, nivel_detalle: str = "Didáctico"
 ) -> str:
-    """Construye el system prompt especializado para el agente Planificador."""
+    """Construye el system prompt especializado para el agente Planificador.
+
+    Nota arquitectónica: En el pipeline híbrido actual (`agents/graph.py`), el Planificador
+    opera de forma determinista y local (<1ms) para no añadir latencia de red. Esta función
+    se preserva para el modo de agentes 100% generativos o experimentación futura.
+    """
     partes = [
         PROMPT_PLANIFICADOR_BASE,
         f"Formato pedagógico objetivo: {formato}.",
@@ -291,7 +296,12 @@ PROMPT_CRITICO_POR_NICHO = {
 
 
 def construir_prompt_critico(formato: str, perfil: str, nicho: str) -> str:
-    """Construye el system prompt especializado para el agente Crítico."""
+    """Construye el system prompt especializado para el agente Crítico.
+
+    Nota arquitectónica: En el pipeline híbrido actual (`fidelity/verifier.py`), el Crítico
+    opera mediante verificación matemática instantánea de fidelidad TF-IDF (<2ms). Esta función
+    se preserva para el modo de juez LLM textual de producción.
+    """
     partes = [
         PROMPT_CRITICO_BASE,
         f"Formato pedagógico evaluado: {formato}.",
