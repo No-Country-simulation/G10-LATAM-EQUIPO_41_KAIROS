@@ -85,9 +85,38 @@
     <p class="nota">El contenido se basa solo en el documento que proporcionas y se guarda en OCI Object Storage, o en un respaldo local si OCI no está configurado.</p>
   </dialog>
 
+  <dialog id="dialogo-aviso" class="dialogo dialogo-aviso" aria-labelledby="aviso-titulo">
+    <form method="dialog">
+      <button class="dialogo-cerrar" aria-label="Cerrar">✕</button>
+    </form>
+    <h2 id="aviso-titulo">⚖️ Aviso legal y ético de uso</h2>
+    <p class="nota">Antes de procesar tu documento, lee y acepta las siguientes condiciones de uso de Kairos.</p>
+    <ol class="aviso-legal">
+      <li><strong>Finalidad educativa.</strong> Kairos genera material de apoyo para el estudio a partir del documento que tú proporcionas. No constituye asesoría profesional médica, legal, financiera ni de ningún otro tipo, y no reemplaza el criterio de un profesional ni las normas e indicaciones oficiales vigentes.</li>
+      <li><strong>Contenido generado con inteligencia artificial.</strong> El material se crea de forma automática y cada afirmación se contrasta con el documento fuente; aun así, puede contener errores, omisiones o interpretaciones inexactas. Revísalo antes de usarlo, enseñarlo o compartirlo.</li>
+      <li><strong>Derechos sobre el documento.</strong> Declaras que eres titular del documento o que tienes autorización para usarlo con este fin, y que su uso no infringe derechos de autor, secretos comerciales ni acuerdos de confidencialidad.</li>
+      <li><strong>Datos personales y sensibles.</strong> No incluyas datos personales que identifiquen a alguien ni información sensible, como historias clínicas, diagnósticos de pacientes, datos financieros o contraseñas. Si el documento los contiene, anonimízalos antes de procesarlo.</li>
+      <li><strong>Tratamiento de la información.</strong> Para generar el material, el texto del documento puede enviarse a un proveedor externo de inteligencia artificial (Google Gemini o Anthropic Claude, según la configuración del servicio). El material generado, que incluye fragmentos citados del documento, se guarda en Oracle Cloud (OCI Object Storage) o en un respaldo local del servidor.</li>
+      <li><strong>Uso responsable.</strong> Te comprometes a no usar Kairos para crear contenido engañoso, discriminatorio, ilícito o que pueda causar daño, ni para presentar el material generado como una fuente oficial o como la opinión de un profesional.</li>
+      <li><strong>Responsabilidad.</strong> Kairos es un proyecto académico del equipo Kairos G10 (Hackathon ONE G10). Se ofrece tal cual, sin garantías, y el equipo no se responsabiliza de las decisiones que se tomen a partir del material generado. El uso que hagas de él es tu responsabilidad.</li>
+    </ol>
+    <p class="nota">Al marcar la casilla “He leído y acepto el aviso legal y ético” confirmas que aceptas estas condiciones para el documento que vas a procesar.</p>
+    <div class="dialogo-acciones">
+      <small id="aviso-pendiente" class="nota" aria-live="polite">⬇️ Desplázate hasta el final para poder aceptar.</small>
+      <button type="button" id="btn-aviso-cerrar" class="btn-secundario">Cerrar</button>
+      <button type="button" id="btn-aviso-aceptar" class="btn-secundario btn-destacado" disabled>✓ Acepto</button>
+    </div>
+  </dialog>
+
   <main id="inicio" class="layout">
     <!-- ===== Panel de configuración ===== -->
     <form id="form" class="panel" novalidate>
+      <div class="alerta-idioma" role="note">
+        <span class="alerta-icono" aria-hidden="true">⚠️</span>
+        <p><strong>Importante: solo se acepta texto en castellano.</strong>
+          Pega o sube documentos escritos en español; otros idiomas no se procesan correctamente.</p>
+      </div>
+
       <section class="paso">
         <h2><span class="num">1</span> Tu documento</h2>
 
@@ -146,6 +175,11 @@
 
       <p id="error-form" class="error" role="alert" hidden></p>
 
+      <label class="aceptar-aviso" id="casilla-aviso" title="Primero lee el aviso legal y ético completo">
+        <input id="acepto-aviso" type="checkbox" required aria-disabled="true">
+        <span>He leído y acepto el <button type="button" id="ver-aviso" class="enlace enlace-aviso">aviso legal y ético</button>. Es necesario para procesar tu documento.</span>
+      </label>
+
       <button id="btn-generar" type="submit" class="btn-principal">
         <span class="btn-texto">Crear mi material</span>
         <span class="btn-cargando" aria-hidden="true"></span>
@@ -187,8 +221,8 @@
             <h2 id="res-titulo"></h2>
           </div>
           <div class="descargas">
-            <button type="button" class="btn-secundario btn-destacado" data-exportar="docx" title="Descargar como documento de Word (.docx)">📝 Word</button>
-            <button type="button" class="btn-secundario btn-destacado" data-exportar="pptx" title="Descargar como presentación (.pptx)">📊 PowerPoint</button>
+            <button type="button" class="btn-secundario" data-exportar="docx" title="Descargar como documento de Word (.docx)">📝 Word</button>
+            <button type="button" class="btn-secundario" data-exportar="pptx" title="Descargar como presentación (.pptx)">📊 PowerPoint</button>
             <button type="button" class="btn-secundario" data-exportar="markdown" title="Descargar como texto Markdown (.md)">⬇️ Markdown</button>
             <button type="button" class="btn-secundario" data-exportar="anki_csv" title="Descargar tarjetas para importar en Anki (.csv)">⬇️ Anki</button>
           </div>

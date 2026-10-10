@@ -37,6 +37,16 @@ class PerfilDestinatario(_OpcionFlexible):
     GESTOR_EJECUTIVO = "Gestor/Ejecutivo"
 
 
+#: Nombre que ve el usuario de cada perfil (interfaz y exportaciones). El valor del enum no
+#: cambia: es el que espera la API (contrato JSON). Igual que PERFILES en web/app.js.
+NOMBRE_VISIBLE_PERFIL = {
+    PerfilDestinatario.PRINCIPIANTE.value: "Inicial/Básico (Principiante-Junior)",
+    PerfilDestinatario.DESARROLLADOR_JUNIOR.value: "Intermedio (semisénior)",
+    PerfilDestinatario.LIDER_TECNICO.value: "Avanzado (Senior-Arquitecto-Técnico)",
+    PerfilDestinatario.GESTOR_EJECUTIVO.value: "Experto / Directivo (Lead, Ejecutivo, Gestor)",
+}
+
+
 class FormatoSalida(_OpcionFlexible):
     TUTORIAL = "Tutorial"
     FLASHCARDS = "Flashcards"
@@ -51,6 +61,7 @@ class NichoSector(_OpcionFlexible):
     FINTECH = "Fintech"
     SALUD = "Salud"
     ECOMMERCE = "E-commerce"
+    TECNOLOGIA = "Tecnología"
 
 
 class NivelDetalle(_OpcionFlexible):

@@ -19,7 +19,7 @@ transforma en contenido educativo personalizado según:
   Líder Técnico/Arquitecto, Gestor/Ejecutivo.
 - **Formato pedagógico:** Flashcards, Quiz, Tutorial, Resumen Ejecutivo, Guion
   de Clase, Podcast (solo en audio).
-- **Nicho/sector:** General, Fintech, Salud, E-commerce.
+- **Nicho/sector:** General, Fintech, Salud, E-commerce, Tecnología.
 
 Cualquier resultado se puede descargar como **documento Word (.docx)** o
 **presentación PowerPoint (.pptx)**, además de Markdown y CSV para Anki (botones

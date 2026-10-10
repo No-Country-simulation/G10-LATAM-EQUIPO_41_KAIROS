@@ -108,15 +108,15 @@ PROMPT_POR_NICHO = {
         "Contextualiza los ejemplos en comercio electrónico, pasarelas de pago, gestión de "
         "inventario, logística, motores de recomendación y picos de tráfico."
     ),
+    "Tecnología": (
+        "Contextualiza los ejemplos en desarrollo de software, arquitectura cloud, CI/CD, "
+        "APIs y ecosistemas digitales modernos."
+    ),
 }
 
 # Sectores con prompt listo pero que aún no se pueden elegir en la web. Para activar
 # uno, agrega su valor a NichoSector (schemas/enums.py) y muévelo a PROMPT_POR_NICHO.
 PROMPT_SECTORES_SIN_ACTIVAR = {
-    "Tecnología": (
-        "Contextualiza los ejemplos en desarrollo de software, arquitectura cloud, CI/CD, "
-        "APIs y ecosistemas digitales modernos."
-    ),
     "Educación": (
         "Contextualiza los ejemplos en plataformas e-learning, metodologías pedagógicas, "
         "seguimiento del estudiante y gamificación."
@@ -159,14 +159,23 @@ PROMPT_POR_FORMATO = {
         "documento. Cada pregunta evalúa un concepto distinto, con comprensión o aplicación en "
         "escenarios reales, no memorización; no preguntes por el objetivo, la estructura o el "
         "índice del documento. Los distractores deben ser plausibles pero contradecir o no estar en la "
-        "fuente."
+        "fuente. El orden de las opciones se mezcla después: en la justificación no menciones la "
+        "letra ni la posición de la opción correcta (nada de «la opción A»)."
     ),
     "Resumen Ejecutivo": (
-        "Resumen Ejecutivo: resumen de unas 250 palabras (`resumen`), hasta 5 puntos clave "
-        "(`puntos_clave`), riesgos y recomendaciones (`decisiones_o_riesgos`) e impacto en "
-        "el sector (`impacto_de_negocio`). El resumen no es la introducción resumida: recoge "
-        "las ideas de todo el documento, y los puntos clave agrupan sus conceptos, no solo "
-        "los primeros."
+        "Resumen Ejecutivo con estilo profesional, directo y fácil de leer en un minuto, "
+        "con esta estructura:\n"
+        "- `resumen` (unas 200 palabras): tres párrafos separados por una línea en blanco. "
+        "1) Idea central: una o dos oraciones con la conclusión más importante del documento, "
+        "lo primero que debe saber quien decide. 2) Contexto: qué trata el documento y por qué "
+        "importa. 3) Hallazgos: lo esencial del resto del documento. Oraciones cortas, voz "
+        "activa, sin relleno ni frases de introducción como «este documento trata de». El "
+        "resumen recoge las ideas de todo el documento, no solo de la introducción.\n"
+        "- `puntos_clave` (3 a 5): cada uno con el formato «Título breve: una oración que lo "
+        "explica». Agrupan conceptos de todo el documento, no solo los primeros.\n"
+        "- `decisiones_o_riesgos` (2 a 5): cada elemento empieza por «Riesgo:» o por "
+        "«Recomendación:», con una acción o consecuencia concreta según la fuente.\n"
+        "- `impacto_de_negocio`: dos o tres oraciones sobre el impacto en el sector."
     ),
     "Guion de Clase": (
         "Guion de Clase: introducción con gancho, desarrollo temático por bloques y, al "
@@ -242,6 +251,7 @@ PROMPT_PLANIFICADOR_POR_NICHO = {
         "No asumas información no especificada ni planifiques contenidos de diagnóstico o prescripción médica."
     ),
     "E-commerce": "Prioriza experiencia de usuario, conversión, gestión de inventario y embudos de venta.",
+    "Tecnología": "Prioriza arquitectura, dependencias entre componentes, seguridad y buenas prácticas de ingeniería.",
 }
 
 
@@ -287,6 +297,7 @@ PROMPT_CRITICO_POR_NICHO = {
         "procedimientos invasivos no autorizados o indicaciones clínicas no presentes en la fuente."
     ),
     "E-commerce": "Verifica métricas comerciales y políticas de plataforma contra la fuente.",
+    "Tecnología": "Verifica que comandos, versiones, configuraciones y nombres técnicos coincidan con la fuente.",
 }
 
 
