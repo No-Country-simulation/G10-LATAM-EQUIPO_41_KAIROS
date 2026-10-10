@@ -1,6 +1,6 @@
 from nuevamente.agents.graph import _depurar
 from nuevamente.ingest.chunking import _detectar_secciones
-from nuevamente.schemas.formatos import FlashcardsContenido, GuionDeClaseContenido
+from nuevamente.schemas.formatos import FlashcardsContenido, GuionDeClaseContenido, QuizContenido
 
 
 def test_quita_tarjetas_duplicadas():
@@ -29,6 +29,32 @@ def test_renumera_escenas_tras_quitar_duplicados():
     )
     limpio = _depurar(contenido)
     assert [e.orden for e in limpio.escenas] == [1, 2]
+
+
+def test_quiz_reparte_la_respuesta_correcta_entre_las_letras():
+    # como suele hacer un LLM: la correcta siempre en la A
+    temas = ["el lavado de manos", "los guantes", "la mascarilla", "los residuos", "la bata", "las agujas", "el alcohol", "la limpieza"]
+    contenido = QuizContenido(
+        titulo="Quiz",
+        preguntas=[
+            {
+                "enunciado": f"¿Qué indica el documento sobre {t}?",
+                "opciones": [f"Correcta sobre {t}", f"Falsa uno de {t}", f"Falsa dos de {t}", f"Falsa tres de {t}"],
+                "indice_correcto": 0,
+                "justificacion": "Lo dice la fuente.",
+                "fuentes": ["c1"],
+            }
+            for t in temas
+        ],
+    )
+    limpio = _depurar(contenido)
+    posiciones = [p.indice_correcto for p in limpio.preguntas]
+    assert sorted(posiciones) == [0, 0, 1, 1, 2, 2, 3, 3]  # repartidas por igual
+    assert all(a != b for a, b in zip(posiciones, posiciones[1:]))  # nunca dos seguidas iguales
+    for p, t in zip(limpio.preguntas, temas):
+        assert p.opciones[p.indice_correcto] == f"Correcta sobre {t}"
+        assert sorted(p.opciones) == sorted([f"Correcta sobre {t}", f"Falsa uno de {t}", f"Falsa dos de {t}", f"Falsa tres de {t}"])
+    assert _depurar(contenido).model_dump() == limpio.model_dump()  # el mismo quiz se mezcla igual
 
 
 def test_titulos_de_seccion_sin_numeracion_de_origen():

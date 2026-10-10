@@ -24,6 +24,8 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
 
+from nuevamente.exports.resumen import partes_resumen
+from nuevamente.schemas.enums import NOMBRE_VISIBLE_PERFIL
 from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
     FlashcardsContenido,
@@ -362,11 +364,22 @@ def _tutorial(deck: _Deck, c: TutorialContenido):
 
 
 def _resumen(deck: _Deck, c: ResumenEjecutivoContenido):
+    partes = partes_resumen(c)
     slide = deck.diapositiva()
-    y = _encabezado(slide, "Resumen ejecutivo", "En pocas palabras")
-    _texto(slide, MARGEN_IN, y, ANCHO_IN - 2 * MARGEN_IN, ALTO_IN - y - 0.8, c.resumen, 22, TEXTO, minimo=13)
+    y = _encabezado(slide, "Resumen ejecutivo", "Idea central")
+    _caja(slide, MARGEN_IN, y, ANCHO_IN - 2 * MARGEN_IN, ALTO_IN - y - 0.8, PRIMARIO_SUAVE)
+    _texto(slide, MARGEN_IN + 0.5, y + 0.4, ANCHO_IN - 2 * MARGEN_IN - 1, ALTO_IN - y - 1.6, partes.idea, 30, TEXTO,
+           minimo=16, negrita=True, ancla=MSO_ANCHOR.MIDDLE)
     _pie(slide)
     _notas(slide, c.resumen)
+
+    if partes.resto:
+        resto = "\n\n".join(partes.resto)
+        slide = deck.diapositiva()
+        y = _encabezado(slide, "Resumen ejecutivo", "Contexto y hallazgos")
+        _texto(slide, MARGEN_IN, y, ANCHO_IN - 2 * MARGEN_IN, ALTO_IN - y - 0.8, resto, 22, TEXTO, minimo=13)
+        _pie(slide)
+        _notas(slide, resto)
 
     slide = deck.diapositiva()
     y = _encabezado(slide, "Resumen ejecutivo", "Puntos clave")
@@ -375,8 +388,9 @@ def _resumen(deck: _Deck, c: ResumenEjecutivoContenido):
     filas = math.ceil(n / columnas)
     ancho = (ANCHO_IN - 2 * MARGEN_IN - 0.35 * (columnas - 1)) / columnas
     alto = (ALTO_IN - y - 0.8 - 0.35 * (filas - 1)) / filas
-    pt = min(_tamano(p, ancho - 1.55, alto - 0.5, 24, 13, negrita=True) for p in c.puntos_clave)
-    for k, punto in enumerate(c.puntos_clave):
+    puntos = [f"{t}\n{d}" if d else t for t, d in partes.puntos]
+    pt = min(_tamano(p, ancho - 1.55, alto - 0.5, 24, 13, negrita=True) for p in puntos)
+    for k, punto in enumerate(puntos):
         fila, col = divmod(k, columnas)
         x = MARGEN_IN + col * (ancho + 0.35)
         yy = y + fila * (alto + 0.35)
@@ -388,10 +402,12 @@ def _resumen(deck: _Deck, c: ResumenEjecutivoContenido):
 
     if c.decisiones_o_riesgos or c.impacto_de_negocio:
         slide = deck.diapositiva()
-        y = _encabezado(slide, "Resumen ejecutivo", "Riesgos e impacto")
+        y = _encabezado(slide, "Resumen ejecutivo", "Riesgos, recomendaciones e impacto")
+        vinetas = lambda textos: "\n".join("• " + t for t in textos)  # noqa: E731
         bloques = [(t, txt, color) for t, txt, color in (
-            ("Riesgos y decisiones", "\n".join("• " + r for r in c.decisiones_o_riesgos), CORAL_SUAVE),
-            ("Impacto de negocio", c.impacto_de_negocio, MENTA_SUAVE),
+            ("Riesgos", vinetas(partes.riesgos), CORAL_SUAVE),
+            ("Recomendaciones", vinetas(partes.recomendaciones + partes.decisiones), MENTA_SUAVE),
+            ("Impacto en el sector", c.impacto_de_negocio, SOL_SUAVE),
         ) if txt]
         _columnas(slide, y, bloques, maximo=24)
         _pie(slide)
@@ -445,7 +461,7 @@ def generar_presentacion(
     formato = contenido.formato
     etiqueta = _ETIQUETAS.get(formato, formato)
     if perfil:
-        etiqueta = f"{etiqueta} · {perfil}"
+        etiqueta = f"{etiqueta} · {NOMBRE_VISIBLE_PERFIL.get(perfil, perfil)}"
 
     if isinstance(contenido, FlashcardsContenido):
         subtitulo = contenido.introduccion_contextualizada

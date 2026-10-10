@@ -41,6 +41,11 @@ class ConRespaldoLocal:
         self.motivo_respaldo = disponibilidad.en_pausa(self._servicio) or ""
         self._usar_respaldo = bool(self.motivo_respaldo)
 
+    @property
+    def router(self):
+        """El router de salud del principal (si es una cadena), para /api/v1/salud-llm."""
+        return getattr(self._principal, "router", None)
+
     def generar_estructurado(self, schema, system: str, user: str):
         if not self._usar_respaldo:
             try:
@@ -64,6 +69,12 @@ def _crear_gemini() -> LLMClient:
     from nuevamente.llm.gemini_llm import GeminiLLM
 
     return GeminiLLM()
+
+
+def _crear_claude() -> LLMClient:
+    from nuevamente.llm.claude_llm import ClaudeLLM
+
+    return ClaudeLLM()
 
 
 def _crear_groq() -> LLMClient:
@@ -94,6 +105,7 @@ def _crear_cadena() -> LLMClient:
 _FACTORIES: dict[str, Callable[[], LLMClient]] = {
     "template": TemplateLLM,
     "gemini": _crear_gemini,
+    "claude": _crear_claude,
     "groq": _crear_groq,
     "cerebras": _crear_cerebras,
     "openrouter": _crear_openrouter,
@@ -109,7 +121,18 @@ def crear_llm(proveedor: str | None = None) -> LLMClient:
             f"{', '.join(sorted(_FACTORIES))}, o implementa una clase con la interfaz "
             "LLMClient (ver llm/base.py) y regístrala en _FACTORIES."
         )
-    return _con_cache(proveedor, _FACTORIES[proveedor])
+    if proveedor == "template" or not settings.llm_respaldo_local:
+        return _con_cache(proveedor, _FACTORIES[proveedor])
+    # Con LLM_RESPALDO_LOCAL, si el proveedor falla (cuota, "503 high demand", sin red) el
+    # material se genera igual con el TemplateLLM en lugar de devolver un error al usuario.
+    # El envoltorio es nuevo en cada generación (recuerda si ya cayó al respaldo en *esta*
+    # generación); el cliente de la API sí sale de la cache.
+    try:
+        principal = _con_cache(proveedor, _FACTORIES[proveedor])
+    except LLMError as exc:  # sin SDK o sin API key: directamente el respaldo
+        logger.warning("Proveedor '%s' no configurado, se usa el respaldo local: %s", proveedor, exc)
+        return TemplateLLM()
+    return ConRespaldoLocal(principal, TemplateLLM())
 
 
 # --- Cache de clientes -------------------------------------------------------

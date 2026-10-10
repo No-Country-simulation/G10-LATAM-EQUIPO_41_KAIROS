@@ -9,6 +9,7 @@ import csv
 import io
 import re
 
+from nuevamente.exports.resumen import partes_resumen
 from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
     FlashcardsContenido,
@@ -96,22 +97,31 @@ def exportar_markdown(contenido: ContenidoAdaptado, titulo_documento: str = "") 
             lineas.append(contenido.reto_practico)
 
     elif isinstance(contenido, ResumenEjecutivoContenido):
+        partes = partes_resumen(contenido)
         lineas.append("# Resumen Ejecutivo")
         lineas.append("")
-        lineas.append("## Resumen")
-        lineas.append(contenido.resumen)
+        lineas.append("## Idea central")
+        lineas.append(f"> **{partes.idea}**")
+        if partes.resto:
+            lineas.append("")
+            lineas.append("## Contexto y hallazgos")
+            lineas.append("\n\n".join(partes.resto))
         lineas.append("")
         lineas.append("## Puntos clave")
-        for pk in contenido.puntos_clave:
-            lineas.append(f"- {pk}")
-        if contenido.decisiones_o_riesgos:
-            lineas.append("")
-            lineas.append("## Riesgos y decisiones")
-            for r in contenido.decisiones_o_riesgos:
-                lineas.append(f"- {r}")
+        for i, (titulo, detalle) in enumerate(partes.puntos, start=1):
+            lineas.append(f"{i}. **{titulo}**" + (f": {detalle}" if detalle else ""))
+        for nombre, textos in (
+            ("Riesgos", partes.riesgos),
+            ("Recomendaciones", partes.recomendaciones),
+            ("Decisiones", partes.decisiones),
+        ):
+            if textos:
+                lineas.append("")
+                lineas.append(f"## {nombre}")
+                lineas.extend(f"- {t}" for t in textos)
         if contenido.impacto_de_negocio:
             lineas.append("")
-            lineas.append("## Impacto de negocio")
+            lineas.append("## Impacto en el sector")
             lineas.append(contenido.impacto_de_negocio)
 
     elif isinstance(contenido, GuionDeClaseContenido):

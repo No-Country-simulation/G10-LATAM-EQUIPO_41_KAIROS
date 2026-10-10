@@ -15,8 +15,10 @@ es la misma que pediría un StateGraph de LangGraph; migrar es un cambio de
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import random
 import re
 import time
 import uuid
@@ -133,6 +135,8 @@ def _planificar(
                 prerreqs.append("Familiaridad con términos financieros básicos.")
             elif nicho == "E-commerce":
                 prerreqs.append("Comprensión general de comercio electrónico y ventas.")
+            elif nicho == "Tecnología":
+                prerreqs.append("Familiaridad básica con software, sistemas y conceptos digitales.")
             else:
                 prerreqs.append("Comprensión lectora general del tema.")
         elif perfil == "Desarrollador Junior/Semi Senior":
@@ -244,9 +248,37 @@ def _sin_repetidos(textos: list[str]) -> list[str]:
     return [t for t in textos if t.strip() and not _es_duplicado(t, vistos)]
 
 
+def _posiciones_variadas(n: int, rng: random.Random) -> list[int]:
+    """Posiciones (0-3) para la respuesta correcta de n preguntas: cada bloque de 4 es una
+    permutación al azar de A-D, así quedan repartidas y nunca dos seguidas iguales."""
+    posiciones: list[int] = []
+    while len(posiciones) < n:
+        bloque = rng.sample(range(4), 4)
+        if posiciones and bloque[0] == posiciones[-1]:
+            bloque = bloque[1:] + bloque[:1]
+        posiciones.extend(bloque)
+    return posiciones[:n]
+
+
+def _mezclar_opciones(preguntas: list[dict]) -> None:
+    """Reordena las opciones de cada pregunta del quiz para que la correcta no quede siempre
+    en la misma letra (un LLM suele ponerla en la A). El orden depende del contenido del
+    quiz: el mismo quiz se mezcla igual, uno distinto se mezcla distinto."""
+    semilla = hashlib.sha256("\n".join(p["enunciado"] for p in preguntas).encode()).hexdigest()
+    rng = random.Random(semilla)
+    for p, destino in zip(preguntas, _posiciones_variadas(len(preguntas), rng)):
+        correcta = p["opciones"][p["indice_correcto"]]
+        distractores = [o for i, o in enumerate(p["opciones"]) if i != p["indice_correcto"]]
+        rng.shuffle(distractores)
+        distractores.insert(destino, correcta)
+        p["opciones"] = distractores
+        p["indice_correcto"] = destino
+
+
 def _depurar(contenido: ContenidoAdaptado) -> ContenidoAdaptado:
     """Quita presuntos duplicados (tarjetas, preguntas, pasos, escenas, intervenciones y
-    listas) y vuelve a numerar en orden, sin huecos. El Redactor, sobre todo el
+    listas), vuelve a numerar en orden, sin huecos, y reparte la respuesta correcta del
+    quiz entre las letras A-D. El Redactor, sobre todo el
     extractivo, puede repetir una misma idea que aparece en dos chunks solapados."""
     datos = contenido.model_dump()
     vistos: list[set[str]] = []
@@ -275,6 +307,8 @@ def _depurar(contenido: ContenidoAdaptado) -> ContenidoAdaptado:
     for campo in ("items", "preguntas"):
         if campo in datos and not datos[campo]:
             return contenido  # nunca dejar el material vacío
+    if "preguntas" in datos:
+        _mezclar_opciones(datos["preguntas"])
     for campo in ("pasos", "escenas", "intervenciones"):
         for i, parte in enumerate(datos.get(campo, []), start=1):
             parte["orden"] = i

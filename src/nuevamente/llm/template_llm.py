@@ -76,6 +76,7 @@ _ANALOGIA_POR_NICHO = {
     "Salud": "Piénsalo como un protocolo que protege tanto al paciente como al personal.",
     "Fintech": "Piénsalo como una regla que protege tanto al cliente como a la entidad financiera.",
     "E-commerce": "Piénsalo como una regla que protege tanto al comprador como a la tienda.",
+    "Tecnología": "Piénsalo como una buena práctica que mantiene el sistema estable y seguro.",
     "General": "Piénsalo como una regla práctica que evita errores costosos.",
 }
 
@@ -83,6 +84,7 @@ _RIESGO_POR_NICHO = {
     "Salud": "Un error aquí puede afectar la seguridad del paciente o incumplir normativa sanitaria.",
     "Fintech": "Un error aquí puede generar pérdidas económicas o incumplimiento regulatorio.",
     "E-commerce": "Un error aquí puede afectar la experiencia del cliente o generar pérdidas.",
+    "Tecnología": "Un error aquí puede provocar fallas, vulnerabilidades o deuda técnica.",
     "General": "Un error aquí puede generar retrabajo o confusión en el equipo.",
 }
 
@@ -297,22 +299,35 @@ class TemplateLLM:
         n_chunks = {"Conciso": 4, "Profundo": 8}.get(nivel, 6)
         usados = _repartir(chunks, n_chunks)
         oraciones = [_primeras(c["texto"], 1) for c in usados]
-        resumen = " ".join(oraciones)
+        # Tres párrafos como pide el formato: idea central, contexto y hallazgos.
+        mitad = 1 + (len(oraciones) - 1) // 2
+        parrafos = [" ".join(p) for p in (oraciones[:1], oraciones[1:mitad], oraciones[mitad:]) if p]
+        resumen = "\n\n".join(parrafos)
         if len(resumen) > 1700:
             resumen = resumen[:1700].rsplit(" ", 1)[0] + "…"
+        # Puntos clave «Título: explicación», con la primera oración de cada sección.
         puntos_clave: list[str] = []
+        secciones: set[str] = set()
         for c in chunks:
-            if c["seccion"] not in puntos_clave and c["seccion"] not in _SECCIONES_GENERICAS:
-                puntos_clave.append(c["seccion"])
+            if c["seccion"] not in secciones and c["seccion"] not in _SECCIONES_GENERICAS:
+                secciones.add(c["seccion"])
+                explicacion = _primeras(c["texto"], 1)
+                if len(explicacion) > 220:
+                    explicacion = explicacion[:220].rsplit(" ", 1)[0] + "…"
+                puntos_clave.append(f"{c['seccion']}: {explicacion}" if explicacion else c["seccion"])
             if len(puntos_clave) >= 5:
                 break
         if len(puntos_clave) < 3:  # documento sin títulos: los conceptos de su texto
             texto = " ".join(c["texto"] for c in chunks)
-            puntos_clave += extraer_conceptos(texto, maximo=5 - len(puntos_clave), excluir=set(puntos_clave))
+            puntos_clave += extraer_conceptos(texto, maximo=5 - len(puntos_clave), excluir=secciones)
         return ResumenEjecutivoContenido(
             resumen=resumen or f"Resumen de «{titulo}».",
             puntos_clave=puntos_clave or [titulo],
-            decisiones_o_riesgos=[_RIESGO_POR_NICHO.get(nicho, _RIESGO_POR_NICHO["General"])],
+            decisiones_o_riesgos=[
+                "Riesgo: " + _RIESGO_POR_NICHO.get(nicho, _RIESGO_POR_NICHO["General"]),
+                f"Recomendación: Difundir los puntos clave de «{titulo}» entre los equipos implicados "
+                "y verificar que se apliquen.",
+            ],
             impacto_de_negocio=(
                 f"Adoptar lo descrito en «{titulo}» reduce el riesgo operativo y facilita "
                 f"el cumplimiento en el sector {nicho}."

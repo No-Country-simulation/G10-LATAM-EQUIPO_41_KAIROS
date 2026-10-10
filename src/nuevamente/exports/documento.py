@@ -18,6 +18,9 @@ from docx import Document
 from docx.enum.text import WD_BREAK
 from docx.shared import Pt, RGBColor
 
+from nuevamente.exports.resumen import partes_resumen
+from nuevamente.schemas.enums import NOMBRE_VISIBLE_PERFIL
+
 from nuevamente.schemas.formatos import (
     ContenidoAdaptado,
     FlashcardsContenido,
@@ -149,15 +152,26 @@ def _tutorial(d: _Doc, c: TutorialContenido) -> None:
 
 
 def _resumen(d: _Doc, c: ResumenEjecutivoContenido) -> None:
-    d.apartado("Resumen")
-    d.parrafo(c.resumen)
+    partes = partes_resumen(c)
+    d.apartado("Idea central")
+    d.parrafo(partes.idea).runs[-1].bold = True
+    if partes.resto:
+        d.apartado("Contexto y hallazgos")
+        for parrafo in partes.resto:
+            d.parrafo(parrafo)
     d.apartado("Puntos clave")
-    d.lista([_NUMERACION.sub("", pk) for pk in c.puntos_clave])
-    if c.decisiones_o_riesgos:
-        d.apartado("Riesgos y decisiones")
-        d.lista(c.decisiones_o_riesgos)
+    for i, (titulo, detalle) in enumerate(partes.puntos, start=1):
+        d.parrafo(detalle, etiqueta=f"{i}. {titulo}{'.' if detalle else ''}")
+    for nombre, textos in (
+        ("Riesgos", partes.riesgos),
+        ("Recomendaciones", partes.recomendaciones),
+        ("Decisiones", partes.decisiones),
+    ):
+        if textos:
+            d.apartado(nombre)
+            d.lista(textos)
     if c.impacto_de_negocio:
-        d.apartado("Impacto")
+        d.apartado("Impacto en el sector")
         d.parrafo(c.impacto_de_negocio)
 
 
@@ -199,7 +213,7 @@ def generar_documento(
 
     d = _Doc(titulo)
     d.titulo(titulo)
-    ficha = [tipo, f"Para: {perfil}" if perfil else ""]
+    ficha = [tipo, f"Para: {NOMBRE_VISIBLE_PERFIL.get(perfil, perfil)}" if perfil else ""]
     if score_fidelidad is not None:
         ficha.append(f"Fidelidad a la fuente: {round(score_fidelidad * 100)}%")
     etiqueta = d.parrafo(" · ".join(x for x in ficha if x))
