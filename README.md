@@ -149,6 +149,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
+| `make requirements` | Regenera `requirements.txt` con las versiones instaladas en el `.venv` |
 
 Equivalentes sin `make`:
 
@@ -156,6 +157,8 @@ Equivalentes sin `make`:
 # 1. Instalar el paquete y dependencias
 pip install -e ".[dev,ui,gemini]"
 # (o versiones fijadas: pip install -r requirements.txt)
+# Tras cambiar dependencias en pyproject.toml, regenerar las versiones fijadas:
+#   pip install -e ".[dev,oci,gemini,claude,ui]" && python scripts/generar_requirements.py
 
 # 2. Correr los tests
 pytest tests/ -v
