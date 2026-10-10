@@ -4,12 +4,14 @@
 
 const $ = (sel) => document.querySelector(sel);
 
+// La clave es el valor que espera la API (contrato JSON); `nombre` es lo que ve el usuario.
 const PERFILES = {
-  "Principiante": "🌱",
-  "Desarrollador Junior/Semi Senior": "💻",
-  "Líder Técnico/Arquitecto": "🏗️",
-  "Gestor/Ejecutivo": "📈",
+  "Principiante": { icono: "🌱", nombre: "Inicial/Básico (Principiante-Junior)" },
+  "Desarrollador Junior/Semi Senior": { icono: "💻", nombre: "Intermedio (semisénior)" },
+  "Líder Técnico/Arquitecto": { icono: "🏗️", nombre: "Avanzado (Senior-Arquitecto-Técnico)" },
+  "Gestor/Ejecutivo": { icono: "📈", nombre: "Experto / Directivo (Lead, Ejecutivo, Gestor)" },
 };
+const nombrePerfil = (p) => PERFILES[p]?.nombre || p;
 
 const FORMATOS = {
   "Flashcards": { icono: "🃏", ayuda: "Tarjetas para repasar" },
@@ -135,7 +137,7 @@ async function cargarOpciones() {
   radioGrupo(
     $("#perfiles"),
     op.perfiles,
-    (p) => h("button", { class: "chip" }, PERFILES[p] || "👤", " ", p),
+    (p) => h("button", { class: "chip" }, PERFILES[p]?.icono || "👤", " ", nombrePerfil(p)),
     (p) => (estado.perfil = p),
   );
   radioGrupo(
@@ -151,7 +153,7 @@ async function cargarOpciones() {
       ),
     (f) => (estado.formato = f),
   );
-  llenarSelect($("#nicho"), op.nichos, "Salud");
+  llenarSelect($("#nicho"), op.nichos, "General");
   llenarSelect($("#nivel"), op.niveles, "Didáctico");
   actualizarAvisoSalud();
 }
@@ -231,6 +233,9 @@ function tituloDesdeContenido(contenido) {
 function construirPeticion() {
   if (!estado.perfil || !estado.formato) {
     throw new Error("Las opciones aún se están cargando. Espera un momento y vuelve a intentarlo.");
+  }
+  if (!$("#acepto-aviso").checked) {
+    throw new Error("Para continuar, lee y acepta el aviso legal y ético.");
   }
   const comunes = {
     perfil_destinatario: estado.perfil,
@@ -443,10 +448,10 @@ function mostrarResultado(respuesta, tituloDocumento, publica = respuesta) {
   const c = respuesta.contenido_adaptado;
   const m = respuesta.metadatos;
 
-  $("#res-etiqueta").textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${m.perfil_aplicado}`;
+  $("#res-etiqueta").textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${nombrePerfil(m.perfil_aplicado)}`;
   $("#res-titulo").textContent = tituloDocumento;
   const actual = $("#material-actual");
-  actual.textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${m.perfil_aplicado}`;
+  actual.textContent = `${FORMATOS[c.formato]?.icono || ""} ${c.formato} · ${nombrePerfil(m.perfil_aplicado)}`;
   actual.hidden = false;
   // el podcast es solo audio: se descarga desde su reproductor, no como texto ni diapositivas
   document.querySelector(".descargas").hidden = c.formato === "Podcast";
@@ -796,15 +801,74 @@ function renderTutorial(c) {
   );
 }
 
+// El resumen llega como texto (contrato JSON): idea central, contexto y hallazgos van en
+// párrafos; los puntos clave como «Título: explicación»; y los riesgos y recomendaciones
+// con su prefijo. Materiales anteriores sin esa estructura se muestran igual de ordenados.
+const ORACION = /(?<=[.!?…])\s+/;
+
+function partesResumen(texto) {
+  const parrafos = texto.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  if (parrafos.length > 1) return { idea: parrafos[0], resto: parrafos.slice(1) };
+  const oraciones = texto.trim().split(ORACION);
+  return { idea: oraciones[0], resto: oraciones.length > 1 ? [oraciones.slice(1).join(" ")] : [] };
+}
+
+function puntoClave(texto) {
+  const limpio = tituloSeccion(texto);
+  const corte = limpio.indexOf(": ");
+  return corte > 0 && corte <= 80
+    ? { titulo: limpio.slice(0, corte), detalle: limpio.slice(corte + 2) }
+    : { titulo: limpio, detalle: "" };
+}
+
 function renderResumen(c) {
+  const { idea, resto } = partesResumen(c.resumen);
+  const riesgos = [];
+  const recomendaciones = [];
+  const otras = [];
+  for (const d of c.decisiones_o_riesgos) {
+    const m = d.match(/^\s*(riesgos?|recomendaci[oó]n(?:es)?|decisi[oó]n(?:es)?)\s*:\s*/i);
+    const sinPrefijo = m ? d.slice(m[0].length) : d;
+    const texto = sinPrefijo.charAt(0).toUpperCase() + sinPrefijo.slice(1);
+    const tipo = m?.[1].toLowerCase() || "";
+    (tipo.startsWith("riesgo") ? riesgos : tipo.startsWith("recomend") ? recomendaciones : otras).push(texto);
+  }
+  const palabras = c.resumen.split(/\s+/).length;
+  const metricas = [
+    `⏱️ ${Math.max(1, Math.round(palabras / 200))} min de lectura`,
+    `📌 ${c.puntos_clave.length} puntos clave`,
+    riesgos.length && `⚠️ ${riesgos.length} ${riesgos.length === 1 ? "riesgo" : "riesgos"}`,
+    recomendaciones.length && `✅ ${recomendaciones.length} ${recomendaciones.length === 1 ? "recomendación" : "recomendaciones"}`,
+  ].filter(Boolean);
+
   return h(
     "div",
-    {},
+    { class: "resumen-ejecutivo" },
     cabeceraMaterial("Resumen ejecutivo", `Lo esencial de «${estado.tituloDocumento || "el documento"}» en un minuto.`),
-    caja("📝 Resumen", h("p", { class: "resumen-texto" }, c.resumen)),
-    caja("📌 Puntos clave", lista(c.puntos_clave.map(tituloSeccion))),
-    c.decisiones_o_riesgos.length > 0 && caja("⚠️ Riesgos y decisiones", lista(c.decisiones_o_riesgos)),
-    c.impacto_de_negocio && caja("💼 Impacto", h("p", {}, c.impacto_de_negocio)),
+    h("div", { class: "etiquetas resumen-metricas" }, metricas.map((m) => h("span", {}, m))),
+    h("div", { class: "resumen-idea" }, h("h4", {}, "🎯 Idea central"), h("p", {}, idea)),
+    resto.length > 0 &&
+      caja("📄 Contexto y hallazgos", ...resto.map((p) => h("p", { class: "resumen-texto" }, p))),
+    caja(
+      "📌 Puntos clave",
+      h(
+        "ol",
+        { class: "resumen-puntos" },
+        c.puntos_clave.map(puntoClave).map(({ titulo, detalle }) =>
+          h("li", {}, h("strong", {}, titulo), detalle && h("span", {}, detalle)),
+        ),
+      ),
+    ),
+    (riesgos.length > 0 || recomendaciones.length > 0) &&
+      h(
+        "div",
+        { class: "resumen-columnas" },
+        riesgos.length > 0 && h("div", { class: "caja resumen-riesgos" }, h("h4", {}, "⚠️ Riesgos"), lista(riesgos)),
+        recomendaciones.length > 0 &&
+          h("div", { class: "caja resumen-recomendaciones" }, h("h4", {}, "✅ Recomendaciones"), lista(recomendaciones)),
+      ),
+    otras.length > 0 && caja("🧭 Decisiones", lista(otras)),
+    c.impacto_de_negocio && caja("💼 Impacto en el sector", h("p", {}, c.impacto_de_negocio)),
   );
 }
 
@@ -867,7 +931,7 @@ function selectorVoz() {
   );
 }
 
-function panelVideo() {
+function panelVideo(escenas) {
   const objetoId = estado.respuesta?.almacenamiento_oci?.objeto_id;
   const titulo = estado.tituloDocumento || "Guion de clase";
   const zona = h("div", { class: "video-zona" });
@@ -883,11 +947,22 @@ function panelVideo() {
     boton.disabled = true;
     boton.textContent = "⏳ Generando video…";
     nota.textContent = "Preparando diapositivas y narración. No cierres la página.";
+    const anterior = [...zona.childNodes]; // si falla, se vuelve a mostrar el video anterior
+    const avance = avanceEstimado({
+      etiqueta: "Avance de la generación del video",
+      etapas: ETAPAS_VIDEO,
+      partes: escenas,
+      msPorParte: 5000,
+      listo: "✅ Video listo",
+    });
+    zona.replaceChildren(avance.el);
     try {
       const parametros = new URLSearchParams({ titulo, voz: estado.voz });
       const resp = await fetch(`/api/v1/contenidos/${objetoId}/video?${parametros}`);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
-      const url = URL.createObjectURL(await resp.blob());
+      const videoBlob = await resp.blob();
+      await avance.terminar();
+      const url = URL.createObjectURL(videoBlob);
       const base = titulo.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "") || "guion";
       zona.replaceChildren(
         h("video", { class: "video", src: url, controls: true, preload: "auto" }),
@@ -896,6 +971,8 @@ function panelVideo() {
       nota.textContent = `Listo, narrado con voz ${estado.voz}. Puedes cambiar la voz y generarlo otra vez.`;
       boton.textContent = "🎬 Generar de nuevo";
     } catch (err) {
+      avance.detener();
+      zona.replaceChildren(...anterior);
       boton.textContent = "🎬 Reintentar";
       nota.textContent = `No se pudo generar el video: ${err.message}`;
     } finally {
@@ -932,9 +1009,67 @@ function renderGuion(c) {
       "Guion de clase",
       `🎬 ${c.escenas.length} escenas · duración total aproximada: ${c.duracion_total_min} min`,
     ),
-    estado.respuesta?.almacenamiento_oci?.objeto_id && panelVideo(),
+    estado.respuesta?.almacenamiento_oci?.objeto_id && panelVideo(c.escenas.length),
     porSeccion(c.escenas, (partes) => partes.map(escena)),
   );
+}
+
+// Barra de avance estimado para el podcast y el video. El servidor devuelve el archivo en
+// una sola respuesta, sin informar el avance: la barra se acerca al 95% según el tamaño del
+// material (escenas o intervenciones) y salta al 100% cuando llega el archivo.
+const ETAPAS_PODCAST = [
+  [0, "📝 Preparando el guion"],
+  [15, "🎙️ Ana graba sus intervenciones"],
+  [45, "🎙️ Leo graba sus explicaciones"],
+  [80, "🎚️ Uniendo y mezclando el episodio"],
+];
+const ETAPAS_VIDEO = [
+  [0, "🖼️ Preparando las diapositivas"],
+  [25, "🎙️ Grabando la narración de cada escena"],
+  [70, "🎞️ Montando el video"],
+  [90, "📦 Preparando la descarga"],
+];
+
+function avanceEstimado({ etiqueta, etapas, partes, msPorParte, listo }) {
+  const relleno = h("span", { class: "avance-relleno" });
+  const porcentaje = h("strong", { class: "avance-porcentaje" }, "0%");
+  const etapa = h("span", { class: "avance-etapa" }, etapas[0][1]);
+  const el = h(
+    "div",
+    {
+      class: "avance avance-archivo",
+      role: "progressbar",
+      "aria-label": etiqueta,
+      "aria-valuemin": "0",
+      "aria-valuemax": "100",
+      "aria-valuenow": "0",
+    },
+    h("div", { class: "avance-cabecera" }, etapa, porcentaje),
+    h("div", { class: "avance-pista" }, relleno),
+  );
+  const pintar = (valor) => {
+    const redondeado = Math.floor(valor);
+    const texto = etapas.filter(([desde]) => redondeado >= desde).pop()[1];
+    relleno.style.width = `${valor}%`;
+    porcentaje.textContent = `${redondeado}%`;
+    etapa.textContent = texto;
+    el.setAttribute("aria-valuenow", String(redondeado));
+    el.setAttribute("aria-valuetext", `${redondeado}% · ${texto}`);
+  };
+  // a los `ritmo` ms se ha recorrido el 63% del camino (mínimo 20 s)
+  const ritmo = Math.max(20000, partes * msPorParte);
+  const inicio = performance.now();
+  const reloj = setInterval(() => pintar(95 * (1 - Math.exp(-(performance.now() - inicio) / ritmo))), 200);
+  return {
+    el,
+    async terminar() {
+      clearInterval(reloj);
+      pintar(100);
+      etapa.textContent = listo;
+      await esperar(400);
+    },
+    detener: () => clearInterval(reloj),
+  };
 }
 
 // El podcast se entrega solo como audio: al mostrar el resultado se graba (o se
@@ -950,11 +1085,21 @@ function renderPodcast(c) {
   async function grabar() {
     reintentar.hidden = true;
     nota.textContent = "⏳ Ana y Leo están grabando el episodio. Puede tardar uno o dos minutos.";
+    const avance = avanceEstimado({
+      etiqueta: "Avance de la grabación del episodio",
+      etapas: ETAPAS_PODCAST,
+      partes: c.intervenciones.length,
+      msPorParte: 3000,
+      listo: "✅ Episodio listo",
+    });
+    zona.replaceChildren(avance.el);
     try {
       const resp = await fetch(`/api/v1/contenidos/${objetoId}/podcast`);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
+      const audioBlob = await resp.blob();
+      await avance.terminar();
       const naturales = resp.headers.get("X-Podcast-Voces") === "gemini";
-      const url = URL.createObjectURL(await resp.blob());
+      const url = URL.createObjectURL(audioBlob);
       const base = titulo.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "") || "podcast";
       const audio = h("audio", { class: "audio", src: url, controls: true, preload: "auto" });
       zona.replaceChildren(
@@ -971,6 +1116,8 @@ function renderPodcast(c) {
         nota.textContent = `Episodio de ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} min con Ana y Leo. ${voces}`;
       });
     } catch (err) {
+      avance.detener();
+      zona.replaceChildren();
       nota.textContent = `No se pudo grabar el episodio: ${err.message}`;
       reintentar.hidden = false;
     }
@@ -1126,7 +1273,7 @@ function renderHistorial() {
   // puede filtrar con su buscador
   const consulta = normalizar($("#buscar-historial").value);
   const filtrada = consulta
-    ? lista.filter((item) => normalizar(`${item.titulo} ${item.formato} ${item.perfil}`).includes(consulta))
+    ? lista.filter((item) => normalizar(`${item.titulo} ${item.formato} ${item.perfil} ${nombrePerfil(item.perfil)}`).includes(consulta))
     : lista;
   $("#historial-sin-resultados").hidden = filtrada.length > 0;
   const elementos = (items) =>
@@ -1145,7 +1292,7 @@ function renderHistorial() {
             },
           },
           h("span", {}, `${FORMATOS[item.formato]?.icono || "📄"} ${item.titulo}`),
-          h("small", {}, `${item.formato} · ${item.perfil} · ${new Date(item.fecha).toLocaleString()}`),
+          h("small", {}, `${item.formato} · ${nombrePerfil(item.perfil)} · ${new Date(item.fecha).toLocaleString()}`),
         ),
       ),
     );
@@ -1252,7 +1399,7 @@ function irAlFormulario() {
 // ni con un diálogo abierto. Esc cancela solo si no hay un desplegable abierto que cerrar.
 function atajoDeTeclado(e) {
   if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
-  if (e.target.closest("input, textarea, select, [contenteditable]") || $("#dialogo-como").open) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
   const desplegableAbierto = !$("#historial-menu").hidden || !$("#estado-menu").hidden;
   const accion = {
     escape: () => estado.controlador && !desplegableAbierto && cancelarCreacion(),
@@ -1329,6 +1476,51 @@ function iniciarMenu() {
     dialogo.showModal();
   });
   dialogo.addEventListener("click", (e) => e.target === dialogo && dialogo.close()); // clic fuera cierra
+
+  // Aviso legal y ético: debe aceptarse antes de crear material, y solo se puede aceptar
+  // después de haberlo leído hasta el final. Hasta entonces la casilla queda bloqueada
+  // (aria-disabled, para que no se vea gris), "Acepto" deshabilitado, y un clic en la
+  // casilla abre el aviso.
+  const aviso = $("#dialogo-aviso");
+  const casilla = $("#acepto-aviso");
+  const aceptar = $("#btn-aviso-aceptar");
+  const bloqueada = () => casilla.getAttribute("aria-disabled") === "true";
+  const marcarLeido = () => {
+    if (!bloqueada()) return;
+    casilla.removeAttribute("aria-disabled");
+    aceptar.disabled = false;
+    $("#casilla-aviso").removeAttribute("title");
+    $("#aviso-pendiente").hidden = true;
+  };
+  const revisarLectura = () => {
+    if (aviso.scrollTop + aviso.clientHeight >= aviso.scrollHeight - 8) marcarLeido();
+  };
+  const abrirAviso = () => {
+    aviso.showModal();
+    aviso.scrollTop = 0;
+    revisarLectura(); // si cabe entero en pantalla, ya está a la vista completo
+  };
+  $("#ver-aviso").addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // abrir el aviso no marca la casilla
+    abrirAviso();
+  });
+  $("#casilla-aviso").addEventListener("click", (e) => {
+    if (!bloqueada()) return;
+    e.preventDefault();
+    mostrarError("Primero lee el aviso legal y ético completo.");
+    abrirAviso();
+  });
+  aviso.addEventListener("scroll", revisarLectura);
+  $("#btn-aviso-cerrar").addEventListener("click", () => aviso.close());
+  aceptar.addEventListener("click", () => {
+    if (bloqueada()) return;
+    casilla.checked = true;
+    mostrarError("");
+    aviso.close();
+  });
+  aviso.addEventListener("click", (e) => e.target === aviso && aviso.close());
+  casilla.addEventListener("change", () => casilla.checked && mostrarError(""));
 }
 
 // ---------- Inicio ----------

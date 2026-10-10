@@ -1,3 +1,5 @@
+import pytest
+
 from nuevamente.llm import disponibilidad
 from nuevamente.llm.base import LLMError
 from nuevamente.llm.factory import ConRespaldoLocal
@@ -50,3 +52,30 @@ def test_la_pausa_vence_y_el_proveedor_se_vuelve_a_probar():
 def test_pausa_cero_la_desactiva():
     disponibilidad.pausar("prueba-cero", "caído", minutos=0)
     assert disponibilidad.en_pausa("prueba-cero") is None
+
+
+def test_crear_llm_envuelve_al_proveedor_con_el_respaldo_local(monkeypatch):
+    # Gemini con "503 high demand" no debe llegar al usuario como error: se usa el TemplateLLM
+    from nuevamente.config import settings
+    from nuevamente.llm import factory
+
+    class Saturado:
+        nombre_modelo = "gemini-prueba"
+
+        def generar_estructurado(self, schema, system, user):
+            raise LLMError("HTTP 503 - This model is currently experiencing high demand.")
+
+    if not settings.llm_respaldo_local:
+        pytest.skip("LLM_RESPALDO_LOCAL desactivado en este entorno")
+    monkeypatch.setitem(factory._FACTORIES, "gemini", Saturado)
+    monkeypatch.setattr(factory, "TemplateLLM", _Respaldo)
+    factory.limpiar_cache_llm()
+    disponibilidad.reanudar("llm:Saturado")
+    try:
+        llm = factory.crear_llm("gemini")
+        assert isinstance(llm, ConRespaldoLocal)
+        assert llm.generar_estructurado(None, "", "") == "material local"
+        assert "respaldo: gemini-prueba" in llm.nombre_modelo
+    finally:
+        factory.limpiar_cache_llm()
+        disponibilidad.reanudar("llm:Saturado")
