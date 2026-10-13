@@ -6,7 +6,7 @@ import os
 from pydantic import ValidationError
 
 from nuevamente.config import settings
-from nuevamente.llm.base import LLMError
+from nuevamente.llm.base import LLMError, PROMPT_CORRECCION_JSON
 from nuevamente.llm.rotacion import CUOTA_AGOTADA, TRANSITORIO, RotacionModelos
 
 
@@ -185,10 +185,7 @@ class OpenAICompatLLM:
                     {"role": "assistant", "content": texto},
                     {
                         "role": "user",
-                        "content": (
-                            "Tu respuesta no cumple el esquema JSON. Corrige estos errores y "
-                            f"devuelve el JSON completo:\n{ultimo_error}"
-                        ),
+                        "content": PROMPT_CORRECCION_JSON.format(error=ultimo_error),
                     },
                 ]
 
