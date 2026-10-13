@@ -39,6 +39,14 @@ CUOTA_AGOTADA = "cuota_agotada"
 CREDENCIAL_INVALIDA = "credencial_invalida"
 
 
+def calcular_backoff_con_jitter(
+    intento: int, espera_inicial: float, espera_maxima: float
+) -> float:
+    """Calcula el tiempo de espera con backoff exponencial y jitter aleatorio: base * 2^intento + jitter."""
+    jitter = random.uniform(0.1, 1.0) * min(1.0, float(espera_inicial))
+    return min(float(espera_inicial) * (2 ** intento) + jitter, float(espera_maxima))
+
+
 class RotacionModelos:
     """Recorre una lista de modelos reintentando cada uno antes de pasar al siguiente.
 
@@ -92,9 +100,9 @@ class RotacionModelos:
                     if decision == CUOTA_AGOTADA:
                         break  # reintentar no sirve hasta el reset: siguiente modelo
                     if intento < self.reintentos - 1:
-                        # Backoff exponencial con jitter: base * 2^intento + jitter aleatorio
-                        jitter = random.uniform(0.1, 1.0) * min(1.0, float(self.espera_inicial))
-                        espera = min(float(self.espera_inicial) * (2 ** intento) + jitter, float(self.espera_maxima))
+                        espera = calcular_backoff_con_jitter(
+                            intento, float(self.espera_inicial), float(self.espera_maxima)
+                        )
                         time.sleep(espera)
                 else:
                     # Se actualiza también el nombre del modelo en el cliente para que los
