@@ -4,7 +4,11 @@
 Responsable: Juan Pablo Calla (PM), con el documento de demo preparado por el equipo.
 
 Uso:
-    python scripts/run_demo.py
+    python scripts/run_demo.py                       # con el LLM configurado (Gemini)
+    python scripts/run_demo.py --permitir-respaldo   # acepta el generador local si Gemini falla
+
+Sin --permitir-respaldo, si algún escenario sale del generador local (Gemini sin cuota o
+saturado) no se sobrescribe la evidencia de docs/demo/resultados/.
 """
 from __future__ import annotations
 
@@ -53,6 +57,7 @@ ESCENARIOS = [
 
 
 def main() -> int:
+    permitir_respaldo = "--permitir-respaldo" in sys.argv[1:]
     if not DOCUMENTO_PATH.exists():
         print(f"No se encontró el documento de demo: {DOCUMENTO_PATH}", file=sys.stderr)
         return 1
@@ -61,6 +66,7 @@ def main() -> int:
     RESULTADOS_DIR.mkdir(parents=True, exist_ok=True)
 
     resumen_general = []
+    salidas: list[tuple[Path, str | bytes]] = []  # se escriben al final, si la demo es válida
     storage = get_storage_service()
     print(f"OCI Object Storage: {'conectado' if storage.disponible_oci() else 'NO disponible (se usa el respaldo local)'}")
 
@@ -108,19 +114,14 @@ def main() -> int:
             "status_upload": subida.status_upload,
         }
         print(f"Almacenamiento: {subida.status_upload} ({subida.bucket}/{subida.objeto_id})")
-        json_path = RESULTADOS_DIR / f"{escenario['nombre']}.json"
-        json_path.write_text(json.dumps(salida, ensure_ascii=False, indent=2), encoding="utf-8")
-
-        md_path = RESULTADOS_DIR / f"{escenario['nombre']}.md"
-        md_path.write_text(exportar_markdown(resultado.contenido, "Protocolo de Bioseguridad"), encoding="utf-8")
-
-        (RESULTADOS_DIR / f"{escenario['nombre']}.pdf").write_bytes(generar_pdf(
+        nombre = escenario["nombre"]
+        salidas.append((RESULTADOS_DIR / f"{nombre}.json", json.dumps(salida, ensure_ascii=False, indent=2)))
+        salidas.append((RESULTADOS_DIR / f"{nombre}.md", exportar_markdown(resultado.contenido, "Protocolo de Bioseguridad")))
+        salidas.append((RESULTADOS_DIR / f"{nombre}.pdf", generar_pdf(
             resultado.contenido, "Protocolo de Bioseguridad", escenario["perfil"], resultado.evaluacion.anclaje_fuente_score
-        ))
-
+        )))
         if resultado.contenido.formato in ("Flashcards", "Quiz"):
-            csv_path = RESULTADOS_DIR / f"{escenario['nombre']}_anki.csv"
-            csv_path.write_text(exportar_anki_csv(resultado.contenido), encoding="utf-8")
+            salidas.append((RESULTADOS_DIR / f"{nombre}_anki.csv", exportar_anki_csv(resultado.contenido)))
 
         resumen_general.append(
             {
@@ -136,8 +137,21 @@ def main() -> int:
             }
         )
 
-    resumen_path = RESULTADOS_DIR / "resumen_3_escenarios.json"
-    resumen_path.write_text(json.dumps(resumen_general, ensure_ascii=False, indent=2), encoding="utf-8")
+    con_respaldo = [r["caso_de_uso"] for r in resumen_general if r["modelo_llm"].startswith("template")]
+    if con_respaldo and not permitir_respaldo:
+        print(
+            f"\n⚠ {len(con_respaldo)} escenario(s) salieron del generador local, no de la IA: "
+            f"{', '.join(con_respaldo)}.\nNo se sobrescribe la evidencia de {RESULTADOS_DIR}. "
+            "Vuelve a intentarlo cuando haya cuota, o usa --permitir-respaldo.",
+            file=sys.stderr,
+        )
+        return 2
+    salidas.append((RESULTADOS_DIR / "resumen_3_escenarios.json", json.dumps(resumen_general, ensure_ascii=False, indent=2)))
+    for ruta, datos in salidas:
+        if isinstance(datos, bytes):
+            ruta.write_bytes(datos)
+        else:
+            ruta.write_text(datos, encoding="utf-8")
 
     print("\n=== Resumen de los 3 escenarios ===")
     for r in resumen_general:
