@@ -1,0 +1,21 @@
+# Servicio systemd de Kairos (HU-82): mantiene la API encendida y la reinicia si se cae.
+# Lo instala deploy/instalar.sh en /etc/systemd/system/kairos.service.
+[Unit]
+Description=Kairos (NuevaMente) - API e interfaz web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kairos
+Group=kairos
+WorkingDirectory=/opt/kairos
+EnvironmentFile=/opt/kairos/.env
+# solo escucha en la máquina: nginx publica el puerto 80
+ExecStart=/opt/kairos/.venv/bin/uvicorn nuevamente.api.app:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+# un video o un podcast largo tarda; no cortar la respuesta
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
