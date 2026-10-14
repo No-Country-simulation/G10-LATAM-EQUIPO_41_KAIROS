@@ -1,0 +1,31 @@
+# Blueprint de Render: despliega Kairos como servicio web con Docker (plan gratuito).
+# Ver docs/DEPLOY_RENDER.md. Las claves se cargan en el panel de Render, nunca aquí.
+services:
+  - type: web
+    name: kairos-nuevamente
+    runtime: docker
+    plan: free
+    branch: SPRINT04
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false            # se pide al crear el servicio; no queda en el repositorio
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-3.7-flash
+      - key: LLM_MODELOS_RESPALDO
+        value: gemini-3.5-flash,gemini-3.6-flash,gemini-3-flash-preview,gemini-flash-latest,gemini-3.5-flash-lite,gemini-flash-lite-latest
+      - key: LLM_RESPALDO_LOCAL
+        value: "true"
+      - key: EMBEDDINGS_PROVIDER
+        value: auto
+      - key: JUEZ_IA
+        value: auto
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      # OCI Object Storage (opcional): subir config y llave como "Secret Files" y descomentar
+      # - key: OCI_CONFIG_FILE
+      #   value: /etc/secrets/oci_config
