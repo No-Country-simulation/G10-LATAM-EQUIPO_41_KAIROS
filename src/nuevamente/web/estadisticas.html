@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estadísticas de Kairos</title>
+  <meta name="description" content="Uso de Kairos y opinión de los usuarios sobre el material generado.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>
+    try {
+      const tema = localStorage.getItem("nuevamente.tema");
+      if (tema === "light" || tema === "dark") document.documentElement.dataset.theme = tema;
+    } catch {}
+  </script>
+</head>
+<body>
+  <header class="navbar">
+    <nav class="navbar-interior" aria-label="Principal">
+      <a class="marca" href="/" aria-label="Kairos, volver al inicio">
+        <span class="marca-logo" aria-hidden="true">🎓</span>
+        <span class="marca-texto">
+          <strong>Kairos</strong>
+          <small>Aprende de tus documentos</small>
+        </span>
+      </a>
+      <div class="menu-acciones" style="margin-left: auto">
+        <a class="btn-api" href="/">← Volver a crear material</a>
+        <button type="button" id="btn-tema" class="btn-icono" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="est">
+    <div class="est-cabecera">
+      <div>
+        <h1>📊 Estadísticas de uso</h1>
+        <p>Qué crean los usuarios con Kairos y qué opinan del material. No se guarda el texto de ningún documento.</p>
+      </div>
+      <button type="button" id="btn-actualizar" class="btn-secundario">🔄 Actualizar</button>
+    </div>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section id="tiles" class="est-tiles" aria-label="Indicadores principales"></section>
+
+    <div class="est-grilla">
+      <section class="est-tarjeta est-ancha">
+        <h2>Materiales creados por día</h2>
+        <p>Últimos 14 días.</p>
+        <div id="actividad"></div>
+      </section>
+
+      <section class="est-tarjeta est-ancha">
+        <h2>Resultados por formato</h2>
+        <p>Cuántos se crearon, qué tan fieles fueron a la fuente y cómo los calificaron.</p>
+        <div id="formatos"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Calificaciones</h2>
+        <p>Cuántos usuarios dieron cada puntuación.</p>
+        <div id="estrellas"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Comentarios recientes</h2>
+        <p>Lo que escribieron al calificar.</p>
+        <div id="comentarios"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Perfil del destinatario</h2>
+        <p>Para quién se creó el material.</p>
+        <div id="perfiles"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Sector</h2>
+        <p>Nicho elegido al crear el material.</p>
+        <div id="sectores"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Origen del documento</h2>
+        <p>Texto pegado o tipo de archivo subido.</p>
+        <div id="origenes"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Nivel de detalle</h2>
+        <p>Profundidad elegida.</p>
+        <div id="niveles"></div>
+      </section>
+
+      <section class="est-tarjeta">
+        <h2>Descargas</h2>
+        <p>Exportaciones, videos y audios entregados.</p>
+        <div id="descargas"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">Kairos · Equipo Kairos G10 · Hackathon ONE G10</footer>
+
+  <script type="module" src="/static/estadisticas.js"></script>
+</body>
+</html>

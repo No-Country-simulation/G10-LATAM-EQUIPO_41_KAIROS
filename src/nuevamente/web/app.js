@@ -40,13 +40,16 @@ Los guantes, mascarillas y batas desechables forman parte del equipo de protecci
 Los residuos biocontaminados deben separarse en bolsas rojas y desecharse según el protocolo institucional vigente. El personal debe estar capacitado en la clasificación correcta de residuos para evitar accidentes.`;
 
 const HISTORIAL_KEY = "nuevamente.historial";
+const CALIFICACIONES_KEY = "nuevamente.calificaciones"; // objeto_id -> estrellas ya enviadas
 
 const estado = {
   modo: "texto",
   archivo: null,
+  pendiente: null, // archivo nuevo a la espera de confirmar que reemplaza al cargado
   perfil: null,
   formato: null,
   maxUploadMb: 10,
+  extensiones: [".pdf", ".docx", ".md", ".markdown", ".txt"], // la API manda la lista vigente
   voces: { femenina: null, masculina: null },
   voz: "femenina",
   respuesta: null,
@@ -130,9 +133,10 @@ async function cargarOpciones() {
   if (!resp.ok) throw new Error(await mensajeDeError(resp));
   const op = await resp.json();
   estado.maxUploadMb = op.max_upload_mb;
+  if (op.extensiones?.length) estado.extensiones = op.extensiones;
   estado.voces = op.voces || estado.voces;
   if (!estado.voces[estado.voz]) estado.voz = estado.voces.masculina ? "masculina" : "femenina";
-  $("#zona-ayuda").textContent = `PDF, Markdown o texto · hasta ${op.max_upload_mb} MB`;
+  $("#zona-ayuda").textContent = `PDF, Word, Markdown o texto · hasta ${op.max_upload_mb} MB`;
 
   radioGrupo(
     $("#perfiles"),
@@ -202,10 +206,71 @@ function cambiarModo(modo) {
   $("#modo-archivo").hidden = modo !== "archivo";
 }
 
-function elegirArchivo(archivo) {
+const FORMATOS_ACEPTADOS = "PDF, Word (.docx), Markdown (.md) o texto (.txt)";
+
+// Por qué no sirve el archivo, o "" si sirve. El selector ya filtra por extensión, pero
+// arrastrar y soltar (o elegir "Todos los archivos") deja pasar cualquiera.
+function problemaDelArchivo(archivo) {
+  const ext = (archivo.name.match(/\.[^.]+$/)?.[0] || "").toLowerCase();
+  if (!estado.extensiones.includes(ext)) {
+    const pista = ext === ".doc" ? " Ábrelo en Word y guárdalo como .docx." : "";
+    return `El formato ${ext || "sin extensión"} no es compatible. Vuelve a cargar el archivo en un formato correcto: ${FORMATOS_ACEPTADOS}.${pista}`;
+  }
+  if (archivo.size === 0) return "El archivo está vacío. Vuelve a cargar el archivo correcto.";
+  if (archivo.size > estado.maxUploadMb * 1024 * 1024) {
+    return `El archivo supera el límite de ${estado.maxUploadMb} MB. Carga una versión más liviana.`;
+  }
+  return "";
+}
+
+// Aviso junto a la zona de carga: el archivo no se pudo cargar y hay que elegir otro.
+function avisoArchivo(nombre, detalle) {
+  const aviso = $("#aviso-archivo");
+  aviso.hidden = !detalle;
+  // la zona va en rojo solo si no queda ningún archivo válido cargado
+  $("#zona-archivo").classList.toggle("rechazada", Boolean(detalle) && !estado.archivo);
+  if (!detalle) return;
+  $("#aviso-archivo-titulo").textContent = `No se pudo cargar «${nombre}»`;
+  $("#aviso-archivo-detalle").textContent = detalle;
+}
+
+// Archivo elegido en el selector o soltado en la zona. Si no sirve, se avisa; si ya había
+// uno cargado, se advierte que lo reemplazará y se pide confirmar.
+function recibirArchivo(elegido) {
+  $("#archivo").value = ""; // permite volver a elegir el mismo archivo
+  if (!elegido) return;
+  const problema = problemaDelArchivo(elegido);
+  avisoArchivo(elegido.name, problema);
+  if (problema) return;
+  if (!estado.archivo) {
+    ponerArchivo(elegido);
+    return;
+  }
+  if (mismoArchivo(elegido, estado.archivo)) return; // volvió a elegir el que ya está adjunto
+  estado.pendiente = elegido;
+  $("#reemplazo-texto").textContent =
+    `Ya tienes cargado «${estado.archivo.name}». Si continúas, se reemplazará por «${elegido.name}».`;
+  $("#reemplazo-archivo").showModal();
+  $("#btn-reemplazar").focus();
+}
+
+// El navegador no da la ruta del archivo: nombre, tamaño y fecha de modificación iguales
+// identifican al mismo archivo.
+const mismoArchivo = (a, b) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+
+function resolverReemplazo(reemplazar) {
+  const pendiente = estado.pendiente;
+  estado.pendiente = null;
+  const ventana = $("#reemplazo-archivo");
+  if (ventana.open) ventana.close();
+  if (reemplazar && pendiente) ponerArchivo(pendiente);
+}
+
+function ponerArchivo(archivo) {
+  estado.archivo = archivo;
   const zona = $("#zona-archivo");
-  estado.archivo = archivo || null;
   zona.classList.toggle("lista", Boolean(archivo));
+  if (archivo) zona.classList.remove("rechazada");
   $("#zona-texto").textContent = archivo ? `✓ ${archivo.name}` : "Arrastra tu archivo aquí o haz clic para elegirlo";
 }
 
@@ -245,9 +310,11 @@ function construirPeticion() {
   };
 
   if (estado.modo === "archivo") {
-    if (!estado.archivo) throw new Error("Elige un archivo para continuar.");
-    if (estado.archivo.size > estado.maxUploadMb * 1024 * 1024) {
-      throw new Error(`El archivo supera el límite de ${estado.maxUploadMb} MB.`);
+    if (estado.pendiente) throw new Error("Confirma si el archivo nuevo reemplaza al que ya cargaste.");
+    if (!estado.archivo) {
+      throw new Error($("#aviso-archivo").hidden
+        ? "Elige un archivo para continuar."
+        : "El archivo elegido no se pudo cargar. Carga otro en un formato correcto.");
     }
     const datos = new FormData();
     datos.append("archivo", estado.archivo);
@@ -379,7 +446,7 @@ async function generar(evento) {
   estado.controlador = controlador;
   habilitarBoton($("#btn-cancelar"), true);
   const llamada = fetch(peticion.url, { ...peticion.opciones, signal: controlador.signal }).then(async (resp) => {
-    if (!resp.ok) throw new Error(await mensajeDeError(resp));
+    if (!resp.ok) throw Object.assign(new Error(await mensajeDeError(resp)), { status: resp.status });
     return resp.json();
   });
   llamada.catch(() => {}); // el error se maneja abajo; evita el aviso de promesa sin capturar
@@ -396,6 +463,17 @@ async function generar(evento) {
     mostrarVista(vistaAnterior);
     if (controlador.signal.aborted) {
       mostrarError("⛔ Creación cancelada. Puedes cambiar las opciones y volver a crear tu material.");
+    } else if (estado.modo === "archivo" && [400, 413].includes(err.status)) {
+      // el servidor no pudo leer el archivo (dañado, sin texto, formato distinto al de su
+      // extensión): se descarta y se pide otro, junto a la zona de carga
+      const nombre = estado.archivo?.name;
+      ponerArchivo(null);
+      const detalle = /vuelve a cargar/i.test(err.message)
+        ? err.message
+        : `${err.message} Vuelve a cargar el archivo correcto en ${FORMATOS_ACEPTADOS}.`;
+      avisoArchivo(nombre, detalle);
+      mostrarError("No se pudo leer el archivo. Revisa el aviso junto a la zona de carga.");
+      $("#aviso-archivo").scrollIntoView({ behavior: "smooth", block: "center" });
     } else {
       mostrarError(
         err instanceof TypeError ? "No se pudo conectar con la API. ¿Está corriendo el servidor?" : err.message,
@@ -457,6 +535,7 @@ function mostrarResultado(respuesta, tituloDocumento, publica = respuesta) {
   document.querySelector(".descargas").hidden = c.formato === "Podcast";
 
   renderMetricas(respuesta);
+  renderCalificacion(respuesta.almacenamiento_oci.objeto_id);
   // el generador cayó al respaldo local (Claude o Gemini sin crédito/cuota, saturado o sin red)
   const proveedor = /claude/i.test(m.modelo_llm) ? "Claude" : "Gemini";
   const aviso = /respaldo/.test(m.modelo_llm)
@@ -485,6 +564,99 @@ function renderMetricas(r) {
     metrica("Generado en", `${r.metadatos.tiempo_generacion_segundos.toFixed(2)} s`),
     metrica("Revisión", ev.aprobado_por_critico ? "✅ Aprobado" : "⚠️ Revisar", ev.aprobado_por_critico ? "ok" : "aviso"),
   );
+}
+
+// ---------- Calificación del material (experiencia de usuario) ----------
+
+function leerCalificaciones() {
+  try {
+    return JSON.parse(localStorage.getItem(CALIFICACIONES_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function recordarCalificacion(objetoId, estrellas) {
+  try {
+    const todas = leerCalificaciones();
+    todas[objetoId] = estrellas;
+    localStorage.setItem(CALIFICACIONES_KEY, JSON.stringify(todas));
+  } catch {
+    // sin almacenamiento del navegador: solo se pierde el recordatorio, no la calificación
+  }
+}
+
+const TEXTO_ESTRELLAS = ["", "Nada útil", "Poco útil", "Aceptable", "Útil", "Muy útil"];
+
+function renderCalificacion(objetoId) {
+  const caja = $("#calificacion");
+  const previa = leerCalificaciones()[objetoId];
+  if (previa) {
+    caja.replaceChildren(
+      h("p", { class: "calificacion-gracias" }, `🙌 ¡Gracias por tu opinión! Calificaste este material con ${"★".repeat(previa)}${"☆".repeat(5 - previa)}.`),
+      h("button", { type: "button", class: "enlace", onclick: () => formularioCalificacion(caja, objetoId, previa) }, "Cambiar mi calificación"),
+    );
+    return;
+  }
+  formularioCalificacion(caja, objetoId, 0);
+}
+
+function formularioCalificacion(caja, objetoId, inicial) {
+  let elegidas = inicial;
+  const ayuda = h("small", { class: "calificacion-ayuda" }, TEXTO_ESTRELLAS[elegidas] || "Elige de 1 a 5 estrellas");
+  const enviar = h("button", { type: "submit", class: "btn-secundario btn-destacado", disabled: !elegidas }, "Enviar opinión");
+  const comentario = h("textarea", {
+    rows: "2", maxlength: "500", "aria-label": "Comentario opcional",
+    placeholder: "Opcional: ¿qué te gustó o qué mejorarías?",
+  });
+  const error = h("p", { class: "error", role: "alert", hidden: true });
+  const estrellas = [1, 2, 3, 4, 5].map((n) =>
+    h("button", {
+      type: "button", class: "estrella", role: "radio", "aria-label": `${n} de 5 — ${TEXTO_ESTRELLAS[n]}`,
+      "aria-checked": String(n === elegidas),
+      onclick: () => {
+        elegidas = n;
+        estrellas.forEach((b, i) => {
+          b.classList.toggle("activa", i < n);
+          b.setAttribute("aria-checked", String(i + 1 === n));
+        });
+        ayuda.textContent = TEXTO_ESTRELLAS[n];
+        enviar.disabled = false;
+      },
+    }, "★"));
+  estrellas.forEach((b, i) => b.classList.toggle("activa", i < elegidas));
+
+  const form = h("form", {
+    class: "calificacion-form",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      enviar.disabled = true;
+      error.hidden = true;
+      try {
+        const resp = await fetch("/api/v1/calificaciones", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ objeto_id: objetoId, estrellas: elegidas, comentario: comentario.value.trim() }),
+        });
+        if (!resp.ok) throw new Error(await mensajeDeError(resp));
+        recordarCalificacion(objetoId, elegidas);
+        renderCalificacion(objetoId);
+      } catch (err) {
+        error.textContent = `No se pudo enviar tu opinión: ${err.message}`;
+        error.hidden = false;
+        enviar.disabled = false;
+      }
+    },
+  },
+    h("div", { class: "calificacion-cabecera" },
+      h("strong", {}, "¿Te resultó útil este material?"),
+      h("div", { class: "estrellas", role: "radiogroup", "aria-label": "Calificación" }, estrellas),
+      ayuda),
+    comentario,
+    error,
+    h("div", { class: "calificacion-acciones" }, enviar),
+  );
+  caja.replaceChildren(form);
 }
 
 function renderContenido(c) {
@@ -1230,7 +1402,7 @@ async function exportar(formato, boton) {
     const nombreBase = estado.tituloDocumento.replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "") || "material";
     const enlace = h("a", {
       href: URL.createObjectURL(blob),
-      download: `${nombreBase}${{ markdown: ".md", anki_csv: "_anki.csv", pptx: ".pptx", docx: ".docx" }[formato]}`,
+      download: `${nombreBase}${{ markdown: ".md", anki_csv: "_anki.csv", pptx: ".pptx", docx: ".docx", pdf: ".pdf" }[formato]}`,
     });
     enlace.click();
     URL.revokeObjectURL(enlace.href);
@@ -1528,6 +1700,9 @@ function iniciarMenu() {
 function iniciar() {
   iniciarMenu();
   document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
+  // "Subir archivo" siempre sube: además de mostrar la zona de carga, abre el selector, haya
+  // o no un archivo cargado (si lo hay, después se advierte que lo reemplazará)
+  $('.seg[data-modo="archivo"]').addEventListener("click", () => $("#archivo").click());
   document.querySelectorAll(".pestana").forEach((b) => b.addEventListener("click", () => activarPestana(b.dataset.pestana)));
   document.querySelectorAll("[data-exportar]").forEach((b) => b.addEventListener("click", () => exportar(b.dataset.exportar, b)));
 
@@ -1539,16 +1714,23 @@ function iniciar() {
   });
 
   const zona = $("#zona-archivo");
-  $("#archivo").addEventListener("change", (e) => elegirArchivo(e.target.files[0]));
+  $("#archivo").addEventListener("change", (e) => recibirArchivo(e.target.files[0]));
+  $("#btn-reemplazar").addEventListener("click", () => resolverReemplazo(true));
+  $("#btn-reemplazo-cancelar").addEventListener("click", () => resolverReemplazo(false));
+  // Esc o clic fuera de la ventana equivalen a Cancelar: el archivo cargado no cambia
+  const ventanaReemplazo = $("#reemplazo-archivo");
+  ventanaReemplazo.addEventListener("close", () => estado.pendiente && resolverReemplazo(false));
+  ventanaReemplazo.addEventListener("click", (e) => e.target === ventanaReemplazo && resolverReemplazo(false));
   zona.addEventListener("dragover", (e) => {
     e.preventDefault();
     zona.classList.add("arrastrando");
   });
   zona.addEventListener("dragleave", () => zona.classList.remove("arrastrando"));
+  $("#btn-recargar-archivo").addEventListener("click", () => $("#archivo").click());
   zona.addEventListener("drop", (e) => {
     e.preventDefault();
     zona.classList.remove("arrastrando");
-    elegirArchivo(e.dataTransfer.files[0]);
+    recibirArchivo(e.dataTransfer.files[0]);
   });
 
   renderHistorial();

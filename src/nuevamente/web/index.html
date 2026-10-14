@@ -63,6 +63,7 @@
               <button type="button" id="btn-ver-guardado" class="enlace" hidden>☁️ Ver dónde se guardó este material</button>
             </div>
           </div>
+          <a class="btn-api" href="/estadisticas" title="Uso de Kairos y opinión de los usuarios">📊 Estadísticas</a>
           <a class="btn-api" href="/docs" target="_blank" rel="noopener">API ↗</a>
           <button type="button" id="btn-tema" class="btn-icono" aria-label="Cambiar a modo oscuro" title="Cambiar tema">🌙</button>
         </div>
@@ -83,6 +84,15 @@
     </ol>
     <p class="nota atajos">⌨️ Atajos: <kbd>Esc</kbd> cancelar la creación en curso · <kbd>M</kbd> mi material · <kbd>H</kbd> historial · <kbd>?</kbd> esta ayuda.</p>
     <p class="nota">El contenido se basa solo en el documento que proporcionas y se guarda en OCI Object Storage, o en un respaldo local si OCI no está configurado.</p>
+  </dialog>
+
+  <dialog id="reemplazo-archivo" class="dialogo dialogo-reemplazo" aria-labelledby="reemplazo-titulo" aria-describedby="reemplazo-texto">
+    <h2 id="reemplazo-titulo">⚠️ Reemplazar archivo</h2>
+    <p id="reemplazo-texto"></p>
+    <div class="dialogo-acciones">
+      <button type="button" id="btn-reemplazo-cancelar" class="btn-secundario">Cancelar</button>
+      <button type="button" id="btn-reemplazar" class="btn-secundario btn-destacado">🔁 Reemplazar</button>
+    </div>
   </dialog>
 
   <dialog id="dialogo-aviso" class="dialogo dialogo-aviso" aria-labelledby="aviso-titulo">
@@ -122,7 +132,7 @@
 
         <div class="segmentado" role="tablist" aria-label="Fuente del documento">
           <button type="button" role="tab" class="seg activo" data-modo="texto" aria-selected="true">✍️ Pegar texto</button>
-          <button type="button" role="tab" class="seg" data-modo="archivo" aria-selected="false">📎 Subir archivo</button>
+          <button type="button" role="tab" class="seg" data-modo="archivo" aria-selected="false" title="Elegir un archivo: PDF, Word, Markdown o texto">📎 Subir archivo</button>
         </div>
 
         <div id="modo-texto">
@@ -139,11 +149,16 @@
 
         <div id="modo-archivo" hidden>
           <label id="zona-archivo" class="zona-archivo">
-            <input id="archivo" type="file" accept=".txt,.md,.markdown,.pdf">
+            <input id="archivo" type="file" accept=".txt,.md,.markdown,.pdf,.docx">
             <span class="zona-icono" aria-hidden="true">📄</span>
             <strong id="zona-texto">Arrastra tu archivo aquí o haz clic para elegirlo</strong>
-            <small id="zona-ayuda">PDF, Markdown o texto</small>
+            <small id="zona-ayuda">PDF, Word, Markdown o texto</small>
           </label>
+          <div id="aviso-archivo" class="aviso aviso-archivo" role="alert" hidden>
+            <p><strong>⚠️ <span id="aviso-archivo-titulo"></span></strong></p>
+            <p id="aviso-archivo-detalle"></p>
+            <button type="button" id="btn-recargar-archivo" class="btn-secundario">📎 Cargar otro archivo</button>
+          </div>
         </div>
       </section>
 
@@ -222,6 +237,7 @@
           </div>
           <div class="descargas">
             <button type="button" class="btn-secundario" data-exportar="docx" title="Descargar como documento de Word (.docx)">📝 Word</button>
+            <button type="button" class="btn-secundario" data-exportar="pdf" title="Descargar como PDF didáctico (.pdf)">📄 PDF</button>
             <button type="button" class="btn-secundario" data-exportar="pptx" title="Descargar como presentación (.pptx)">📊 PowerPoint</button>
             <button type="button" class="btn-secundario" data-exportar="markdown" title="Descargar como texto Markdown (.md)">⬇️ Markdown</button>
             <button type="button" class="btn-secundario" data-exportar="anki_csv" title="Descargar tarjetas para importar en Anki (.csv)">⬇️ Anki</button>
@@ -229,6 +245,8 @@
         </div>
 
         <div id="metricas" class="metricas"></div>
+
+        <section id="calificacion" class="calificacion" aria-label="Califica este material"></section>
 
         <div class="pestanas" role="tablist">
           <button type="button" role="tab" class="pestana activa" data-pestana="contenido" aria-selected="true">📖 Material</button>

@@ -30,3 +30,13 @@ class SolicitudAdaptacion(BaseModel):
     nicho_sector: NichoSector = NichoSector.GENERAL
     nivel_detalle: NivelDetalle = NivelDetalle.DIDACTICO
     idioma_salida: str = Field(default="es", min_length=2, max_length=5)
+
+
+class SolicitudCalificacion(BaseModel):
+    """Cuerpo de POST /api/v1/calificaciones: la opinión del usuario sobre un material."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objeto_id: str = Field(min_length=1, max_length=500)
+    estrellas: int = Field(ge=1, le=5)
+    comentario: str = Field(default="", max_length=500)

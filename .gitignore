@@ -9,6 +9,7 @@ data/fallback/*
 !data/fallback/.gitkeep
 data/vectorstore/*
 data/videos/
+data/estadisticas/
 !data/vectorstore/.gitkeep
 .streamlit/
 # los JSON de docs/demo/resultados/ son evidencia de las 3 demos: se versionan
