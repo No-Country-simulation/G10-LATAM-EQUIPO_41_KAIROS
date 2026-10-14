@@ -74,7 +74,10 @@ class Settings:
     chunk_overlap: int = _env_int("CHUNK_OVERLAP", 150)
 
     # --- Embeddings / vector store ---
-    embeddings_provider: str = os.getenv("EMBEDDINGS_PROVIDER", "local")  # local | gemini
+    # auto: Gemini (semánticos) si hay API key, con TF-IDF local de respaldo | gemini | local
+    embeddings_provider: str = os.getenv("EMBEDDINGS_PROVIDER", "auto")
+    embeddings_modelo: str = os.getenv("EMBEDDINGS_MODELO", "gemini-embedding-001")
+    embeddings_dimensiones: int = _env_int("EMBEDDINGS_DIMENSIONES", 768)
     vectorstore_dir: str = os.getenv("VECTORSTORE_DIR", "data/vectorstore")
 
     # --- LLM ---
@@ -178,6 +181,9 @@ class Settings:
     # --- Video del Guion de Clase ---
     video_tts: str = os.getenv("VIDEO_TTS", "auto")  # auto (voz del sistema si hay) | off (sin narración)
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
+
+    # --- Estadísticas de uso y calificaciones (ver estadisticas.py) ---
+    estadisticas_dir: str = os.getenv("ESTADISTICAS_DIR", "data/estadisticas")
 
     # --- Límites de ingesta ---
     max_upload_mb: int = _env_int("MAX_UPLOAD_MB", 10)

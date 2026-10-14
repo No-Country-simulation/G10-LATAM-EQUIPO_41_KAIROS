@@ -28,6 +28,7 @@ class Metadatos(BaseModel):
     prerrequisitos: list[str] = Field(default_factory=list)
     tiempo_generacion_segundos: float = 0.0
     modelo_llm: str = ""
+    modelo_embeddings: str = ""
     desde_cache: bool = False
     tiempos_por_agente: dict[str, float] = Field(default_factory=dict)
 

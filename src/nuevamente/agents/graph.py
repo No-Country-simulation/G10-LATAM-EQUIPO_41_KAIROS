@@ -1,17 +1,21 @@
-"""Orquestación del flujo de generación de contenido educativo.
+"""Orquestación del flujo de generación de contenido educativo, como grafo de LangGraph.
 
 Responsable en el equipo Kairos G10: Bryan Infante (AI Engineer), con Adrian Gil
 (ML Engineer) en la capa LLM y el verificador de fidelidad.
 
-Implementa el flujo objetivo del proyecto (Planificador -> Investigador RAG ->
-Redactor -> Verificador de fidelidad -> Crítico, con reintento) como una
-función Python secuencial, no como un grafo de LangGraph. Es una decisión de
-alcance documentada: en este entorno no hay acceso a paquetes que requieran
-red más allá de PyPI, y priorizamos tener el FLUJO completo funcionando de
-verdad sobre usar una librería de orquestación específica. La forma de las
-etapas (planificar, investigar, redactar, verificar, criticar, reintentar)
-es la misma que pediría un StateGraph de LangGraph; migrar es un cambio de
-"cómo se llaman las funciones entre sí", no de arquitectura.
+Grafo (`StateGraph`), un nodo por agente:
+
+    indexar -> planificar -> investigar -> redactar -> criticar --(aprobado / sin mejora)--> finalizar
+                                               ^                        |
+                                               +----(reintento con retroalimentación)----+
+
+- indexar: ingesta, chunking y embeddings (RAG).
+- planificar: secciones didácticas, conceptos clave y prerrequisitos.
+- investigar: evidencia por sección (Investigador RAG).
+- redactar: única llamada pesada al LLM, con salida estructurada (Pydantic).
+- criticar: verifica cada afirmación contra su chunk; si no alcanza el umbral del
+  nicho, devuelve retroalimentación concreta y el grafo vuelve a redactar.
+- finalizar: metadatos de aprendizaje y evaluación de calidad.
 """
 from __future__ import annotations
 
@@ -23,6 +27,9 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from typing import Any, TypedDict
+
+from langgraph.graph import END, START, StateGraph
 
 from nuevamente.config import settings
 from nuevamente.ingest.conceptos import extraer_conceptos
@@ -174,6 +181,8 @@ def _investigar(coleccion: ColeccionDocumento, secciones: list[str], top_k_por_s
     """
     if top_k_por_seccion is None:
         top_k_por_seccion = max(2, math.ceil(_EVIDENCIA_OBJETIVO / max(1, len(secciones))))
+    # las consultas son los nombres de sección: se embeben todas en una sola solicitud
+    coleccion.precalcular_consultas([s for s in secciones if s != "Documento completo"])
     seleccionados = {}
     for seccion in secciones:
         if seccion == "Documento completo":
@@ -406,126 +415,159 @@ def _claridad_desde_score(score: float) -> ClaridadPedagogica:
     return ClaridadPedagogica.BAJA
 
 
-def generar_contenido_educativo(
-    documento_titulo: str,
-    documento_contenido: str,
-    perfil: str,
-    formato: str,
-    nicho: str,
-    nivel_detalle: str,
-    llm: LLMClient | None = None,
-) -> ResultadoGeneracion:
-    """Punto de entrada del flujo completo: indexa, planifica, investiga, redacta,
-    verifica fidelidad y aplica el ciclo de reintento del Crítico."""
-    t0 = time.perf_counter()
-    llm = llm or crear_llm()
+class EstadoFlujo(TypedDict, total=False):
+    """Estado que comparten los nodos del grafo."""
 
-    t_idx0 = time.perf_counter()
-    coleccion = indexar_documento(documento_titulo, documento_contenido)
-    t_idx = round((time.perf_counter() - t_idx0) * 1000, 2)
+    # entrada
+    documento_titulo: str
+    documento_contenido: str
+    perfil: str
+    formato: str
+    nicho: str
+    nivel_detalle: str
+    llm: Any
+    # producido por los nodos
+    t0: float
+    tiempos: dict[str, float]
+    coleccion: ColeccionDocumento
+    schema: type
+    plan: PlanPedagogico
+    chunks_evidencia: list[dict]
+    umbral: float
+    intento: int
+    contenido: ContenidoAdaptado
+    contenido_anterior: ContenidoAdaptado | None
+    evaluacion_fidelidad: ResultadoFidelidad
+    retroalimentacion: str
+    aprobado: bool
+    decision: str  # "reintentar" | "terminar"
+    resultado: ResultadoGeneracion
 
-    schema = _SCHEMA_POR_FORMATO.get(formato)
+
+def _cronometrar(estado: EstadoFlujo, clave: str, desde: float, escala: float = 1000, acumular: bool = False) -> dict:
+    tiempos = dict(estado.get("tiempos", {}))
+    valor = (time.perf_counter() - desde) * escala
+    tiempos[clave] = round(tiempos.get(clave, 0.0) + valor if acumular else valor, 3 if escala == 1 else 2)
+    return tiempos
+
+
+def _nodo_indexar(estado: EstadoFlujo) -> dict:
+    schema = _SCHEMA_POR_FORMATO.get(estado["formato"])
     if schema is None:
-        raise ValueError(f"Formato no soportado: {formato}")
+        raise ValueError(f"Formato no soportado: {estado['formato']}")
+    t = time.perf_counter()
+    coleccion = indexar_documento(estado["documento_titulo"], estado["documento_contenido"])
+    return {"coleccion": coleccion, "schema": schema, "tiempos": _cronometrar(estado, "indexacion_rag_ms", t)}
 
-    # 1. Agente Planificador: traza secuencia didáctica, conceptos clave y prerrequisitos (< 1ms)
-    t_plan0 = time.perf_counter()
-    plan = _planificar(coleccion, formato, perfil=perfil, nicho=nicho)
-    t_plan = round((time.perf_counter() - t_plan0) * 1000, 2)
 
-    # 2. Agente Investigador: recupera evidencia por sección mediante RAG local (< 5ms)
-    t_inv0 = time.perf_counter()
-    chunks_evidencia = _investigar(coleccion, plan.secciones)
-    t_inv = round((time.perf_counter() - t_inv0) * 1000, 2)
+def _nodo_planificar(estado: EstadoFlujo) -> dict:
+    """Agente Planificador: secuencia didáctica, conceptos clave y prerrequisitos."""
+    t = time.perf_counter()
+    plan = _planificar(estado["coleccion"], estado["formato"], perfil=estado["perfil"], nicho=estado["nicho"])
+    return {"plan": plan, "tiempos": _cronometrar(estado, "planificador_ms", t)}
+
+
+def _nodo_investigar(estado: EstadoFlujo) -> dict:
+    """Agente Investigador RAG: evidencia por sección."""
+    t = time.perf_counter()
+    chunks_evidencia = _investigar(estado["coleccion"], estado["plan"].secciones)
     if not chunks_evidencia:
         raise LLMError("El Investigador no encontró evidencia recuperable en el documento.")
+    return {
+        "chunks_evidencia": chunks_evidencia,
+        "umbral": settings.fidelity_min_for(estado["nicho"]),
+        "intento": 0,
+        "retroalimentacion": "",
+        "contenido_anterior": None,
+        "aprobado": False,
+        "tiempos": _cronometrar(estado, "investigador_ms", t),
+    }
 
-    umbral = settings.fidelity_min_for(nicho)
-    retroalimentacion = ""
-    contenido = None
-    contenido_anterior = None
-    evaluacion_fidelidad: ResultadoFidelidad | None = None
-    aprobado = False
 
-    t_red_total = 0.0
-    t_crit_total = 0.0
+def _nodo_redactar(estado: EstadoFlujo) -> dict:
+    """Agente Redactor: única llamada pesada al LLM generativo estructurado."""
+    t = time.perf_counter()
+    contenido = _depurar(_redactar(
+        estado["llm"], estado["schema"], estado["documento_titulo"], estado["perfil"], estado["nicho"],
+        estado["nivel_detalle"], estado["chunks_evidencia"], estado["retroalimentacion"],
+    ))
+    return {
+        "contenido": contenido,
+        "contenido_anterior": estado.get("contenido"),
+        "intento": estado["intento"] + 1,
+        "tiempos": _cronometrar(estado, "redactor_segundos", t, escala=1, acumular=True),
+    }
 
-    intentos = settings.max_reintentos_critico + 1
-    for intento in range(1, intentos + 1):
-        # 3. Agente Redactor: única llamada pesada al LLM generativo estructurado
-        t_red0 = time.perf_counter()
-        contenido = _depurar(
-            _redactar(llm, schema, documento_titulo, perfil, nicho, nivel_detalle, chunks_evidencia, retroalimentacion)
+
+def _retroalimentacion(evaluacion: ResultadoFidelidad, umbral: float) -> str:
+    """Lo que el Crítico le pide corregir al Redactor, concreto y específico."""
+    partes: list[str] = []
+    if evaluacion.no_sustentadas:
+        partes.append(
+            f"Afirmaciones NO sustentadas por la fuente: {evaluacion.no_sustentadas[:3]}. "
+            "Elimínalas o ajústalas para que solo usen la evidencia textual dada."
         )
-        t_red_total += (time.perf_counter() - t_red0)
+    parciales = getattr(evaluacion, "parciales_afirmaciones", [])
+    if parciales:
+        partes.append(
+            f"Afirmaciones con anclaje débil o parcial: {parciales[:3]}. "
+            "Asegura una conexión conceptual y terminológica más estrecha con el chunk citado."
+        )
+    if not partes:
+        partes.append(
+            f"El score de fidelidad ({evaluacion.score:.2f}) no alcanzó el umbral requerido ({umbral:.2f}). "
+            "Alinea las afirmaciones con mayor fidelidad a los hechos y términos de los chunks de evidencia."
+        )
+    return " ".join(partes)
 
-        # 4. Agente Crítico Guardián: evaluación matemática instantánea de fidelidad (< 2ms)
-        t_crit0 = time.perf_counter()
-        evaluacion_fidelidad = evaluar_fidelidad(contenido, coleccion)
-        t_crit_total += (time.perf_counter() - t_crit0)
 
-        if evaluacion_fidelidad.total == 0:
-            # Sin afirmaciones con fuente no hay nada que verificar: no se aprueba
-            # (sería dar por fiel algo que nadie comprobó) y reintentar no lo arregla.
-            break
+def _nodo_criticar(estado: EstadoFlujo) -> dict:
+    """Agente Crítico: verifica la fidelidad y decide si se aprueba o se reintenta."""
+    t = time.perf_counter()
+    evaluacion = evaluar_fidelidad(estado["contenido"], estado["coleccion"])
+    cambios = {"evaluacion_fidelidad": evaluacion, "tiempos": _cronometrar(estado, "critico_ms", t, acumular=True)}
+    if evaluacion.total == 0:
+        # Sin afirmaciones con fuente no hay nada que verificar: no se aprueba (sería dar
+        # por fiel algo que nadie comprobó) y reintentar no lo arregla.
+        return {**cambios, "decision": "terminar"}
+    if evaluacion.score >= estado["umbral"]:
+        return {**cambios, "aprobado": True, "decision": "terminar"}
+    sin_intentos = estado["intento"] >= settings.max_reintentos_critico + 1
+    # un generador determinista (p. ej. TemplateLLM) ignora la retroalimentación y repetiría lo mismo
+    sin_mejora = estado["contenido"] == estado.get("contenido_anterior")
+    if sin_intentos or sin_mejora:
+        return {**cambios, "decision": "terminar"}
+    return {**cambios, "decision": "reintentar", "retroalimentacion": _retroalimentacion(evaluacion, estado["umbral"])}
 
-        if evaluacion_fidelidad.score >= umbral:
-            aprobado = True
-            break
 
-        # El Crítico rechaza y da retroalimentación concreta y específica para el reintento
-        no_sustentadas = evaluacion_fidelidad.no_sustentadas
-        parciales = getattr(evaluacion_fidelidad, "parciales_afirmaciones", [])
-        partes_retro: list[str] = []
-        if no_sustentadas:
-            partes_retro.append(
-                f"Afirmaciones NO sustentadas por la fuente: {no_sustentadas[:3]}. "
-                "Elimínalas o ajústalas para que solo usen la evidencia textual dada."
-            )
-        if parciales:
-            partes_retro.append(
-                f"Afirmaciones con anclaje débil o parcial: {parciales[:3]}. "
-                "Asegura una conexión conceptual y terminológica más estrecha con el chunk citado."
-            )
-        if not partes_retro:
-            partes_retro.append(
-                f"El score de fidelidad ({evaluacion_fidelidad.score:.2f}) no alcanzó el umbral requerido ({umbral:.2f}). "
-                "Alinea las afirmaciones con mayor fidelidad a los hechos y términos de los chunks de evidencia."
-            )
-        retroalimentacion = " ".join(partes_retro)
-
-        if contenido == contenido_anterior:
-            # Generador determinista (p. ej. TemplateLLM): ignora la retroalimentación
-            # y repetiría el mismo resultado, así que reintentar no aporta nada.
-            break
-        contenido_anterior = contenido
-
+def _nodo_finalizar(estado: EstadoFlujo) -> dict:
+    """Metadatos de aprendizaje y evaluación de calidad del resultado final."""
+    contenido, coleccion, evaluacion_fidelidad = estado["contenido"], estado["coleccion"], estado["evaluacion_fidelidad"]
+    perfil, aprobado, plan = estado["perfil"], estado["aprobado"], estado["plan"]
     _asignar_secciones(contenido, coleccion)
     _agrupar_por_seccion(contenido, coleccion)
-    tiempo_generacion = round(time.perf_counter() - t0, 3)
-    sin_afirmaciones = evaluacion_fidelidad is None or evaluacion_fidelidad.total == 0
+    sin_afirmaciones = evaluacion_fidelidad.total == 0
     score_final = 0.0 if sin_afirmaciones else evaluacion_fidelidad.score
-
-    tiempos_por_agente = {
-        "indexacion_rag_ms": t_idx,
-        "planificador_ms": t_plan,
-        "investigador_ms": t_inv,
-        "redactor_segundos": round(t_red_total, 3),
-        "critico_ms": round(t_crit_total * 1000, 2),
-    }
+    tiempos = estado["tiempos"]
 
     metadatos = Metadatos(
         perfil_aplicado=perfil,
-        formato_generado=formato,
+        formato_generado=estado["formato"],
         tiempo_estimado_estudio_minutos=_calcular_tiempo_estudio(contenido),
-        conceptos_clave=plan.conceptos_clave or _conceptos_clave(chunks_evidencia),
+        conceptos_clave=plan.conceptos_clave or _conceptos_clave(estado["chunks_evidencia"]),
         prerrequisitos=plan.prerrequisitos,
-        tiempo_generacion_segundos=tiempo_generacion,
-        modelo_llm=llm.nombre_modelo,
+        tiempo_generacion_segundos=round(time.perf_counter() - estado["t0"], 3),
+        modelo_llm=estado["llm"].nombre_modelo,
+        modelo_embeddings=coleccion.modelo_embeddings,
         desde_cache=False,
-        tiempos_por_agente=tiempos_por_agente,
+        tiempos_por_agente={
+            "indexacion_rag_ms": tiempos.get("indexacion_rag_ms", 0.0),
+            "planificador_ms": tiempos.get("planificador_ms", 0.0),
+            "investigador_ms": tiempos.get("investigador_ms", 0.0),
+            "redactor_segundos": tiempos.get("redactor_segundos", 0.0),
+            "critico_ms": tiempos.get("critico_ms", 0.0),
+        },
     )
-
     evaluacion = EvaluacionCalidad(
         anclaje_fuente_score=round(score_final, 4),
         claridad_pedagogica=_claridad_desde_score(score_final),
@@ -538,13 +580,63 @@ def generar_contenido_educativo(
             else "No se alcanzó el umbral de fidelidad tras los reintentos; se devuelve el "
             "mejor resultado con las afirmaciones no sustentadas señaladas."
         ),
-        afirmaciones_total=evaluacion_fidelidad.total if evaluacion_fidelidad else 0,
-        afirmaciones_sustentadas=evaluacion_fidelidad.sustentadas if evaluacion_fidelidad else 0,
-        afirmaciones_no_sustentadas=evaluacion_fidelidad.no_sustentadas if evaluacion_fidelidad else [],
-        umbral_aplicado=umbral,
+        afirmaciones_total=evaluacion_fidelidad.total,
+        afirmaciones_sustentadas=evaluacion_fidelidad.sustentadas,
+        afirmaciones_no_sustentadas=evaluacion_fidelidad.no_sustentadas,
+        umbral_aplicado=estado["umbral"],
         aprobado_por_critico=aprobado,
     )
+    return {"resultado": ResultadoGeneracion(contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion)}
 
-    return ResultadoGeneracion(
-        contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion
+
+def construir_grafo():
+    """Compila el grafo de agentes (se compila una vez y se reutiliza)."""
+    grafo = StateGraph(EstadoFlujo)
+    grafo.add_node("indexar", _nodo_indexar)
+    grafo.add_node("planificar", _nodo_planificar)
+    grafo.add_node("investigar", _nodo_investigar)
+    grafo.add_node("redactar", _nodo_redactar)
+    grafo.add_node("criticar", _nodo_criticar)
+    grafo.add_node("finalizar", _nodo_finalizar)
+    grafo.add_edge(START, "indexar")
+    grafo.add_edge("indexar", "planificar")
+    grafo.add_edge("planificar", "investigar")
+    grafo.add_edge("investigar", "redactar")
+    grafo.add_edge("redactar", "criticar")
+    grafo.add_conditional_edges("criticar", lambda e: e["decision"], {"reintentar": "redactar", "terminar": "finalizar"})
+    grafo.add_edge("finalizar", END)
+    return grafo.compile()
+
+
+GRAFO = construir_grafo()
+
+
+def generar_contenido_educativo(
+    documento_titulo: str,
+    documento_contenido: str,
+    perfil: str,
+    formato: str,
+    nicho: str,
+    nivel_detalle: str,
+    llm: LLMClient | None = None,
+) -> ResultadoGeneracion:
+    """Punto de entrada del flujo completo: ejecuta el grafo de agentes (indexar,
+    planificar, investigar, redactar, criticar con reintento y finalizar)."""
+    if formato not in _SCHEMA_POR_FORMATO:
+        raise ValueError(f"Formato no soportado: {formato}")
+    estado = GRAFO.invoke(
+        {
+            "documento_titulo": documento_titulo,
+            "documento_contenido": documento_contenido,
+            "perfil": perfil,
+            "formato": formato,
+            "nicho": nicho,
+            "nivel_detalle": nivel_detalle,
+            "llm": llm or crear_llm(),
+            "t0": time.perf_counter(),
+            "tiempos": {},
+        },
+        # el ciclo redactar -> criticar repite 2 nodos por reintento
+        {"recursion_limit": 10 + 2 * (settings.max_reintentos_critico + 1)},
     )
+    return estado["resultado"]
