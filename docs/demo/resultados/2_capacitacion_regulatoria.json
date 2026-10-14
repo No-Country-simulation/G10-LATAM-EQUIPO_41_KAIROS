@@ -7,95 +7,175 @@
     "nicho": "Salud",
     "nivel_detalle": "Didáctico"
   },
-  "tiempo_generacion_segundos": 367.18,
+  "tiempo_generacion_segundos": 88.38,
   "metadatos": {
     "perfil_aplicado": "Desarrollador Junior/Semi Senior",
     "formato_generado": "Quiz",
-    "tiempo_estimado_estudio_minutos": 3,
+    "tiempo_estimado_estudio_minutos": 8,
     "conceptos_clave": [
-      "Introducción",
       "Higiene de manos",
       "Equipo de protección personal (EPP)",
       "Manejo de residuos biocontaminados",
       "Limpieza y desinfección de superficies",
-      "Notificación de incidentes y exposiciones"
+      "Notificación de incidentes y exposiciones",
+      "Capacitación continua del personal"
     ],
-    "prerrequisitos": [],
-    "tiempo_generacion_segundos": 367.18,
-    "modelo_llm": "gemini-flash-latest",
-    "desde_cache": false
+    "prerrequisitos": [
+      "Lectura previa de: Introducción"
+    ],
+    "tiempo_generacion_segundos": 88.376,
+    "modelo_llm": "gemini-3.7-flash",
+    "modelo_embeddings": "gemini-embedding-001",
+    "desde_cache": false,
+    "tiempos_por_agente": {
+      "indexacion_rag_ms": 1.79,
+      "planificador_ms": 0.07,
+      "investigador_ms": 0.6,
+      "redactor_segundos": 88.333,
+      "critico_ms": 31.37
+    }
   },
   "evaluacion_calidad": {
     "anclaje_fuente_score": 1.0,
     "claridad_pedagogica": "Alta",
-    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
-    "afirmaciones_total": 4,
-    "afirmaciones_sustentadas": 4,
+    "observaciones": "Enfoque práctico y paso a paso, orientado a la implementación. Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 8,
+    "afirmaciones_sustentadas": 8,
     "afirmaciones_no_sustentadas": [],
     "umbral_aplicado": 0.9,
     "aprobado_por_critico": true
   },
   "contenido_adaptado": {
     "formato": "Quiz",
-    "titulo": "Evaluación Didáctica sobre Protocolos de Bioseguridad en Salud",
+    "titulo": "Protocolo General de Bioseguridad en Entornos de Salud",
     "preguntas": [
       {
-        "enunciado": "Según el protocolo de higiene de manos, ¿cuál es la condición requerida para que el uso de una solución a base de alcohol en gel sea una alternativa aceptable al lavado con agua y jabón?",
+        "enunciado": "¿Cuál es el impacto principal de implementar de manera rigurosa los protocolos de bioseguridad en un establecimiento de salud?",
         "opciones": [
-          "Que se aplique únicamente antes de realizar procedimientos asépticos invasivos.",
-          "Que las manos no se encuentren visiblemente sucias.",
-          "Que se acompañe inmediatamente con la colocación de guantes estériles.",
-          "Que el tiempo de fricción sea inferior a 10 segundos en superficies palmares."
+          "Reemplaza la necesidad de segregar los residuos en el punto de generación.",
+          "Permite prescindir de la capacitación periódica del personal con experiencia clínica previa.",
+          "Elimina totalmente los riesgos físicos y químicos sin requerir equipos de protección personal.",
+          "Reduce de forma significativa la incidencia de infecciones asociadas a la atención sanitaria y protege al personal de exposiciones innecesarias."
+        ],
+        "indice_correcto": 3,
+        "justificacion": "El documento indica que aplicar correctamente los protocolos de bioseguridad hospitalaria reduce de forma significativa las infecciones asociadas a la atención sanitaria y protege a los profesionales frente a exposiciones innecesarias a riesgos biológicos, físicos y químicos.",
+        "fuentes": [
+          "fde32e7836d7b185-c000"
+        ],
+        "seccion": "Introducción"
+      },
+      {
+        "enunciado": "Al establecer la lógica de control para la higiene de manos, ¿en qué condición es aceptable recurrir a una solución a base de alcohol en gel en lugar de agua y jabón?",
+        "opciones": [
+          "Solo antes de procedimientos quirúrgicos invasivos en sustitución definitiva del agua y jabón.",
+          "Siempre que las manos no estén visiblemente sucias, manteniendo la fricción hasta que el producto se seque por completo.",
+          "En cualquier escenario con suciedad visible si se efectúa una doble aplicación consecutiva.",
+          "Únicamente si el tiempo de aplicación se reduce a menos de diez segundos para agilizar el flujo de atención."
         ],
         "indice_correcto": 1,
-        "justificacion": "El protocolo indica que el uso de alcohol en gel es una alternativa aceptable al lavado con agua y jabón siempre que las manos no estén visiblemente sucias, manteniendo la fricción hasta que el producto seque por completo.",
+        "justificacion": "El documento señala que el alcohol en gel es una alternativa aceptable cuando no se dispone de agua y jabón, siempre que las manos no estén visiblemente sucias y manteniendo la fricción sobre palmas, dorso, espacios interdigitales y uñas hasta secarse por completo.",
         "fuentes": [
           "fde32e7836d7b185-c001",
           "fde32e7836d7b185-c002"
-        ]
+        ],
+        "seccion": "Higiene de manos"
       },
       {
-        "enunciado": "¿Cuál es la secuencia correcta establecida para el retiro del equipo de protección personal (EPP)?",
+        "enunciado": "¿Qué riesgo operativo describe el protocolo cuando los guantes se reutilizan entre pacientes o se portan durante tareas administrativas?",
         "opciones": [
-          "Mascarilla, bata, protección ocular y guantes.",
-          "Bata, guantes, mascarilla y protección ocular.",
-          "Guantes, protección ocular, bata y finalmente mascarilla.",
-          "Protección ocular, bata, mascarilla y finalmente guantes."
+          "Facilita el flujo de trabajo clínico sin requerir retiro ni sustitución entre actividades.",
+          "Sustituye formalmente la obligación de realizar higiene de manos antes y después de cada procedimiento.",
+          "Anula su función protectora y puede convertirlos en un vector de contaminación cruzada.",
+          "Conserva intacta su barrera protectora si se desinfectan superficialmente con alcohol."
         ],
         "indice_correcto": 2,
-        "justificacion": "Para retirar el EPP, el orden prioriza evitar el contacto con superficies contaminadas: primero se retiran los guantes, luego la protección ocular, la bata y finalmente la mascarilla, realizando higiene de manos tras cada elemento.",
+        "justificacion": "El documento advierte expresamente que reutilizar guantes entre pacientes distintos, o usarlos durante tareas administrativas ajenas al procedimiento, anula su función protectora y puede convertirlos en un vector de contaminación cruzada.",
         "fuentes": [
-          "fde32e7836d7b185-c004"
-        ]
-      },
-      {
-        "enunciado": "¿Cómo deben descartarse los materiales punzocortantes, tales como agujas y hojas de bisturí?",
-        "opciones": [
-          "En bolsas de color rojo tras reencapuchar cuidadosamente las agujas.",
-          "De inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas.",
-          "En recipientes plásticos comunes una vez finalizado el turno laboral.",
-          "En contenedores flexibles forzando su entrada para aprovechar la capacidad máxima."
+          "fde32e7836d7b185-c003"
         ],
-        "indice_correcto": 1,
-        "justificacion": "Los materiales punzocortantes deben descartarse de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas y sin forzar su entrada si se ha alcanzado el límite indicado.",
-        "fuentes": [
-          "fde32e7836d7b185-c005"
-        ]
+        "seccion": "Equipo de protección personal (EPP)"
       },
       {
-        "enunciado": "¿Por qué es necesario limpiar una superficie antes de proceder a su desinfección química?",
+        "enunciado": "Para evitar el contacto de superficies contaminadas con la piel o la ropa, ¿cuál es el orden estricto establecido para la retirada del EPP?",
         "opciones": [
-          "Porque la materia orgánica puede inactivar parcialmente algunos desinfectantes.",
-          "Para acelerar la evaporación del producto químico y acortar el tiempo de contacto.",
-          "Porque la desinfección solo es aplicable en superficies de bajo contacto.",
-          "Para evitar retirar el producto desinfectante antes de su tiempo de secado."
+          "Primero los guantes, luego la protección ocular, la bata y finalmente la mascarilla.",
+          "Primero la protección ocular, luego los guantes, la mascarilla y finalmente la bata.",
+          "Primero la mascarilla, luego la bata, la protección ocular y finalmente los guantes.",
+          "Primero la bata, luego los guantes, la mascarilla y la protección ocular."
         ],
         "indice_correcto": 0,
-        "justificacion": "La limpieza y la desinfección son procesos secuenciales. La superficie debe limpiarse antes de desinfectarse debido a que la materia orgánica puede inactivar parcialmente algunos productos desinfectantes.",
+        "justificacion": "El protocolo define que para retirar el equipo se prioriza evitar el contacto contaminante retirando primero los guantes, luego la protección ocular, la bata y finalmente la mascarilla, ejecutando higiene de manos tras cada elemento retirado.",
+        "fuentes": [
+          "fde32e7836d7b185-c004"
+        ],
+        "seccion": "Equipo de protección personal (EPP)"
+      },
+      {
+        "enunciado": "¿Cómo deben manejarse y descartarse los residuos punzocortantes, tales como agujas y hojas de bisturí, en el punto de generación?",
+        "opciones": [
+          "Reencapuchando las agujas antes de disponerlas en bolsas rojas de residuos biocontaminados comunes.",
+          "Disponiéndolos en bateas abiertas para su consolidación al término del turno asistencial.",
+          "Forzando manualmente su ingreso en contenedores flexibles para maximizar el volumen de acopio.",
+          "Descartándolos de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar agujas y sin forzar su entrada si se alcanza el límite indicado."
+        ],
+        "indice_correcto": 3,
+        "justificacion": "Según el documento, los punzocortantes deben ser descartados de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas y sin forzar su entrada cuando el contenedor llega a su límite indicado.",
+        "fuentes": [
+          "fde32e7836d7b185-c005"
+        ],
+        "seccion": "Manejo de residuos biocontaminados"
+      },
+      {
+        "enunciado": "¿Por qué la limpieza física debe preceder siempre al proceso de desinfección en las superficies hospitalarias?",
+        "opciones": [
+          "Porque los agentes desinfectantes eliminan de forma mecánica la suciedad visible sin requerir fricción previa.",
+          "Porque el fabricante exige aplicar el desinfectante únicamente sobre superficies con polvo acumulado.",
+          "Porque la materia orgánica remanente puede inactivar parcialmente algunos desinfectantes químicos.",
+          "Porque la desinfección solo está autorizada reglamentariamente para superficies de bajo contacto."
+        ],
+        "indice_correcto": 2,
+        "justificacion": "La limpieza y la desinfección son procesos distintos y secuenciales: una superficie debe limpiarse antes de desinfectarse debido a que la materia orgánica puede inactivar parcialmente algunos desinfectantes químicos.",
         "fuentes": [
           "fde32e7836d7b185-c007"
-        ]
+        ],
+        "seccion": "Limpieza y desinfección de superficies"
+      },
+      {
+        "enunciado": "Ante una punción accidental o salpicadura de fluidos corporales a mucosas, ¿cuál es el objetivo clave de notificar de inmediato a salud ocupacional?",
+        "opciones": [
+          "Permitir la evaluación de riesgo e intervenciones dentro de ventanas de tiempo recomendadas, además de alimentar el registro epidemiológico interno.",
+          "Sustituir el lavado de manos estándar por protocolos de desinfección ambiental.",
+          "Proceder a la incineración de todos los equipos de protección usados durante la jornada asistencial.",
+          "Eximir al personal de cumplir con los circuitos de traslado de residuos biocontaminados."
+        ],
+        "indice_correcto": 0,
+        "justificacion": "La notificación oportuna ante una exposición a fluidos corporales permite iniciar la evaluación de riesgo y las medidas pertinentes dentro de las ventanas de tiempo recomendadas, además de nutrir el registro epidemiológico interno que impulsa la mejora continua.",
+        "fuentes": [
+          "fde32e7836d7b185-c008"
+        ],
+        "seccion": "Notificación de incidentes y exposiciones"
+      },
+      {
+        "enunciado": "¿Qué criterio pedagógico e institucional garantiza que los programas de capacitación en bioseguridad reduzcan efectivamente los incidentes de forma sostenida?",
+        "opciones": [
+          "Limitar la formación a una sesión teórica única impartida durante la inducción inicial.",
+          "Mantener programas periódicos, continuos y verificables que evalúen el conocimiento adquirido.",
+          "Distribuir manuales escritos prescindiendo de evaluaciones o registros de seguimiento.",
+          "Registrar exclusivamente la lista de asistencia a charlas sin comprobar el aprendizaje."
+        ],
+        "indice_correcto": 1,
+        "justificacion": "El documento explica que los establecimientos que logran reducir incidentes de forma sostenida son aquellos que implementan programas de capacitación continua y verificable, con evaluación del conocimiento adquirido y no limitándose a la mera asistencia o a una inducción inicial.",
+        "fuentes": [
+          "fde32e7836d7b185-c009"
+        ],
+        "seccion": "Capacitación continua del personal"
       }
     ]
+  },
+  "almacenamiento_oci": {
+    "bucket": "nuevamente-contenidos-educativos",
+    "objeto_id": "contenidos/fde32e7836d7b185/demo-2_capacitacion_regulatoria.json",
+    "objeto_documento_original": "originals/fde32e7836d7b185.txt",
+    "status_upload": "fallido_local"
   }
 }
