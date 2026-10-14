@@ -18,6 +18,8 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 from nuevamente.agents.graph import generar_contenido_educativo  # noqa: E402
 from nuevamente.exports import exportar_anki_csv, exportar_markdown  # noqa: E402
+from nuevamente.exports.pdf import generar_pdf  # noqa: E402
+from nuevamente.storage.oci_client import get_storage_service  # noqa: E402
 
 DOCUMENTO_PATH = RAIZ / "docs" / "demo" / "protocolo_bioseguridad_salud.md"
 RESULTADOS_DIR = RAIZ / "docs" / "demo" / "resultados"
@@ -59,6 +61,8 @@ def main() -> int:
     RESULTADOS_DIR.mkdir(parents=True, exist_ok=True)
 
     resumen_general = []
+    storage = get_storage_service()
+    print(f"OCI Object Storage: {'conectado' if storage.disponible_oci() else 'NO disponible (se usa el respaldo local)'}")
 
     for escenario in ESCENARIOS:
         print(f"\n=== Escenario: {escenario['caso_de_uso']} ===")
@@ -79,12 +83,16 @@ def main() -> int:
         print(f"Score de fidelidad: {resultado.evaluacion.anclaje_fuente_score:.2f} "
               f"(umbral aplicado: {resultado.evaluacion.umbral_aplicado})")
         print(f"Aprobado por el Crítico: {resultado.evaluacion.aprobado_por_critico}")
-        print(f"Modelo: {resultado.metadatos.modelo_llm}")
+        print(f"Modelo: {resultado.metadatos.modelo_llm} | Embeddings: {resultado.metadatos.modelo_embeddings}")
         if resultado.metadatos.modelo_llm.startswith("template"):
             print("⚠ Se usó el generador local de respaldo, no el LLM configurado.")
         if resultado.evaluacion.afirmaciones_no_sustentadas:
             print(f"⚠ Afirmaciones no sustentadas: {resultado.evaluacion.afirmaciones_no_sustentadas}")
 
+        # mismo destino que usa la API: el original y el paquete educativo, en OCI (o el respaldo)
+        doc_id = resultado.coleccion.doc_id
+        original = storage.subir_texto(f"originals/{doc_id}.txt", documento_contenido, content_type="text/plain")
+        objeto_id = f"contenidos/{doc_id}/demo-{escenario['nombre']}.json"
         salida = {
             "escenario": escenario,
             "tiempo_generacion_segundos": duracion,
@@ -92,11 +100,23 @@ def main() -> int:
             "evaluacion_calidad": resultado.evaluacion.model_dump(),
             "contenido_adaptado": resultado.contenido.model_dump(),
         }
+        subida = storage.subir_json(objeto_id, salida)
+        salida["almacenamiento_oci"] = {
+            "bucket": subida.bucket,
+            "objeto_id": subida.objeto_id,
+            "objeto_documento_original": original.objeto_id,
+            "status_upload": subida.status_upload,
+        }
+        print(f"Almacenamiento: {subida.status_upload} ({subida.bucket}/{subida.objeto_id})")
         json_path = RESULTADOS_DIR / f"{escenario['nombre']}.json"
         json_path.write_text(json.dumps(salida, ensure_ascii=False, indent=2), encoding="utf-8")
 
         md_path = RESULTADOS_DIR / f"{escenario['nombre']}.md"
         md_path.write_text(exportar_markdown(resultado.contenido, "Protocolo de Bioseguridad"), encoding="utf-8")
+
+        (RESULTADOS_DIR / f"{escenario['nombre']}.pdf").write_bytes(generar_pdf(
+            resultado.contenido, "Protocolo de Bioseguridad", escenario["perfil"], resultado.evaluacion.anclaje_fuente_score
+        ))
 
         if resultado.contenido.formato in ("Flashcards", "Quiz"):
             csv_path = RESULTADOS_DIR / f"{escenario['nombre']}_anki.csv"
@@ -111,6 +131,8 @@ def main() -> int:
                 "anclaje_fuente_score": resultado.evaluacion.anclaje_fuente_score,
                 "aprobado_por_critico": resultado.evaluacion.aprobado_por_critico,
                 "modelo_llm": resultado.metadatos.modelo_llm,
+                "modelo_embeddings": resultado.metadatos.modelo_embeddings,
+                "status_upload": subida.status_upload,
             }
         )
 
