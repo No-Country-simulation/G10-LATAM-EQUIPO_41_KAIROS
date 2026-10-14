@@ -11,9 +11,11 @@ from pathlib import Path
 os.environ["FALLBACK_DIR"] = tempfile.mkdtemp(prefix="nuevamente-tests-")
 os.environ["OCI_CONFIG_FILE"] = os.path.join(os.environ["FALLBACK_DIR"], "sin-oci")
 os.environ["VIDEOS_DIR"] = os.path.join(os.environ["FALLBACK_DIR"], "videos")
+os.environ["ESTADISTICAS_DIR"] = os.path.join(os.environ["FALLBACK_DIR"], "estadisticas")
 os.environ["VIDEO_TTS"] = "off"  # videos en silencio: rápidos y sin depender de las voces del sistema
 os.environ["PODCAST_VOCES"] = "sistema"  # sin llamadas a Gemini TTS en los tests
 os.environ["LLM_PROVIDER"] = "template"  # sin llamadas a Gemini aunque el .env lo active
+os.environ["EMBEDDINGS_PROVIDER"] = "local"  # TF-IDF: sin red y determinista
 
 # Lo mismo con el enrutado por salud: los priors de latencia del `.env` de quien esté en la
 # máquina son para arrancar el proceso en frío, y si se cuelan aquí reordenan los dobles de

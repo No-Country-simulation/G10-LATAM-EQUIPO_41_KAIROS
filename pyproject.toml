@@ -20,6 +20,8 @@ dependencies = [
     "imageio-ffmpeg",
     "python-pptx",
     "python-docx",
+    "langgraph>=1.0",
+    "fpdf2",
 ]
 
 [project.optional-dependencies]

@@ -42,9 +42,31 @@ class ColeccionDocumento:
         textos = [c.texto for c in chunks]
         self.proveedor.fit(textos)
         self._matriz = self.proveedor.transform(textos)
+        self._generacion = getattr(self.proveedor, "generacion", 0)
+
+    def _sincronizar(self) -> None:
+        # si el proveedor pasó a su respaldo, la matriz se recalcula con el mismo modelo
+        if getattr(self.proveedor, "generacion", 0) != self._generacion:
+            self._matriz = self.proveedor.transform([c.texto for c in self.chunks])
+            self._generacion = self.proveedor.generacion
+
+    def _vector_consulta(self, consulta: str) -> np.ndarray:
+        vector = self.proveedor.transform([consulta])[0]
+        self._sincronizar()
+        return vector
+
+    def precalcular_consultas(self, consultas: list[str]) -> None:
+        """Embebe varias consultas en una sola solicitud (quedan en la caché del proveedor)."""
+        if consultas:
+            self.proveedor.transform(consultas)
+            self._sincronizar()
+
+    @property
+    def modelo_embeddings(self) -> str:
+        return getattr(self.proveedor, "nombre", "desconocido")
 
     def buscar(self, consulta: str, top_k: int = 5) -> list[ResultadoBusqueda]:
-        vector = self.proveedor.transform([consulta])[0]
+        vector = self._vector_consulta(consulta)
         sims = _cosine_sim(self._matriz, vector)
         idx_orden = np.argsort(-sims)[:top_k]
         return [ResultadoBusqueda(chunk=self.chunks[i], score=float(sims[i])) for i in idx_orden]
@@ -53,7 +75,7 @@ class ColeccionDocumento:
         indices = [i for i, c in enumerate(self.chunks) if c.seccion == seccion]
         if not indices:
             return []
-        vector = self.proveedor.transform([consulta])[0]
+        vector = self._vector_consulta(consulta)
         sub_matriz = self._matriz[indices]
         sims = _cosine_sim(sub_matriz, vector)
         orden_local = np.argsort(-sims)[:top_k]
