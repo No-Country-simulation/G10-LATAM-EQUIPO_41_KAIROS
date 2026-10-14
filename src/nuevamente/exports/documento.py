@@ -1,4 +1,4 @@
-"""Documento Word (.docx) a partir de cualquier contenido adaptado.
+"""Documento Word (.docx) o PDF a partir de cualquier contenido adaptado.
 
 Responsable en el equipo Kairos G10: Dario Higuera Moreno (No Code Developer).
 
@@ -8,6 +8,10 @@ lleva las respuestas al final, para poder imprimirlo y resolverlo sin verlas.
 
 Se usa Arial, igual que en la presentación: viene con Office y se ve igual en
 Word, Pages y LibreOffice.
+
+Las funciones de cada formato (`_flashcards`, `_quiz`…) escriben sobre un "escritor"
+con la misma interfaz para Word (`_Doc`) y PDF (`exports/pdf.py`), así el diseño de
+cada material es uno solo y los dos archivos salen iguales.
 """
 from __future__ import annotations
 
@@ -31,6 +35,7 @@ from nuevamente.schemas.formatos import (
 )
 
 FUENTE = "Arial"
+PIE = "Generado por Kairos solo a partir del documento proporcionado."
 PRIMARIO = RGBColor(0x6C, 0x4E, 0xF5)
 CORAL = RGBColor(0xE0, 0x5A, 0x3A)
 TEXTO = RGBColor(0x2D, 0x24, 0x40)
@@ -45,7 +50,26 @@ def _limpio(texto: str) -> str:
     return _NO_XML.sub("", texto or "")
 
 
-class _Doc:
+class _Escritor:
+    """Lo común a Word y PDF: cuándo escribir el título de la sección del documento."""
+
+    _seccion = ""
+
+    def apartado(self, texto: str) -> None:
+        raise NotImplementedError
+
+    def seccion_de(self, parte) -> None:
+        """Escribe el título de la sección del documento cuando la parte empieza una nueva."""
+        seccion = _NUMERACION.sub("", getattr(parte, "seccion", ""))
+        if seccion and seccion != "Documento completo" and seccion != self._seccion:
+            self.apartado(seccion)
+        self._seccion = seccion
+
+    def olvidar_seccion(self) -> None:
+        self._seccion = ""
+
+
+class _Doc(_Escritor):
     """Documento con los estilos de Kairos ya aplicados."""
 
     def __init__(self, titulo: str) -> None:
@@ -71,31 +95,29 @@ class _Doc:
     def subtitulo(self, texto: str) -> None:
         self.doc.add_heading(_limpio(texto), level=2)
 
-    def parrafo(self, texto: str, *, etiqueta: str = "", cursiva=False, suave=False):
+    def parrafo(self, texto: str, *, etiqueta: str = "", cursiva=False, suave=False, negrita=False, destacado=False):
         """Párrafo de texto, con una etiqueta opcional en negrita delante ("Narración: ...")."""
         p = self.doc.add_paragraph()
         if etiqueta:
             p.add_run(f"{etiqueta} ").bold = True
         run = p.add_run(_limpio(texto))
-        run.italic = cursiva
+        run.italic, run.bold = cursiva, negrita
         if suave:
             run.font.color.rgb = TEXTO_SUAVE
-        return p
+        if destacado:
+            run.font.color.rgb = CORAL
 
     def lista(self, textos: list[str], estilo: str = "List Bullet") -> None:
         for texto in textos:
             self.doc.add_paragraph(_limpio(texto), style=estilo)
 
-    def seccion_de(self, parte) -> None:
-        """Escribe el título de la sección del documento cuando la parte empieza una nueva."""
-        seccion = _NUMERACION.sub("", getattr(parte, "seccion", ""))
-        if seccion and seccion != "Documento completo" and seccion != self._seccion:
-            self.apartado(seccion)
-        self._seccion = seccion
-
     def salto_de_pagina(self) -> None:
         self.doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         self._seccion = ""
+
+    def pie(self, texto: str) -> None:
+        run = self.doc.sections[0].footer.paragraphs[0].add_run(texto)
+        run.font.size, run.font.color.rgb = Pt(8), TEXTO_SUAVE
 
     def guardar(self) -> bytes:
         buffer = io.BytesIO()
@@ -131,7 +153,7 @@ def _tutorial(d: _Doc, c: TutorialContenido) -> None:
     if c.prerrequisitos:
         d.apartado("Antes de empezar")
         d.lista(c.prerrequisitos)
-        d._seccion = ""
+        d.olvidar_seccion()
     for paso in c.pasos:
         d.seccion_de(paso)
         # si el paso se titula igual que su sección, el título ya está encima
@@ -154,7 +176,7 @@ def _tutorial(d: _Doc, c: TutorialContenido) -> None:
 def _resumen(d: _Doc, c: ResumenEjecutivoContenido) -> None:
     partes = partes_resumen(c)
     d.apartado("Idea central")
-    d.parrafo(partes.idea).runs[-1].bold = True
+    d.parrafo(partes.idea, negrita=True)
     if partes.resto:
         d.apartado("Contexto y hallazgos")
         for parrafo in partes.resto:
@@ -198,6 +220,22 @@ _POR_FORMATO = {
 }
 
 
+def escribir_material(d: _Escritor, contenido: ContenidoAdaptado, titulo: str, perfil: str, score_fidelidad: float | None) -> None:
+    """Escribe el material completo (título, ficha, contenido y pie) en Word o PDF."""
+    tipo, escribir = next(
+        (v for clase, v in _POR_FORMATO.items() if isinstance(contenido, clase)), (None, None)
+    )
+    if escribir is None:
+        raise ValueError(f"El formato {getattr(contenido, 'formato', '?')} no se exporta como documento")
+    d.titulo(titulo)
+    ficha = [tipo, f"Para: {NOMBRE_VISIBLE_PERFIL.get(perfil, perfil)}" if perfil else ""]
+    if score_fidelidad is not None:
+        ficha.append(f"Fidelidad a la fuente: {round(score_fidelidad * 100)}%")
+    d.parrafo(" · ".join(x for x in ficha if x), negrita=True, destacado=True)
+    escribir(d, contenido)
+    d.pie(PIE)
+
+
 def generar_documento(
     contenido: ContenidoAdaptado,
     titulo: str,
@@ -205,24 +243,6 @@ def generar_documento(
     score_fidelidad: float | None = None,
 ) -> bytes:
     """Devuelve el .docx del material. `titulo` es el del documento de origen."""
-    tipo, escribir = next(
-        (v for clase, v in _POR_FORMATO.items() if isinstance(contenido, clase)), (None, None)
-    )
-    if escribir is None:
-        raise ValueError(f"El formato {getattr(contenido, 'formato', '?')} no se exporta a Word")
-
     d = _Doc(titulo)
-    d.titulo(titulo)
-    ficha = [tipo, f"Para: {NOMBRE_VISIBLE_PERFIL.get(perfil, perfil)}" if perfil else ""]
-    if score_fidelidad is not None:
-        ficha.append(f"Fidelidad a la fuente: {round(score_fidelidad * 100)}%")
-    etiqueta = d.parrafo(" · ".join(x for x in ficha if x))
-    etiqueta.runs[-1].bold = True
-    etiqueta.runs[-1].font.color.rgb = CORAL
-
-    escribir(d, contenido)
-
-    pie = d.doc.sections[0].footer.paragraphs[0]
-    run = pie.add_run("Generado por Kairos solo a partir del documento proporcionado.")
-    run.font.size, run.font.color.rgb = Pt(8), TEXTO_SUAVE
+    escribir_material(d, contenido, titulo, perfil, score_fidelidad)
     return d.guardar()

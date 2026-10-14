@@ -1,4 +1,4 @@
-"""Lectores de documentos técnicos (PDF, Markdown, texto plano).
+"""Lectores de documentos técnicos (PDF, Word, Markdown, texto plano).
 
 Responsable en el equipo Kairos G10: Gaspar Martinez Paiva (Data Engineer).
 """
@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-EXTENSIONES_SOPORTADAS = {".pdf", ".md", ".markdown", ".txt"}
+EXTENSIONES_SOPORTADAS = {".pdf", ".docx", ".md", ".markdown", ".txt"}
 
 
 class DocumentoInvalidoError(Exception):
@@ -187,10 +187,106 @@ def leer_pdf(path: Path) -> DocumentoLeido:
         if por_posicion.strip() and _encabezados_apilados(por_posicion) < _encabezados_apilados(contenido):
             contenido = por_posicion
     if not contenido.strip():
+        # PDF escaneado (solo imágenes): se transcribe con OCR (HU-08)
+        contenido = ocr_pdf(path)
+    return DocumentoLeido(titulo=path.stem, contenido=limpiar_texto(contenido), fuente=path.name)
+
+
+_MIN_CARACTERES_OCR = 40
+_INDICACION_OCR = (
+    "Este PDF es un documento escaneado. Transcribe TODO su texto, página por página y en el orden "
+    "de lectura, tal como está escrito: no resumas, no traduzcas, no corrijas ni agregues nada. "
+    "Escribe cada título en su propia línea. Si una página no tiene texto, omítela. Devuelve solo el texto."
+)
+
+
+def ocr_pdf(path: Path) -> str:
+    """Texto de un PDF escaneado, leído por Gemini (sin programas de OCR en el servidor).
+
+    Lanza DocumentoInvalidoError si el OCR está apagado, no hay API key o no se reconoce
+    texto suficiente."""
+    from nuevamente.config import settings
+
+    claves = [c for c in (*settings.gemini_api_keys, settings.gemini_api_key) if c]
+    if settings.ocr == "off" or not claves:
         raise DocumentoInvalidoError(
-            f"El PDF {path.name} no tiene texto extraíble (posible escaneo sin OCR). "
-            "NuevaMente no hace OCR en este MVP."
+            f"El PDF {path.name} no tiene texto extraíble (posible escaneo). Para leerlo con OCR hace "
+            "falta configurar GEMINI_API_KEY; o sube una versión del documento con texto."
         )
+    from google import genai
+    from google.genai import types
+
+    cliente = genai.Client(api_key=claves[0], http_options=types.HttpOptions(timeout=settings.llm_timeout_s * 3 * 1000))
+    parte_pdf = types.Part.from_bytes(data=path.read_bytes(), mime_type="application/pdf")
+    ultimo: Exception | None = None
+    for modelo in dict.fromkeys((settings.llm_model, *settings.llm_modelos_respaldo)):
+        try:
+            respuesta = cliente.models.generate_content(model=modelo, contents=[parte_pdf, _INDICACION_OCR])
+            texto = (respuesta.text or "").strip()
+            break
+        except Exception as exc:  # sin cuota o saturado: se prueba el modelo siguiente
+            ultimo, texto = exc, None
+    if texto is None:
+        raise DocumentoInvalidoError(
+            f"El PDF {path.name} está escaneado y no se pudo leer con OCR en este momento ({ultimo}). "
+            "Intenta más tarde o sube una versión del documento con texto."
+        )
+    if len(texto) < _MIN_CARACTERES_OCR:
+        raise DocumentoInvalidoError(
+            f"El OCR no reconoció texto suficiente en {path.name}. Revisa que el escaneo sea legible "
+            "o sube una versión del documento con texto."
+        )
+    return texto
+
+
+def _nivel_de_titulo(parrafo) -> int:
+    """Nivel del estilo de título de Word ("Heading 2", "Título 2" -> 2; "Title" -> 1), o 0."""
+    estilo = (parrafo.style.name if parrafo.style is not None else "") or ""
+    if estilo.lower() in ("title", "título", "titulo"):
+        return 1
+    m = re.match(r"^(?:heading|t[íi]tulo)\s*(\d)$", estilo.strip(), re.IGNORECASE)
+    return int(m.group(1)) if m else 0
+
+
+def _texto_docx(documento) -> str:
+    """Párrafos y tablas en el orden del documento. Los títulos de Word pasan a
+    encabezados Markdown ("## ...") para que el chunking reconozca las secciones."""
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    bloques: list[str] = []
+    for elemento in documento.iter_inner_content():
+        if isinstance(elemento, Paragraph):
+            texto = elemento.text.strip()
+            if not texto:
+                continue
+            nivel = _nivel_de_titulo(elemento)
+            bloques.append(f"{'#' * min(nivel, 3)} {texto}" if nivel else texto)
+        elif isinstance(elemento, Table):
+            for fila in elemento.rows:
+                celdas: list[str] = []
+                for celda in fila.cells:  # una celda combinada se repite: se toma una vez
+                    texto = " ".join(celda.text.split())
+                    if texto and (not celdas or celdas[-1] != texto):
+                        celdas.append(texto)
+                if celdas:
+                    bloques.append(" | ".join(celdas))
+    return "\n\n".join(bloques)
+
+
+def leer_docx(path: Path) -> DocumentoLeido:
+    try:
+        from docx import Document
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("Falta instalar python-docx: pip install python-docx") from exc
+
+    try:
+        documento = Document(str(path))
+    except Exception as exc:  # archivo dañado o que no es un .docx real
+        raise DocumentoInvalidoError(f"No se pudo leer el documento Word {path.name}.") from exc
+    contenido = _texto_docx(documento)
+    if not contenido.strip():
+        raise DocumentoInvalidoError(f"El documento Word {path.name} no tiene texto.")
     return DocumentoLeido(titulo=path.stem, contenido=limpiar_texto(contenido), fuente=path.name)
 
 
@@ -202,12 +298,16 @@ def leer_documento(path: str | Path) -> DocumentoLeido:
 
     ext = path.suffix.lower()
     if ext not in EXTENSIONES_SOPORTADAS:
+        pista = " Ábrelo en Word y guárdalo como .docx." if ext == ".doc" else ""
         raise DocumentoInvalidoError(
-            f"Formato no soportado: {ext}. Soportados: {sorted(EXTENSIONES_SOPORTADAS)}"
+            f"El formato {ext or 'sin extensión'} no es compatible. Vuelve a cargar el archivo en "
+            f"un formato correcto: PDF, Word (.docx), Markdown (.md) o texto (.txt).{pista}"
         )
 
     if ext == ".pdf":
         return leer_pdf(path)
+    if ext == ".docx":
+        return leer_docx(path)
     if ext in (".md", ".markdown"):
         return leer_markdown(path)
     return leer_txt(path)

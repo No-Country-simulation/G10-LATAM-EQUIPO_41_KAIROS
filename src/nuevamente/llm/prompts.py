@@ -24,6 +24,13 @@ PROMPT_BASE = (
     "y al nivel de detalle elegidos. Escribe en español."
 )
 
+# HU-18: idioma de salida (código ISO 639-1 de SolicitudAdaptacion.idioma_salida)
+IDIOMAS = {"es": "español", "en": "inglés", "pt": "portugués", "fr": "francés", "it": "italiano", "de": "alemán"}
+
+
+def nombre_idioma(codigo: str) -> str:
+    return IDIOMAS.get((codigo or "es").lower()[:2], codigo)
+
 # Lo que hace verificable el material. El perfil y el sector cambian el enfoque, nunca los hechos.
 PROMPT_FIDELIDAD = (
     "Usa EXCLUSIVAMENTE la evidencia de los chunks recibidos. No agregues datos, dosis, "
@@ -165,7 +172,7 @@ PROMPT_POR_FORMATO = {
     "Resumen Ejecutivo": (
         "Resumen Ejecutivo con estilo profesional, directo y fácil de leer en un minuto, "
         "con esta estructura:\n"
-        "- `resumen` (unas 200 palabras): tres párrafos separados por una línea en blanco. "
+        "- `resumen` (unas 250 palabras): tres párrafos separados por una línea en blanco. "
         "1) Idea central: una o dos oraciones con la conclusión más importante del documento, "
         "lo primero que debe saber quien decide. 2) Contexto: qué trata el documento y por qué "
         "importa. 3) Hallazgos: lo esencial del resto del documento. Oraciones cortas, voz "
@@ -200,9 +207,142 @@ PROMPT_POR_FORMATO = {
 }
 
 
-def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detalle: str) -> str:
+# ============================================================================
+# Ejemplos few-shot del Redactor
+# ============================================================================
+# Un mismo fragmento de muestra (el de la VCN del enunciado, ajeno a los documentos de los
+# usuarios) y, por formato, una salida breve que lo usa bien: el campo `fuentes` cita su
+# chunk_id y cada afirmación conserva los términos del fragmento. tests/test_prompts.py
+# valida cada ejemplo contra su esquema, para que nunca enseñen una estructura inválida.
+
+EJEMPLO_CHUNK = {
+    "chunk_id": "ejemplo-c000",
+    "seccion": "Redes virtuales (VCN)",
+    "texto": (
+        "La Virtual Cloud Network (VCN) es una red privada y personalizable en Oracle Cloud "
+        "Infrastructure. Las Security Lists controlan el tráfico de la VCN mediante reglas de "
+        "entrada (ingress) y de salida (egress)."
+    ),
+}
+
+_F = ["ejemplo-c000"]
+_S = "Redes virtuales (VCN)"
+
+EJEMPLOS_POR_FORMATO = {
+    "Flashcards": {
+        "formato": "Flashcards",
+        "titulo": "Redes virtuales en la nube",
+        "introduccion_contextualizada": "Estas tarjetas repasan qué es una VCN y cómo se controla su tráfico.",
+        "items": [{
+            "frente": "¿Qué es una VCN en Oracle Cloud Infrastructure?",
+            "dorso": "Es una red privada y personalizable en Oracle Cloud Infrastructure.",
+            "pista_didactica": "Piensa en un barrio cerrado dentro de la nube.",
+            "fuentes": _F, "seccion": _S,
+        }],
+    },
+    "Quiz": {
+        "formato": "Quiz",
+        "titulo": "Control de tráfico en una VCN",
+        "preguntas": [{
+            "enunciado": "Necesitas bloquear el tráfico que sale de tu VCN. ¿Qué usas?",
+            "opciones": [
+                "Reglas de salida (egress) de una Security List",
+                "Reglas de entrada (ingress) de una Security List",
+                "Una red pública en lugar de la VCN",
+                "Un cambio de región de la VCN",
+            ],
+            "indice_correcto": 0,
+            "justificacion": "Las Security Lists controlan el tráfico de la VCN; el que sale se regula con reglas de salida (egress).",
+            "fuentes": _F, "seccion": _S,
+        }],
+    },
+    "Tutorial": {
+        "formato": "Tutorial",
+        "objetivo": "Controlar el tráfico de una VCN con Security Lists.",
+        "prerrequisitos": ["Saber qué es una VCN."],
+        "pasos": [{
+            "orden": 1,
+            "titulo": "Definir las reglas de entrada",
+            "instruccion": "En la Security List de la VCN, define reglas de entrada (ingress) para el tráfico que puede llegar.",
+            "resultado_esperado": "La VCN solo acepta el tráfico de entrada permitido.",
+            "fuentes": _F, "seccion": _S,
+        }],
+        "reto_practico": "Escribe una regla de entrada y una de salida para la misma VCN.",
+    },
+    "Resumen Ejecutivo": {
+        "formato": "Resumen Ejecutivo",
+        "resumen": (
+            "La VCN es la red privada y personalizable de Oracle Cloud Infrastructure.\n\n"
+            "Su tráfico se controla con Security Lists.\n\n"
+            "Las Security Lists aplican reglas de entrada (ingress) y de salida (egress)."
+        ),
+        "puntos_clave": ["Red privada: la VCN es una red privada y personalizable en Oracle Cloud Infrastructure."],
+        "decisiones_o_riesgos": ["Recomendación: definir reglas de entrada y de salida en las Security Lists de la VCN."],
+        "impacto_de_negocio": "Controlar el tráfico de la VCN con Security Lists protege los servicios en la nube.",
+        "fuentes": _F,
+    },
+    "Guion de Clase": {
+        "formato": "Guion de Clase",
+        "duracion_total_min": 1,
+        "escenas": [{
+            "orden": 1,
+            "narracion": "Imagina tu propia red privada en la nube: eso es una VCN en Oracle Cloud Infrastructure.",
+            "apoyo_visual": "Diagrama de una VCN con su Security List.",
+            "duracion_seg": 30,
+            "fuentes": _F, "seccion": _S,
+        }],
+    },
+    "Podcast": {
+        "formato": "Podcast",
+        "titulo": "Redes privadas en la nube",
+        "duracion_total_min": 1,
+        "intervenciones": [
+            {"orden": 1, "locutor": "Ana", "texto": "Leo, ¿qué es una VCN?", "fuentes": [], "seccion": _S},
+            {"orden": 2, "locutor": "Leo", "texto": "Es una red privada y personalizable en Oracle Cloud Infrastructure.", "fuentes": _F, "seccion": _S},
+        ],
+    },
+}
+
+
+def prompt_ejemplo(formato: str) -> str:
+    """Bloque few-shot del formato: un chunk de muestra y la salida que lo usa bien."""
+    import json
+
+    ejemplo = EJEMPLOS_POR_FORMATO.get(formato)
+    if not ejemplo:
+        return ""
+    return (
+        "[EJEMPLO]\n"
+        "Muestra de la forma y del anclaje, no del tema ni de la extensión: con este chunk,\n"
+        f"{json.dumps(EJEMPLO_CHUNK, ensure_ascii=False)}\n"
+        "una salida correcta (abreviada) sería:\n"
+        f"{json.dumps(ejemplo, ensure_ascii=False)}\n"
+        "Fíjate en que cada elemento cita en `fuentes` el chunk_id que lo sustenta y conserva "
+        "los términos de ese chunk. No copies este ejemplo: genera el material completo a partir "
+        "de los chunks que recibes, con la cantidad de elementos que pide el formato."
+    )
+
+
+# HU-32: los metadatos de aprendizaje los redacta el modelo en la misma respuesta
+PROMPT_METADATOS = (
+    "[METADATOS DE APRENDIZAJE]\n"
+    "Además del material, completa `conceptos_clave` con 3 a 6 conceptos centrales del documento, "
+    "cada uno en pocas palabras y con los términos del documento, y `prerrequisitos` con 1 a 3 "
+    "conocimientos previos que necesita este perfil para estudiar el material (frases breves). "
+    "Ambos van en el mismo idioma que el material."
+)
+
+
+def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detalle: str, idioma: str = "es") -> str:
+    base = PROMPT_BASE
+    if nombre_idioma(idioma) != "español":
+        base = base.replace(
+            "Escribe en español.",
+            f"Escribe todo el material en {nombre_idioma(idioma)}, aunque el documento esté en español: "
+            "traduce con fidelidad, sin agregar nada que el documento no diga.",
+        )
     partes = [
-        PROMPT_BASE,
+        base,
         (
             "[CONFIGURACIÓN SELECCIONADA EN LA WEB]\n"
             f"- Perfil: {perfil}\n"
@@ -222,8 +362,10 @@ def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detall
             f"de su esquema.\n{PROMPT_POR_FORMATO.get(formato, '')}"
         ),
         f"[FIDELIDAD AL DOCUMENTO]\n{PROMPT_FIDELIDAD}",
+        PROMPT_METADATOS,
+        prompt_ejemplo(formato),
     ]
-    return "\n\n".join(partes)
+    return "\n\n".join(p for p in partes if p)
 
 
 # ============================================================================
@@ -309,9 +451,8 @@ PROMPT_CRITICO_POR_NICHO = {
 def construir_prompt_critico(formato: str, perfil: str, nicho: str) -> str:
     """Construye el system prompt especializado para el agente Crítico.
 
-    Nota arquitectónica: En el pipeline híbrido actual (`fidelity/verifier.py`), el Crítico
-    opera mediante verificación matemática instantánea de fidelidad TF-IDF (<2ms). Esta función
-    se preserva para el modo de juez LLM textual de producción.
+    Lo usa el juez de IA (`fidelity/juez.py`): el Crítico filtra primero con la similitud
+    TF-IDF (<2 ms) y el juez revisa con este prompt solo las afirmaciones dudosas.
     """
     partes = [
         PROMPT_CRITICO_BASE,

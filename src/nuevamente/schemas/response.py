@@ -28,6 +28,7 @@ class Metadatos(BaseModel):
     prerrequisitos: list[str] = Field(default_factory=list)
     tiempo_generacion_segundos: float = 0.0
     modelo_llm: str = ""
+    modelo_embeddings: str = ""
     desde_cache: bool = False
     tiempos_por_agente: dict[str, float] = Field(default_factory=dict)
 
@@ -43,6 +44,9 @@ class EvaluacionCalidad(BaseModel):
     afirmaciones_no_sustentadas: list[str] = Field(default_factory=list)
     umbral_aplicado: float = 0.0
     aprobado_por_critico: bool = True
+    juez_fidelidad: str = "tfidf"  # "tfidf" | "tfidf+ia" (HU-38)
+    coherencia_didactica: str = ""  # Alta | Media | Baja, evaluada por la IA (HU-37)
+    comentario_coherencia: str = ""
 
 
 class AlmacenamientoOCI(BaseModel):
@@ -51,6 +55,8 @@ class AlmacenamientoOCI(BaseModel):
     bucket: str
     objeto_id: str
     objeto_documento_original: str = ""
+    documento_nombre: str = ""  # nombre del archivo subido, o el título del texto pegado
+    objeto_archivo_original: str = ""  # el archivo subido tal cual (PDF, Word…), si se subió uno
     status_upload: str  # "completado" | "fallido_local"
 
 

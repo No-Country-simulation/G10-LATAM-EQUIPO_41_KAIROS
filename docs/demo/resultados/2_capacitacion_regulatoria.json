@@ -7,95 +7,135 @@
     "nicho": "Salud",
     "nivel_detalle": "Didáctico"
   },
-  "tiempo_generacion_segundos": 367.18,
+  "tiempo_generacion_segundos": 49.597,
   "metadatos": {
     "perfil_aplicado": "Desarrollador Junior/Semi Senior",
     "formato_generado": "Quiz",
-    "tiempo_estimado_estudio_minutos": 3,
+    "tiempo_estimado_estudio_minutos": 4,
     "conceptos_clave": [
-      "Introducción",
+      "Bioseguridad hospitalaria",
       "Higiene de manos",
-      "Equipo de protección personal (EPP)",
-      "Manejo de residuos biocontaminados",
-      "Limpieza y desinfección de superficies",
-      "Notificación de incidentes y exposiciones"
+      "Equipo de Protección Personal (EPP)",
+      "Residuos biocontaminados",
+      "Desinfección de superficies",
+      "Notificación de incidentes"
     ],
-    "prerrequisitos": [],
-    "tiempo_generacion_segundos": 367.18,
-    "modelo_llm": "gemini-flash-latest",
-    "desde_cache": false
+    "prerrequisitos": [
+      "Conocimientos básicos sobre flujos de procesos y algoritmos",
+      "Comprensión de la terminología técnica en entornos sanitarios",
+      "Nociones sobre gestión de riesgos y seguridad ocupacional"
+    ],
+    "tiempo_generacion_segundos": 49.592,
+    "modelo_llm": "gemini-3-flash-preview",
+    "modelo_embeddings": "gemini-embedding-001",
+    "desde_cache": false,
+    "tiempos_por_agente": {
+      "indexacion_rag_ms": 3.01,
+      "planificador_ms": 0.07,
+      "investigador_ms": 0.58,
+      "redactor_segundos": 29.654,
+      "critico_ms": 9.43
+    }
   },
   "evaluacion_calidad": {
     "anclaje_fuente_score": 1.0,
     "claridad_pedagogica": "Alta",
-    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
-    "afirmaciones_total": 4,
-    "afirmaciones_sustentadas": 4,
+    "observaciones": "Enfoque práctico y paso a paso, orientado a la implementación. Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 5,
+    "afirmaciones_sustentadas": 5,
     "afirmaciones_no_sustentadas": [],
     "umbral_aplicado": 0.9,
-    "aprobado_por_critico": true
+    "aprobado_por_critico": true,
+    "juez_fidelidad": "tfidf+ia",
+    "coherencia_didactica": "Alta",
+    "comentario_coherencia": "El material integra con éxito conceptos de ingeniería de software con protocolos de bioseguridad, facilitando la comprensión para un desarrollador. La secuencia de temas es lógica y las justificaciones refuerzan el aprendizaje técnico y normativo de manera efectiva."
   },
   "contenido_adaptado": {
     "formato": "Quiz",
-    "titulo": "Evaluación Didáctica sobre Protocolos de Bioseguridad en Salud",
+    "titulo": "Protocolos de Bioseguridad y Gestión de Riesgos en Entornos de Salud",
     "preguntas": [
       {
-        "enunciado": "Según el protocolo de higiene de manos, ¿cuál es la condición requerida para que el uso de una solución a base de alcohol en gel sea una alternativa aceptable al lavado con agua y jabón?",
+        "enunciado": "En el desarrollo de un módulo de validación para higiene de manos, ¿cuál es la condición necesaria para que el uso de alcohol en gel sea considerado una alternativa válida al lavado con agua y jabón?",
         "opciones": [
-          "Que se aplique únicamente antes de realizar procedimientos asépticos invasivos.",
-          "Que las manos no se encuentren visiblemente sucias.",
-          "Que se acompañe inmediatamente con la colocación de guantes estériles.",
-          "Que el tiempo de fricción sea inferior a 10 segundos en superficies palmares."
+          "Que se utilice solo después de procedimientos quirúrgicos",
+          "Que las manos no presenten suciedad visible",
+          "Que se aplique únicamente en el dorso de las manos",
+          "Que el procedimiento dure menos de 10 segundos"
         ],
         "indice_correcto": 1,
-        "justificacion": "El protocolo indica que el uso de alcohol en gel es una alternativa aceptable al lavado con agua y jabón siempre que las manos no estén visiblemente sucias, manteniendo la fricción hasta que el producto seque por completo.",
+        "justificacion": "Según el documento, el alcohol en gel es una alternativa aceptable siempre y cuando las manos no estén visiblemente sucias, debiendo mantenerse la fricción hasta que el producto se seque por completo.",
         "fuentes": [
           "fde32e7836d7b185-c001",
           "fde32e7836d7b185-c002"
-        ]
+        ],
+        "seccion": "Higiene de manos"
       },
       {
-        "enunciado": "¿Cuál es la secuencia correcta establecida para el retiro del equipo de protección personal (EPP)?",
+        "enunciado": "Si estuvieras implementando un algoritmo para el orden de retiro (doffing) del Equipo de Protección Personal (EPP), ¿cuál sería la secuencia lógica correcta para minimizar el riesgo de contaminación?",
         "opciones": [
-          "Mascarilla, bata, protección ocular y guantes.",
-          "Bata, guantes, mascarilla y protección ocular.",
-          "Guantes, protección ocular, bata y finalmente mascarilla.",
-          "Protección ocular, bata, mascarilla y finalmente guantes."
+          "Protección ocular, guantes, mascarilla y bata",
+          "Bata, guantes, mascarilla y protección ocular",
+          "Mascarilla, bata, protección ocular y guantes",
+          "Guantes, protección ocular, bata y finalmente mascarilla"
         ],
-        "indice_correcto": 2,
-        "justificacion": "Para retirar el EPP, el orden prioriza evitar el contacto con superficies contaminadas: primero se retiran los guantes, luego la protección ocular, la bata y finalmente la mascarilla, realizando higiene de manos tras cada elemento.",
+        "indice_correcto": 3,
+        "justificacion": "El documento establece que para retirar el EPP el orden se invierte para evitar contacto con superficies contaminadas: primero guantes, luego protección ocular, bata y finalmente la mascarilla.",
         "fuentes": [
           "fde32e7836d7b185-c004"
-        ]
+        ],
+        "seccion": "Equipo de protección personal (EPP)"
       },
       {
-        "enunciado": "¿Cómo deben descartarse los materiales punzocortantes, tales como agujas y hojas de bisturí?",
+        "enunciado": "Al diseñar un sistema de inventario y disposición de residuos, ¿cómo deben clasificarse y segregarse los materiales punzocortantes como agujas y hojas de bisturí?",
         "opciones": [
-          "En bolsas de color rojo tras reencapuchar cuidadosamente las agujas.",
-          "De inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas.",
-          "En recipientes plásticos comunes una vez finalizado el turno laboral.",
-          "En contenedores flexibles forzando su entrada para aprovechar la capacidad máxima."
+          "En bolsas rojas tras reencapuchar las agujas para mayor seguridad",
+          "En bolsas de color común si no tienen sangre visible",
+          "En contenedores rígidos resistentes a punción, sin reencapuchar las agujas",
+          "En contenedores flexibles siempre que se llenen hasta el tope"
         ],
-        "indice_correcto": 1,
-        "justificacion": "Los materiales punzocortantes deben descartarse de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas y sin forzar su entrada si se ha alcanzado el límite indicado.",
+        "indice_correcto": 2,
+        "justificacion": "El protocolo indica que los punzocortantes deben descartarse de inmediato en contenedores rígidos resistentes a punción, prohibiendo explícitamente reencapuchar las agujas.",
         "fuentes": [
           "fde32e7836d7b185-c005"
-        ]
+        ],
+        "seccion": "Manejo de residuos biocontaminados"
       },
       {
-        "enunciado": "¿Por qué es necesario limpiar una superficie antes de proceder a su desinfección química?",
+        "enunciado": "Desde una perspectiva de procesos secuenciales, ¿cuál es la relación correcta entre la limpieza y la desinfección de superficies de alto contacto en un hospital?",
         "opciones": [
-          "Porque la materia orgánica puede inactivar parcialmente algunos desinfectantes.",
-          "Para acelerar la evaporación del producto químico y acortar el tiempo de contacto.",
-          "Porque la desinfección solo es aplicable en superficies de bajo contacto.",
-          "Para evitar retirar el producto desinfectante antes de su tiempo de secado."
+          "La superficie debe limpiarse físicamente antes de aplicar el desinfectante",
+          "Ambos procesos deben ejecutarse simultáneamente para ahorrar tiempo",
+          "La limpieza es opcional si el desinfectante es de alta potencia",
+          "La desinfección debe realizarse antes de la limpieza física"
         ],
         "indice_correcto": 0,
-        "justificacion": "La limpieza y la desinfección son procesos secuenciales. La superficie debe limpiarse antes de desinfectarse debido a que la materia orgánica puede inactivar parcialmente algunos productos desinfectantes.",
+        "justificacion": "El documento aclara que son procesos distintos y secuenciales: una superficie debe limpiarse antes de desinfectarse, ya que la materia orgánica puede inactivar los desinfectantes.",
         "fuentes": [
           "fde32e7836d7b185-c007"
-        ]
+        ],
+        "seccion": "Limpieza y desinfección de superficies"
+      },
+      {
+        "enunciado": "En caso de un incidente de exposición a fluidos (como un pinchazo accidental), ¿cuál es el flujo de trabajo inmediato que debe seguir el personal según el protocolo?",
+        "opciones": [
+          "Reiniciar el sistema de bioseguridad antes de atender a otro paciente",
+          "Realizar una limpieza profunda y no notificar si la herida es pequeña",
+          "Esperar a finalizar el turno para reportar el incidente",
+          "Notificar de inmediato al personal de salud ocupacional"
+        ],
+        "indice_correcto": 3,
+        "justificacion": "Todo incidente de exposición debe notificarse de inmediato al responsable de salud ocupacional para iniciar la evaluación de riesgo dentro de las ventanas de tiempo recomendadas.",
+        "fuentes": [
+          "fde32e7836d7b185-c008"
+        ],
+        "seccion": "Notificación de incidentes y exposiciones"
       }
     ]
+  },
+  "almacenamiento_oci": {
+    "bucket": "nuevamente-contenidos-educativos",
+    "objeto_id": "contenidos/fde32e7836d7b185/demo-2_capacitacion_regulatoria.json",
+    "objeto_documento_original": "originals/fde32e7836d7b185.txt",
+    "status_upload": "fallido_local"
   }
 }

@@ -12,7 +12,8 @@ Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**.
 
 ## 1. Qué hace
 
-Recibe un documento técnico (PDF, Markdown o texto), lo indexa con RAG, y lo
+Recibe un documento técnico (PDF, también escaneado mediante OCR con Gemini; Word .docx,
+Markdown o texto), lo indexa con RAG, y lo
 transforma en contenido educativo personalizado según:
 
 - **Perfil del destinatario:** Principiante, Desarrollador Junior/Semi Senior,
@@ -21,10 +22,10 @@ transforma en contenido educativo personalizado según:
   de Clase, Podcast (solo en audio).
 - **Nicho/sector:** General, Fintech, Salud, E-commerce, Tecnología.
 
-Cualquier resultado se puede descargar como **documento Word (.docx)** o
-**presentación PowerPoint (.pptx)**, además de Markdown y CSV para Anki (botones
-"📝 Word" y "📊 PowerPoint" en la interfaz, o
-`GET /api/v1/contenidos/{objeto_id}/exportar?formato=docx|pptx&titulo=...`). Cada formato
+Cualquier resultado se puede descargar como **documento Word (.docx)**, **PDF didáctico**
+o **presentación PowerPoint (.pptx)**, además de Markdown y CSV para Anki (botones
+"📝 Word", "📄 PDF" y "📊 PowerPoint" en la interfaz, o
+`GET /api/v1/contenidos/{objeto_id}/exportar?formato=docx|pdf|pptx&titulo=...`). Cada formato
 tiene su propio diseño: tarjetas pregunta/respuesta, cada pregunta del quiz seguida
 de su respuesta, un paso por diapositiva, puntos clave, y las escenas del guion con
 la narración en las **notas del orador**.
@@ -44,6 +45,14 @@ disponible (sin cuota o sin red), el episodio se narra con las voces del sistema
 y la interfaz lo indica. Solo se verifican contra la fuente
 las intervenciones de Leo, que son las que llevan contenido del documento.
 
+**Estadísticas de uso y experiencia de usuario:** debajo de cada material el usuario lo
+califica de 1 a 5 estrellas y puede dejar un comentario. El panel
+**http://localhost:8000/estadisticas** (botón "📊 Estadísticas" del menú, o
+`GET /api/v1/estadisticas`) muestra los materiales creados por día, los formatos, perfiles,
+sectores y tipos de archivo más usados, las descargas, la fidelidad media, la calificación
+media y los últimos comentarios. Los eventos se guardan en `data/estadisticas/eventos.jsonl`
+(`ESTADISTICAS_DIR`), sin el texto de ningún documento.
+
 Cada afirmación generada se **verifica contra el documento fuente** y se le
 asigna un score de anclaje. Esto vale para los 6 formatos: en Resumen Ejecutivo
 se verifica cada oración del resumen, en Guion de Clase cada escena y en Podcast cada intervención de Leo. Si un
@@ -54,17 +63,19 @@ interfaz web (HTML/CSS/JS, servida por la misma API en `http://localhost:8000/`)
 ## 2. Arquitectura
 
 ```
-Documento (PDF/MD/TXT)
+Documento (PDF/DOCX/MD/TXT)
         │
         ▼
    [Ingesta]  chunking con solapamiento + detección de secciones
         │
         ▼
-[RAG local]  TF-IDF (scikit-learn) + vector store propio, aislado por doc_id
+[RAG]  embeddings semánticos de Gemini (gemini-embedding-001, 768 dim.)
+       con TF-IDF local de respaldo + vector store propio, aislado por doc_id
         │
         ▼
-[Orquestación]  Planificador → Investigador (por sección) → Redactor →
-                Verificador de fidelidad → Crítico (con reintento)
+[Orquestación]  grafo de LangGraph (StateGraph): Planificador → Investigador
+                (por sección) → Redactor (role prompting + few-shot) →
+                Crítico con verificación de fidelidad (con reintento)
         │
         ▼
 [Persistencia]  OCI Object Storage (o fallback local en data/fallback/)
@@ -75,21 +86,23 @@ Documento (PDF/MD/TXT)
 
 ### Diagrama de flujo de agentes
 
+Es un `StateGraph` de LangGraph ([agents/graph.py](src/nuevamente/agents/graph.py)), un nodo por agente:
+
 ```mermaid
 flowchart LR
-    A[Planificador] --> B[Investigador RAG]
-    B --> C[Redactor]
-    C --> D[Verificador de fidelidad]
-    D --> E{Crítico}
-    E -- score < umbral, reintentos disponibles --> C
-    E -- aprobado --> F[Respuesta final + OCI]
+    I[indexar<br/>chunking + embeddings] --> A[planificar]
+    A --> B[investigar<br/>RAG por sección]
+    B --> C[redactar<br/>LLM + few-shot]
+    C --> E{criticar<br/>fidelidad}
+    E -- score < umbral y quedan reintentos --> C
+    E -- aprobado / sin mejora --> F[finalizar<br/>metadatos + OCI]
 ```
 
 ## 3. Equipo de trabajo (Kairos G10)
 
 | Persona | Rol |
 |---|---|
-| Juan Pablo Calla (PM) | Project Manager |
+| Juan Pablo Calla | Project Manager |
 | Gaspar Martinez Paiva | Data Engineer |
 | Bryan Infante | AI Engineer |
 | Adrian Gil | ML Engineer |
@@ -117,11 +130,11 @@ local cuando la externa no está configurada o falla.
 
 | Pieza | Sin credenciales / respaldo | Con credenciales |
 |---|---|---|
-| Embeddings | `LocalTfidfEmbeddings` (scikit-learn, sin red) | `GeminiEmbeddings` (por implementar) — mismo contrato `EmbeddingsProvider` |
-| Vector store | Store propio en numpy, aislado por `doc_id` | ChromaDB — misma interfaz `buscar`/`buscar_por_seccion` |
+| Embeddings | `LocalTfidfEmbeddings` (scikit-learn, sin red), también respaldo si Gemini falla | `GeminiEmbeddings` (`gemini-embedding-001`, semánticos, `EMBEDDINGS_PROVIDER=auto`) |
+| Vector store | Store propio en numpy, aislado por `doc_id` (`VECTOR_STORE=local`) | ChromaDB persistente (`VECTOR_STORE=chroma`), misma interfaz `buscar`/`buscar_por_seccion` |
 | LLM generador | `TemplateLLM` (extractivo, determinista), también respaldo si el LLM falla (`LLM_RESPALDO_LOCAL`) | `GeminiLLM` (`LLM_PROVIDER=gemini`, con modelos de respaldo) o `ClaudeLLM` (`LLM_PROVIDER=claude`) — misma interfaz `LLMClient` |
-| Juez de fidelidad | Similitud TF-IDF contra el chunk citado | LLM juez con cita textual |
-| Orquestación | Función Python secuencial con reintento | Migrable a `StateGraph` de LangGraph sin cambiar las etapas |
+| Juez de fidelidad | Similitud TF-IDF contra el chunk citado | TF-IDF + juez de IA con citas textuales verificadas y coherencia didáctica (`JUEZ_IA=auto`) |
+| Orquestación | `StateGraph` de LangGraph con reintento (igual en ambos casos) | — |
 | OCI Object Storage | Fallback a `data/fallback/` si no hay credenciales | Cliente real vía `oci` SDK (ya integrado, solo requiere `.env`) |
 
 **Importante:** esto no es una simulación con datos falsos. El pipeline corre
@@ -145,10 +158,11 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (168 pruebas, deben pasar todas; ver sección 13)           |
+| `make test`    | Corre los tests (253 pruebas, deben pasar todas; ver sección 13)           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
+| `make requirements` | Regenera `requirements.txt` con las versiones instaladas en el `.venv` |
 
 Equivalentes sin `make`:
 
@@ -156,6 +170,8 @@ Equivalentes sin `make`:
 # 1. Instalar el paquete y dependencias
 pip install -e ".[dev,ui,gemini]"
 # (o versiones fijadas: pip install -r requirements.txt)
+# Tras cambiar dependencias en pyproject.toml, regenerar las versiones fijadas:
+#   pip install -e ".[dev,oci,gemini,claude,ui]" && python scripts/generar_requirements.py
 
 # 2. Correr los tests
 pytest tests/ -v
@@ -269,23 +285,43 @@ Ejecutados por `scripts/run_demo.py` sobre `docs/demo/protocolo_bioseguridad_sal
 | 2 | Capacitación regulatoria interna | Desarrollador Junior/Semi Senior | Quiz |
 | 3 | Actualización de protocolos ante auditoría | Gestor/Ejecutivo | Resumen Ejecutivo |
 
-Resultados (JSON, Markdown y CSV de Anki) en `docs/demo/resultados/`.
+Resultados (JSON, Markdown, PDF y CSV de Anki) en `docs/demo/resultados/`; se regeneran con
+`make demo`, que además guarda cada paquete y el documento original con el mismo servicio de
+almacenamiento que la API y anota su `status_upload`.
+
+Última ejecución, con **Gemini** como LLM y como embeddings (`gemini-3-flash-preview`, `gemini-embedding-001`)
+y el **juez de IA** activo:
+
+| # | Fidelidad | Crítico |
+|---|---:|---|
+| 1 · Flashcards | 1,00 | ✅ Aprobado (umbral Salud 0,90) |
+| 2 · Quiz | 1,00 | ✅ Aprobado |
+| 3 · Resumen Ejecutivo | 0,92 | ✅ Aprobado: las oraciones de síntesis se validan con citas textuales verificadas |
+
+Si algún escenario sale del generador local (Gemini sin cuota), `make demo` no sobrescribe la
+evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 
 ## 8. Checklist del enunciado — estado real
 
-- [x] Ingesta funcional de PDF, Markdown y texto
-- [x] RAG con chunking, embeddings y búsqueda vectorial (ver limitación de proveedor arriba)
-- [x] Orquestación tipo agentes (Planificador → Investigador → Redactor → Crítico, con reintento)
+- [x] Ingesta funcional de PDF, Word (.docx), Markdown y texto
+- [x] RAG con chunking, embeddings semánticos (Gemini, con TF-IDF de respaldo) y búsqueda vectorial
+- [x] Orquestación con LangGraph (Planificador → Investigador → Redactor → Crítico, con reintento)
+- [x] Prompts con role prompting y ejemplos few-shot por formato (validados contra su esquema)
+- [x] Juez de fidelidad con IA (citas verificadas) y evaluación de coherencia didáctica
+- [x] ChromaDB como vector store opcional (`VECTOR_STORE=chroma`)
+- [x] OCR de PDF escaneados con Gemini (`OCR=auto`)
 - [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
 - [x] Salida JSON estructurada, interfaz web propia + API REST operativa
 - [x] Orquestación con LLM real: Google Gemini (`GeminiLLM`), con Claude como alternativa
-- [ ] Integración con OCI Object Storage **verificada**: el cliente está integrado y el
-      fallback local es visible (`status_upload`), pero falta configurar las credenciales
-      (`~/.oci/config`, `OCI_COMPARTMENT_ID`) e instalar el extra `oci`; ver `docs/SETUP_OCI.md`
+- [ ] Integración con OCI Object Storage **verificada**: el cliente, el SDK y `~/.oci/config`
+      están listos, pero falta la llave privada de la API (`~/.oci/oci_api_key.pem`), así que
+      todo cae al respaldo local (`status_upload: "fallido_local"`); ver `docs/SETUP_OCI.md`
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
-- [x] 3 ejemplos de ejecución reales, documentados como casos de uso B2B en Salud
-- [x] Tests automatizados (168), incluida seguridad ante inyección de instrucciones
-- [ ] Despliegue en OCI Compute (pendiente — diferencial opcional)
+- [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
+- [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
+- [x] Tests automatizados (253), incluida seguridad ante inyección de instrucciones
+- [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
+      [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
 
 ## 9. Estructura del repositorio
 
@@ -307,7 +343,7 @@ nuevamente/
 ├── scripts/
 │   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 168 pruebas (Diana)
+├── tests/                  # 253 pruebas (Diana)
 ├── docs/
 │   ├── SETUP_OCI.md
 │   └── demo/
@@ -336,9 +372,19 @@ nuevamente/
 - Las diapositivas se dibujan con Pillow y ffmpeg arma el MP4 (H.264 + AAC, 1280×720).
   Se usa el ffmpeg del sistema y, si no hay, el que trae el paquete `imageio-ffmpeg`.
 - **Voz femenina o masculina**, a elección en la interfaz (con botón para escuchar una
-  muestra) o con `?voz=femenina|masculina` en la API. Se usa una voz en español del
-  sistema: `say` en macOS o `espeak-ng` en Linux (`sudo apt install espeak-ng`). Sin
-  voz disponible, o con `VIDEO_TTS=off`, cada escena se muestra en silencio.
+  muestra) o con `?voz=femenina|masculina` en la API. Por defecto son **voces naturales de
+  Gemini TTS** (`VIDEO_VOZ_FEMENINA=Sulafat`, `VIDEO_VOZ_MASCULINA=Charon`; otras voces
+  masculinas: *Orus*, *Iapetus*, *Algieba*). Toda la narración va en **una sola solicitud**
+  y el audio se corta en las pausas entre escenas, porque el plan gratuito admite pocas
+  solicitudes por minuto. Si Gemini no está disponible, se narra con una voz del sistema
+  (`say` en macOS o `espeak-ng` en Linux, `sudo apt install espeak-ng`), siempre el video
+  completo con la misma voz. Con `VIDEO_VOCES=sistema` se usa solo la del sistema; sin
+  voz disponible, o con `VIDEO_TTS=off`, cada escena se muestra en silencio. La cabecera
+  `X-Video-Voces` indica con qué se narró ("gemini" o "sistema").
+- **Cuota de Gemini TTS:** el plan gratuito da **10 solicitudes por día y por modelo**. Si
+  un modelo se queda sin cuota se pasa al siguiente (`PODCAST_TTS_MODEL` y luego
+  `TTS_MODELOS_RESPALDO`, por defecto `gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts,
+  gemini-3.8-flash-lite-tts`), tanto para el video como para el podcast.
 - **Lectura natural** (`exports/narracion.py`): antes de leer, el texto se adapta
   para la voz (fechas en palabras, abreviaturas expandidas, siglas deletreadas, sin
   restos de tablas ni Markdown); el ritmo es algo más pausado, con silencios entre
@@ -352,7 +398,17 @@ nuevamente/
 - El video se genera la primera vez que se pide y queda en caché en `data/videos/`.
   Un guion de 8 escenas tarda unos 30 segundos en generarse.
 
-## 12. Limitaciones conocidas del generador local (`TemplateLLM`)
+## 12. Limitaciones conocidas
+
+### Juez de fidelidad
+
+- El primer filtro es la similitud TF-IDF contra el fragmento citado. Con un LLM real, un **juez
+  de IA** (`JUEZ_IA=auto`) revisa solo las afirmaciones dudosas, viendo el fragmento citado y los
+  más cercanos por significado, y en la misma solicitud evalúa la **coherencia didáctica**. Solo
+  puede dar por sustentada una afirmación si devuelve citas que **existen textualmente** en esos
+  fragmentos (se comprueba en código). Con el generador local queda solo el TF-IDF.
+
+### Generador local (`TemplateLLM`)
 
 - Es extractivo: no traduce, así que `idioma_salida` se acepta pero hoy no cambia la salida.
 - Es determinista: ignora la retroalimentación del Crítico, por eso el flujo corta
@@ -362,7 +418,7 @@ nuevamente/
 
 ## 13. Pruebas
 
-El proyecto tiene **168 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+El proyecto tiene **253 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
@@ -375,24 +431,31 @@ pytest tests/test_api.py -q        # un archivo
 pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
 ```
 
-Resultado esperado: `168 passed`.
+Resultado esperado: `253 passed`.
 
 ### Qué cubre cada archivo
 
 | Archivo | Pruebas | Qué verifica |
 |---|---:|---|
-| `tests/test_api.py` | 42 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), archivo demasiado grande (413), exportación a Markdown, Anki, Word y PowerPoint, video MP4 del Guion y podcast MP3 |
+| `tests/test_api.py` | 57 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion y podcast MP3 |
 | `tests/test_llm_rotacion.py` | 41 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
 | `tests/test_llm_salud.py` | 28 | Enrutado por salud de los proveedores: circuit breaker, orden por latencia y carrera entre proveedores |
 | `tests/test_generacion.py` | 15 | Flujo completo de agentes: fidelidad de los formatos de síntesis, reintento del Crítico, nivel de detalle, agrupación por sección, la portada no llega al Redactor y la evidencia cubre todo el documento |
-| `tests/test_ingest.py` | 14 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, y extracción de **conceptos clave** de un texto sin títulos |
+| `tests/test_estadisticas.py` | 9 | Estadísticas de uso: generar, descargar y calificar se reflejan en el resumen, recalificar reemplaza la calificación anterior, tipo de archivo subido, validación de estrellas (422), material inexistente (404), la página `/estadisticas` tolerancia a una línea dañada e importación del historial |
+| `tests/test_ingest.py` | 26 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, Word (.docx) con títulos y tablas, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, y extracción de **conceptos clave** de un texto sin títulos |
 | `tests/test_schemas.py` | 7 | Esquemas Pydantic de cada formato y limpieza de referencias internas (los `chunk_id` no aparecen en el texto que ve el estudiante) |
+| `tests/test_prompts.py` | 14 | Role prompting y ejemplos few-shot: cada ejemplo cumple el esquema de su formato y enseña a citar la fuente |
+| `tests/test_embeddings.py` | 5 | Embeddings: si Gemini falla al indexar o en una consulta, la colección entera pasa a TF-IDF (sin mezclar vectores) |
+| `tests/test_grafo.py` | 4 | Grafo de LangGraph: un nodo por agente y el ciclo Crítico → Redactor con retroalimentación |
+| `tests/test_cache_contenido.py` | 7 | Caché de contenido aprobado (Ethan): acierto en la segunda generación, alcance Resumen Ejecutivo + Salud, la clave cambia con la evidencia y las opciones, y el endpoint de estadísticas |
+| `tests/test_juez.py` | 5 | Juez de IA: solo aprueba con citas que existen en el documento, una síntesis necesita que todas sus citas existan, y la coherencia didáctica |
 | `tests/test_fidelity.py` | 5 | Verificador de fidelidad: afirmaciones sustentadas, parciales e inventadas |
-| `tests/test_narracion.py` | 5 | Narración del video del Guion de Clase |
-| `tests/test_depuracion.py` | 3 | Eliminación de partes duplicadas en el material generado |
-| `tests/test_disponibilidad.py` | 3 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
-| `tests/test_vectorstore.py` | 3 | Indexación y búsqueda por similitud en el vector store |
-| `tests/test_security.py` | 2 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real |
+| `tests/test_narracion.py` | 12 | Narración del video del Guion de Clase |
+| `tests/test_depuracion.py` | 4 | Eliminación de partes duplicadas en el material generado |
+| `tests/test_disponibilidad.py` | 4 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
+| `tests/test_vectorstore.py` | 5 | Indexación y búsqueda por similitud en el vector store |
+| `tests/test_resumen.py` | 2 | Partes del Resumen Ejecutivo (idea central, puntos clave, riesgos y recomendaciones) para exportarlo |
+| `tests/test_security.py` | 3 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real, y que el módulo de OCI no desactive la verificación TLS del proceso|
 
 ### Prueba manual con la solicitud del enunciado
 

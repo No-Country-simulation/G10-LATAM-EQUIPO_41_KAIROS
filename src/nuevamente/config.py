@@ -74,8 +74,13 @@ class Settings:
     chunk_overlap: int = _env_int("CHUNK_OVERLAP", 150)
 
     # --- Embeddings / vector store ---
-    embeddings_provider: str = os.getenv("EMBEDDINGS_PROVIDER", "local")  # local | gemini
+    # auto: Gemini (semánticos) si hay API key, con TF-IDF local de respaldo | gemini | local
+    embeddings_provider: str = os.getenv("EMBEDDINGS_PROVIDER", "auto")
+    embeddings_modelo: str = os.getenv("EMBEDDINGS_MODELO", "gemini-embedding-001")
+    embeddings_dimensiones: int = _env_int("EMBEDDINGS_DIMENSIONES", 768)
     vectorstore_dir: str = os.getenv("VECTORSTORE_DIR", "data/vectorstore")
+    # local: store propio en memoria (numpy) | chroma: ChromaDB persistente en VECTORSTORE_DIR/chroma
+    vector_store: str = os.getenv("VECTOR_STORE", "local").strip().lower()
 
     # --- LLM ---
     llm_provider: str = os.getenv("LLM_PROVIDER", "template")  # template | gemini | claude
@@ -166,6 +171,12 @@ class Settings:
     # gemini: voces naturales de Gemini TTS (requiere GEMINI_API_KEY); sistema: voces del SO
     podcast_voces: str = os.getenv("PODCAST_VOCES", "gemini").strip().lower()
     podcast_tts_model: str = os.getenv("PODCAST_TTS_MODEL", "gemini-3.1-flash-tts-preview")
+    # si el modelo TTS se queda sin cuota (el plan gratuito da pocas solicitudes por día y
+    # por modelo), se prueban estos en orden: cada uno tiene su propia cuota
+    tts_modelos_respaldo: tuple[str, ...] = field(
+        default_factory=lambda: _env_tuple_keys("TTS_MODELOS_RESPALDO")
+        or ("gemini-3.8-flash-tts", "gemini-2.5-flash-preview-tts", "gemini-3.8-flash-lite-tts")
+    )
     podcast_voz_ana: str = os.getenv("PODCAST_VOZ_ANA", "Sulafat")  # cálida
     podcast_voz_leo: str = os.getenv("PODCAST_VOZ_LEO", "Charon")  # clara, explicativa
 
@@ -173,6 +184,9 @@ class Settings:
     # Umbral general del enunciado vs. umbral reforzado para el nicho Salud (ver plan de trabajo).
     fidelity_min_general: float = _env_float("FIDELITY_MIN_GENERAL", 0.85)
     fidelity_min_salud: float = _env_float("FIDELITY_MIN_SALUD", 0.90)
+    # auto: con un LLM real, un juez de IA revisa las afirmaciones dudosas del TF-IDF (con cita
+    # textual verificada) y evalúa la coherencia didáctica | off: solo TF-IDF
+    juez_ia: str = os.getenv("JUEZ_IA", "auto").strip().lower()
     max_reintentos_critico: int = _env_int("MAX_REINTENTOS_CRITICO", 2)
 
     # --- OCI Object Storage ---
@@ -180,15 +194,27 @@ class Settings:
     oci_profile: str = os.getenv("OCI_PROFILE", "DEFAULT")
     oci_compartment_id: str = os.getenv("OCI_COMPARTMENT_ID", "")
     oci_bucket: str = os.getenv("OCI_BUCKET", "nuevamente-contenidos-educativos")
+    # false solo en redes con un proxy/antivirus que intercepta HTTPS: afecta únicamente al cliente de OCI
+    oci_ssl_verify: bool = os.getenv("OCI_SSL_VERIFY", "true").strip().lower() not in ("0", "false", "no")
 
     # --- Fallback local (cuando OCI no está configurado o falla) ---
     fallback_dir: str = os.getenv("FALLBACK_DIR", "data/fallback")
 
     # --- Video del Guion de Clase ---
-    video_tts: str = os.getenv("VIDEO_TTS", "auto")  # auto (voz del sistema si hay) | off (sin narración)
+    video_tts: str = os.getenv("VIDEO_TTS", "auto")  # auto (con narración) | off (sin narración)
+    # gemini: voces naturales de Gemini TTS, con las del sistema de respaldo | sistema: solo las del sistema
+    video_voces: str = os.getenv("VIDEO_VOCES", "gemini").strip().lower()
+    video_voz_femenina: str = os.getenv("VIDEO_VOZ_FEMENINA", "Sulafat")
+    video_voz_masculina: str = os.getenv("VIDEO_VOZ_MASCULINA", "Charon")
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
 
-    # ------------------------ Límites de ingesta ------------------------
+    # --- Estadísticas de uso y calificaciones (ver estadisticas.py) ---
+    estadisticas_dir: str = os.getenv("ESTADISTICAS_DIR", "data/estadisticas")
+
+    # --- OCR de PDF escaneados (HU-08): auto (Gemini lee el PDF si hay API key) | off ---
+    ocr: str = os.getenv("OCR", "auto").strip().lower()
+
+    # --- Límites de ingesta ---
     max_upload_mb: int = _env_int("MAX_UPLOAD_MB", 10)
 
     def fidelity_min_for(self, nicho_sector: str) -> float:

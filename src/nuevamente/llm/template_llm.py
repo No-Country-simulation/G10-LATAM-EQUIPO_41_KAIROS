@@ -164,6 +164,12 @@ def _repartir(chunks: list[dict], n: int) -> list[dict]:
     return sorted(elegidos, key=lambda c: orden[id(c)])
 
 
+_FORMATOS = (
+    FlashcardsContenido, QuizContenido, TutorialContenido, ResumenEjecutivoContenido,
+    GuionDeClaseContenido, PodcastContenido,
+)
+
+
 class TemplateLLM:
     """Implementación de LLMClient sin red, usada como proveedor por defecto."""
 
@@ -176,6 +182,12 @@ class TemplateLLM:
         return self.etiqueta
 
     def generar_estructurado(self, schema: type, system: str, user: str):
+        # el Redactor puede pedir el esquema del formato extendido con metadatos (conceptos
+        # clave y prerrequisitos, ver agents/graph.py): se arma el formato base y se devuelve
+        # en el esquema pedido, con esos campos vacíos (los completa el Planificador)
+        base = next((c for c in schema.__mro__ if c in _FORMATOS), None)
+        if base is not None and base is not schema:
+            return schema.model_validate(self.generar_estructurado(base, system, user).model_dump())
         try:
             payload = json.loads(user)
         except json.JSONDecodeError as exc:

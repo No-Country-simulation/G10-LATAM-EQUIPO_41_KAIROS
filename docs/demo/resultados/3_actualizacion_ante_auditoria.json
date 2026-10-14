@@ -7,53 +7,82 @@
     "nicho": "Salud",
     "nivel_detalle": "Conciso"
   },
-  "tiempo_generacion_segundos": 0.038,
+  "tiempo_generacion_segundos": 33.05,
   "metadatos": {
     "perfil_aplicado": "Gestor/Ejecutivo",
     "formato_generado": "Resumen Ejecutivo",
-    "tiempo_estimado_estudio_minutos": 2,
+    "tiempo_estimado_estudio_minutos": 4,
     "conceptos_clave": [
-      "Introducción",
+      "Bioseguridad hospitalaria",
       "Higiene de manos",
       "Equipo de protección personal (EPP)",
-      "Manejo de residuos biocontaminados",
-      "Limpieza y desinfección de superficies",
-      "Notificación de incidentes y exposiciones"
+      "Residuos biocontaminados",
+      "Superficies de alto contacto",
+      "Capacitación continua"
     ],
-    "prerrequisitos": [],
-    "tiempo_generacion_segundos": 0.038,
-    "modelo_llm": "template-extractivo-v1",
-    "desde_cache": false
+    "prerrequisitos": [
+      "Conocimiento básico de la estructura y riesgos operativos en establecimientos de salud",
+      "Familiaridad con la normativa de seguridad laboral y control de infecciones"
+    ],
+    "tiempo_generacion_segundos": 33.05,
+    "modelo_llm": "gemini-3-flash-preview",
+    "modelo_embeddings": "gemini-embedding-001",
+    "desde_cache": false,
+    "tiempos_por_agente": {
+      "indexacion_rag_ms": 3.04,
+      "planificador_ms": 0.07,
+      "investigador_ms": 0.59,
+      "redactor_segundos": 9.615,
+      "critico_ms": 23427.76
+    }
   },
   "evaluacion_calidad": {
-    "anclaje_fuente_score": 1.0,
+    "anclaje_fuente_score": 0.9167,
     "claridad_pedagogica": "Alta",
-    "observaciones": "Aprobado por el Crítico dentro del umbral de fidelidad.",
-    "afirmaciones_total": 4,
-    "afirmaciones_sustentadas": 4,
+    "observaciones": "Enfoque en impacto, riesgos y decisiones, con la jerga técnica justa. Aprobado por el Crítico dentro del umbral de fidelidad.",
+    "afirmaciones_total": 6,
+    "afirmaciones_sustentadas": 5,
     "afirmaciones_no_sustentadas": [],
     "umbral_aplicado": 0.9,
-    "aprobado_por_critico": true
+    "aprobado_por_critico": true,
+    "juez_fidelidad": "tfidf+ia",
+    "coherencia_didactica": "Alta",
+    "comentario_coherencia": "El material presenta una estructura lógica impecable para un perfil ejecutivo, conectando los procedimientos técnicos con el impacto en la continuidad operativa y la gestión de riesgos corporativos."
   },
   "contenido_adaptado": {
     "formato": "Resumen Ejecutivo",
-    "resumen": "La bioseguridad hospitalaria es el conjunto de normas y procedimientos destinados a proteger la salud del personal, los pacientes y la comunidad frente a riesgos biológicos, físicos y químicos presentes en los entornos de atención de salud. El lavado de manos con agua y jabón durante al menos 20 segundos es la medida individual más efectiva y de menor costo para prevenir la transmisión de microorganismos en el entorno de salud. La fricción debe mantenerse hasta que el producto se seque por completo sobre la piel, cubriendo palmas, dorso, espacios interdigitales y uñas. El equipo de protección personal comprende guantes, mascarillas, protección ocular, batas y calzado cerrado, seleccionados según el nivel de exposición esperado en cada procedimiento.",
+    "resumen": "La bioseguridad hospitalaria comprende el conjunto de normas y procedimientos orientados a proteger la salud del personal y de los pacientes frente a riesgos biológicos, físicos y químicos, reduciendo de manera significativa la incidencia de infecciones asociadas a la atención sanitaria. Un establecimiento de salud que aplica de forma rigurosa sus protocolos de bioseguridad asegura la eficiencia operativa y mitiga los riesgos corporativos vinculados a la exposición laboral y a la contaminación cruzada.\n\nEl documento establece los lineamientos operativos esenciales para la gestión clínica, abarcando desde la higiene de manos y el uso estratégico del equipo de protección personal hasta el manejo normado de residuos biocontaminados, la desinfección de superficies y la notificación inmediata de incidentes laborales. Estos procesos requieren una estricta adherencia técnica para garantizar la viabilidad de los servicios y la seguridad del entorno hospitalario.\n\nLos hallazgos principales destacan que la prevención depende tanto de la correcta ejecución de las técnicas como de la oportunidad de su aplicación, complementándose con programas de capacitación continua y verificable para todo el personal. La gestión adecuada de estos controles reduce los incidentes de exposición y optimiza el cumplimiento normativo dentro de las instituciones de salud.",
     "puntos_clave": [
-      "Introducción",
-      "Higiene de manos",
-      "Equipo de protección personal (EPP)",
-      "Manejo de residuos biocontaminados",
-      "Limpieza y desinfección de superficies"
+      "Higiene de manos: El lavado con agua y jabón durante al menos 20 segundos es la medida individual más efectiva para prevenir la transmisión de microorganismos.",
+      "Equipo de protección personal (EPP): Los elementos deben seleccionarse según el nivel de exposición y colocarse o retirarse siguiendo un orden específico para evitar contaminaciones.",
+      "Manejo de residuos biocontaminados: Los desechos en contacto con fluidos o materiales punzocortantes deben segregarse en bolsas rojas y contenedores rígidos sin reencapujar.",
+      "Limpieza y desinfección: Las superficies de alto contacto requieren procesos secuenciales de remoción física de suciedad y aplicación de desinfectantes respetando el tiempo de contacto.",
+      "Capacitación continua: Los establecimientos deben mantener programas de formación verificable para asegurar que todo el personal aplique de forma consistente los protocolos."
     ],
     "decisiones_o_riesgos": [
-      "Un error aquí puede afectar la seguridad del paciente o incumplir normativa sanitaria."
+      "Recomendación: Notificar de inmediato cualquier incidente de exposición a fluidos corporales al área de salud ocupacional para iniciar la evaluación dentro de las ventanas de tiempo recomendadas.",
+      "Riesgo: Reutilizar guantes entre pacientes distintos o usarlos en tareas administrativas anula su función protectora y genera vectores de contaminación cruzada.",
+      "Recomendación: Descartar los materiales punzocortantes de inmediato en contenedores rígidos sin forzar su entrada si el límite indicado ha sido alcanzado.",
+      "Riesgo: Aplicar la higiene de manos en el momento equivocado o retirar los productos desinfectantes antes del tiempo necesario reduce considerablemente su efectividad."
     ],
-    "impacto_de_negocio": "Adoptar lo descrito en \"Protocolo General de Bioseguridad para Personal de Salud\" reduce el riesgo operativo y facilita el cumplimiento en el sector Salud.",
+    "impacto_de_negocio": "La implementación estricta de los protocolos de bioseguridad disminuye los costos asociados a infecciones nosocomiales, mitiga riesgos legales y laborales, y fortalece la continuidad operativa de los establecimientos de salud mediante una gestión de riesgos eficiente.",
     "fuentes": [
       "fde32e7836d7b185-c000",
       "fde32e7836d7b185-c001",
       "fde32e7836d7b185-c002",
-      "fde32e7836d7b185-c003"
+      "fde32e7836d7b185-c003",
+      "fde32e7836d7b185-c004",
+      "fde32e7836d7b185-c005",
+      "fde32e7836d7b185-c006",
+      "fde32e7836d7b185-c007",
+      "fde32e7836d7b185-c008",
+      "fde32e7836d7b185-c009"
     ]
+  },
+  "almacenamiento_oci": {
+    "bucket": "nuevamente-contenidos-educativos",
+    "objeto_id": "contenidos/fde32e7836d7b185/demo-3_actualizacion_ante_auditoria.json",
+    "objeto_documento_original": "originals/fde32e7836d7b185.txt",
+    "status_upload": "fallido_local"
   }
 }

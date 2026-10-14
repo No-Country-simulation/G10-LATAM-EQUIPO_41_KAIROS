@@ -4,7 +4,11 @@
 Responsable: Juan Pablo Calla (PM), con el documento de demo preparado por el equipo.
 
 Uso:
-    python scripts/run_demo.py
+    python scripts/run_demo.py                       # con el LLM configurado (Gemini)
+    python scripts/run_demo.py --permitir-respaldo   # acepta el generador local si Gemini falla
+
+Sin --permitir-respaldo, si algún escenario sale del generador local (Gemini sin cuota o
+saturado) no se sobrescribe la evidencia de docs/demo/resultados/.
 """
 from __future__ import annotations
 
@@ -18,6 +22,8 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 from nuevamente.agents.graph import generar_contenido_educativo  # noqa: E402
 from nuevamente.exports import exportar_anki_csv, exportar_markdown  # noqa: E402
+from nuevamente.exports.pdf import generar_pdf  # noqa: E402
+from nuevamente.storage.oci_client import get_storage_service  # noqa: E402
 
 DOCUMENTO_PATH = RAIZ / "docs" / "demo" / "protocolo_bioseguridad_salud.md"
 RESULTADOS_DIR = RAIZ / "docs" / "demo" / "resultados"
@@ -51,6 +57,7 @@ ESCENARIOS = [
 
 
 def main() -> int:
+    permitir_respaldo = "--permitir-respaldo" in sys.argv[1:]
     if not DOCUMENTO_PATH.exists():
         print(f"No se encontró el documento de demo: {DOCUMENTO_PATH}", file=sys.stderr)
         return 1
@@ -59,6 +66,9 @@ def main() -> int:
     RESULTADOS_DIR.mkdir(parents=True, exist_ok=True)
 
     resumen_general = []
+    salidas: list[tuple[Path, str | bytes]] = []  # se escriben al final, si la demo es válida
+    storage = get_storage_service()
+    print(f"OCI Object Storage: {'conectado' if storage.disponible_oci() else 'NO disponible (se usa el respaldo local)'}")
 
     for escenario in ESCENARIOS:
         print(f"\n=== Escenario: {escenario['caso_de_uso']} ===")
@@ -79,12 +89,16 @@ def main() -> int:
         print(f"Score de fidelidad: {resultado.evaluacion.anclaje_fuente_score:.2f} "
               f"(umbral aplicado: {resultado.evaluacion.umbral_aplicado})")
         print(f"Aprobado por el Crítico: {resultado.evaluacion.aprobado_por_critico}")
-        print(f"Modelo: {resultado.metadatos.modelo_llm}")
+        print(f"Modelo: {resultado.metadatos.modelo_llm} | Embeddings: {resultado.metadatos.modelo_embeddings}")
         if resultado.metadatos.modelo_llm.startswith("template"):
             print("⚠ Se usó el generador local de respaldo, no el LLM configurado.")
         if resultado.evaluacion.afirmaciones_no_sustentadas:
             print(f"⚠ Afirmaciones no sustentadas: {resultado.evaluacion.afirmaciones_no_sustentadas}")
 
+        # mismo destino que usa la API: el original y el paquete educativo, en OCI (o el respaldo)
+        doc_id = resultado.coleccion.doc_id
+        original = storage.subir_texto(f"originals/{doc_id}.txt", documento_contenido, content_type="text/plain")
+        objeto_id = f"contenidos/{doc_id}/demo-{escenario['nombre']}.json"
         salida = {
             "escenario": escenario,
             "tiempo_generacion_segundos": duracion,
@@ -92,15 +106,22 @@ def main() -> int:
             "evaluacion_calidad": resultado.evaluacion.model_dump(),
             "contenido_adaptado": resultado.contenido.model_dump(),
         }
-        json_path = RESULTADOS_DIR / f"{escenario['nombre']}.json"
-        json_path.write_text(json.dumps(salida, ensure_ascii=False, indent=2), encoding="utf-8")
-
-        md_path = RESULTADOS_DIR / f"{escenario['nombre']}.md"
-        md_path.write_text(exportar_markdown(resultado.contenido, "Protocolo de Bioseguridad"), encoding="utf-8")
-
+        subida = storage.subir_json(objeto_id, salida)
+        salida["almacenamiento_oci"] = {
+            "bucket": subida.bucket,
+            "objeto_id": subida.objeto_id,
+            "objeto_documento_original": original.objeto_id,
+            "status_upload": subida.status_upload,
+        }
+        print(f"Almacenamiento: {subida.status_upload} ({subida.bucket}/{subida.objeto_id})")
+        nombre = escenario["nombre"]
+        salidas.append((RESULTADOS_DIR / f"{nombre}.json", json.dumps(salida, ensure_ascii=False, indent=2)))
+        salidas.append((RESULTADOS_DIR / f"{nombre}.md", exportar_markdown(resultado.contenido, "Protocolo de Bioseguridad")))
+        salidas.append((RESULTADOS_DIR / f"{nombre}.pdf", generar_pdf(
+            resultado.contenido, "Protocolo de Bioseguridad", escenario["perfil"], resultado.evaluacion.anclaje_fuente_score
+        )))
         if resultado.contenido.formato in ("Flashcards", "Quiz"):
-            csv_path = RESULTADOS_DIR / f"{escenario['nombre']}_anki.csv"
-            csv_path.write_text(exportar_anki_csv(resultado.contenido), encoding="utf-8")
+            salidas.append((RESULTADOS_DIR / f"{nombre}_anki.csv", exportar_anki_csv(resultado.contenido)))
 
         resumen_general.append(
             {
@@ -111,11 +132,26 @@ def main() -> int:
                 "anclaje_fuente_score": resultado.evaluacion.anclaje_fuente_score,
                 "aprobado_por_critico": resultado.evaluacion.aprobado_por_critico,
                 "modelo_llm": resultado.metadatos.modelo_llm,
+                "modelo_embeddings": resultado.metadatos.modelo_embeddings,
+                "status_upload": subida.status_upload,
             }
         )
 
-    resumen_path = RESULTADOS_DIR / "resumen_3_escenarios.json"
-    resumen_path.write_text(json.dumps(resumen_general, ensure_ascii=False, indent=2), encoding="utf-8")
+    con_respaldo = [r["caso_de_uso"] for r in resumen_general if r["modelo_llm"].startswith("template")]
+    if con_respaldo and not permitir_respaldo:
+        print(
+            f"\n⚠ {len(con_respaldo)} escenario(s) salieron del generador local, no de la IA: "
+            f"{', '.join(con_respaldo)}.\nNo se sobrescribe la evidencia de {RESULTADOS_DIR}. "
+            "Vuelve a intentarlo cuando haya cuota, o usa --permitir-respaldo.",
+            file=sys.stderr,
+        )
+        return 2
+    salidas.append((RESULTADOS_DIR / "resumen_3_escenarios.json", json.dumps(resumen_general, ensure_ascii=False, indent=2)))
+    for ruta, datos in salidas:
+        if isinstance(datos, bytes):
+            ruta.write_bytes(datos)
+        else:
+            ruta.write_text(datos, encoding="utf-8")
 
     print("\n=== Resumen de los 3 escenarios ===")
     for r in resumen_general:

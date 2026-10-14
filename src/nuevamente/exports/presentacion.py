@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import math
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -121,6 +122,10 @@ def _recortar(texto: str, ancho_in: float, alto_in: float, pt: int, negrita=Fals
     return " ".join(palabras).rstrip(".,;:") + "…"
 
 
+# "1. ", "2.3 ": la numeración de origen no va en los títulos de sección
+_NUMERACION = re.compile(r"^\d{1,2}(?:\.\d{1,2})*[.)]?\s+")
+
+
 # ---------- Primitivas ----------
 
 class _Deck:
@@ -129,6 +134,8 @@ class _Deck:
         self.prs.slide_width = Inches(ANCHO_IN)
         self.prs.slide_height = Inches(ALTO_IN)
         self._vacio = self.prs.slide_layouts[6]
+        self._seccion = ""
+        self.secciones = 0
 
     def diapositiva(self, fondo: str = "blanco"):
         slide = self.prs.slides.add_slide(self._vacio)
@@ -142,6 +149,20 @@ class _Deck:
             relleno.solid()
             relleno.fore_color.rgb = BLANCO
         return slide
+
+    def seccion_de(self, parte) -> None:
+        """HU-47: una diapositiva separadora cuando la parte empieza una sección nueva del
+        documento, igual que los títulos de sección de la interfaz y del Word."""
+        seccion = _NUMERACION.sub("", getattr(parte, "seccion", "") or "").strip()
+        if seccion and seccion != "Documento completo" and seccion != self._seccion:
+            self.secciones += 1
+            slide = self.diapositiva()
+            _caja(slide, 0, 0, 0.35, ALTO_IN, PRIMARIO, forma=MSO_SHAPE.RECTANGLE)
+            _texto(slide, MARGEN_IN, 2.35, 8, 0.4, f"SECCIÓN {self.secciones}", 16, CORAL, negrita=True, ajustar=False)
+            _texto(slide, MARGEN_IN, 2.85, ANCHO_IN - 2 * MARGEN_IN, 2.2, seccion, 44, PRIMARIO, negrita=True,
+                   ancla=MSO_ANCHOR.TOP, minimo=26)
+            _pie(slide)
+        self._seccion = seccion
 
     def guardar(self) -> bytes:
         buffer = io.BytesIO()
@@ -243,6 +264,7 @@ def _cierre(deck: _Deck, lineas: list[str]):
 def _flashcards(deck: _Deck, c: FlashcardsContenido):
     total = len(c.items)
     for i, item in enumerate(c.items, 1):
+        deck.seccion_de(item)
         slide = deck.diapositiva()
         _texto(slide, MARGEN_IN, 0.55, 8, 0.35, f"TARJETA {i} DE {total}", 13, CORAL, negrita=True, ajustar=False)
         # frente: tarjeta violeta a la izquierda
@@ -285,6 +307,7 @@ def _quiz(deck: _Deck, c: QuizContenido):
     for i, p in enumerate(c.preguntas, 1):
         letra = chr(65 + p.indice_correcto)
         opcion = p.opciones[p.indice_correcto]
+        deck.seccion_de(p)
         # 1) la pregunta
         slide = deck.diapositiva()
         y = _encabezado(slide, f"Pregunta {i} de {total}", p.enunciado, alto_titulo=1.2)
@@ -324,6 +347,7 @@ def _tutorial(deck: _Deck, c: TutorialContenido):
 
     total = len(c.pasos)
     for paso in c.pasos:
+        deck.seccion_de(paso)
         slide = deck.diapositiva()
         _texto(slide, MARGEN_IN, 0.55, 8, 0.35, f"PASO {paso.orden} DE {total}", 13, CORAL, negrita=True,
                ajustar=False)
@@ -422,6 +446,7 @@ def _guion(deck: _Deck, c: GuionDeClaseContenido):
     inicio = 0
     for e in c.escenas:
         fin = inicio + e.duracion_seg
+        deck.seccion_de(e)
         slide = deck.diapositiva()
         titulo = e.apoyo_visual.split(":", 1)[-1].strip() if e.apoyo_visual else ""
         if not titulo or titulo == "Documento completo":  # documento sin encabezados

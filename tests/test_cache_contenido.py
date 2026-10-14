@@ -1,5 +1,9 @@
+"""Caché de contenido aprobado (post-Crítico). Responsable: Ethan Espinoza Acosta."""
 from __future__ import annotations
 
+import os
+
+import pytest
 from fastapi.testclient import TestClient
 
 from nuevamente.agents import graph
@@ -8,6 +12,23 @@ from nuevamente.api.app import app
 from nuevamente.cache.contenido import ContentCache
 from nuevamente.schemas.request import SolicitudAdaptacion
 from nuevamente.schemas.enums import FormatoSalida, NichoSector, PerfilDestinatario, NivelDetalle
+
+
+@pytest.fixture(autouse=True)
+def _restaurar_configuracion():
+    """Estos tests recargan config y graph con el caché activado: al terminar se apaga y se
+    recarga la configuración por defecto, para que el caché no afecte al resto de la suite."""
+    yield
+    from importlib import reload
+
+    import nuevamente.agents.graph as gph
+    import nuevamente.config as cfg
+
+    for variable in [v for v in os.environ if v.startswith("CACHE_")]:
+        os.environ.pop(variable)
+    reload(cfg)
+    reload(gph)
+    gph._cache_contenido.clear()
 
 
 TEXTO_DOC = """# Protocolo de Bioseguridad Clínica
