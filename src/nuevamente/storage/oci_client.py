@@ -11,7 +11,9 @@ oculto.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from nuevamente.config import settings
@@ -85,6 +87,32 @@ class StorageService:
         if destino.is_file():
             return destino.read_text(encoding="utf-8")
         return None
+
+    def listar(self, prefijo: str) -> Iterator[tuple[str, datetime]]:
+        """(objeto_id, fecha de creación) de cada objeto guardado bajo `prefijo`, en OCI y
+        en el respaldo local (un material puede estar en cualquiera de los dos)."""
+        vistos: set[str] = set()
+        if self._cliente_oci is not None:
+            try:
+                namespace = self._cliente_oci.get_namespace().data
+                inicio = None
+                while True:
+                    resp = self._cliente_oci.list_objects(
+                        namespace, settings.oci_bucket, prefix=prefijo, start=inicio, fields="timeCreated"
+                    )
+                    for obj in resp.data.objects:
+                        vistos.add(obj.name)
+                        yield obj.name, (obj.time_created or datetime.now()).astimezone()
+                    inicio = resp.data.next_start_with
+                    if not inicio:
+                        break
+            except Exception:
+                pass  # sin red o sin permiso de listar: queda el respaldo local
+
+        for archivo in sorted(self._fallback_dir.glob(prefijo.replace("/", "__") + "*")):
+            objeto_id = archivo.name.replace("__", "/")
+            if archivo.is_file() and objeto_id not in vistos:
+                yield objeto_id, datetime.fromtimestamp(archivo.stat().st_mtime).astimezone()
 
 
 _instancia: StorageService | None = None

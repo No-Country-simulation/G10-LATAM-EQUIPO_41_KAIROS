@@ -1,4 +1,4 @@
-"""Lectores de documentos técnicos (PDF, Markdown, texto plano).
+"""Lectores de documentos técnicos (PDF, Word, Markdown, texto plano).
 
 Responsable en el equipo Kairos G10: Gaspar Martinez Paiva (Data Engineer).
 """
@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-EXTENSIONES_SOPORTADAS = {".pdf", ".md", ".markdown", ".txt"}
+EXTENSIONES_SOPORTADAS = {".pdf", ".docx", ".md", ".markdown", ".txt"}
 
 
 class DocumentoInvalidoError(Exception):
@@ -194,6 +194,57 @@ def leer_pdf(path: Path) -> DocumentoLeido:
     return DocumentoLeido(titulo=path.stem, contenido=limpiar_texto(contenido), fuente=path.name)
 
 
+def _nivel_de_titulo(parrafo) -> int:
+    """Nivel del estilo de título de Word ("Heading 2", "Título 2" -> 2; "Title" -> 1), o 0."""
+    estilo = (parrafo.style.name if parrafo.style is not None else "") or ""
+    if estilo.lower() in ("title", "título", "titulo"):
+        return 1
+    m = re.match(r"^(?:heading|t[íi]tulo)\s*(\d)$", estilo.strip(), re.IGNORECASE)
+    return int(m.group(1)) if m else 0
+
+
+def _texto_docx(documento) -> str:
+    """Párrafos y tablas en el orden del documento. Los títulos de Word pasan a
+    encabezados Markdown ("## ...") para que el chunking reconozca las secciones."""
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    bloques: list[str] = []
+    for elemento in documento.iter_inner_content():
+        if isinstance(elemento, Paragraph):
+            texto = elemento.text.strip()
+            if not texto:
+                continue
+            nivel = _nivel_de_titulo(elemento)
+            bloques.append(f"{'#' * min(nivel, 3)} {texto}" if nivel else texto)
+        elif isinstance(elemento, Table):
+            for fila in elemento.rows:
+                celdas: list[str] = []
+                for celda in fila.cells:  # una celda combinada se repite: se toma una vez
+                    texto = " ".join(celda.text.split())
+                    if texto and (not celdas or celdas[-1] != texto):
+                        celdas.append(texto)
+                if celdas:
+                    bloques.append(" | ".join(celdas))
+    return "\n\n".join(bloques)
+
+
+def leer_docx(path: Path) -> DocumentoLeido:
+    try:
+        from docx import Document
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("Falta instalar python-docx: pip install python-docx") from exc
+
+    try:
+        documento = Document(str(path))
+    except Exception as exc:  # archivo dañado o que no es un .docx real
+        raise DocumentoInvalidoError(f"No se pudo leer el documento Word {path.name}.") from exc
+    contenido = _texto_docx(documento)
+    if not contenido.strip():
+        raise DocumentoInvalidoError(f"El documento Word {path.name} no tiene texto.")
+    return DocumentoLeido(titulo=path.stem, contenido=limpiar_texto(contenido), fuente=path.name)
+
+
 def leer_documento(path: str | Path) -> DocumentoLeido:
     """Punto de entrada único de ingesta: detecta el tipo por extensión."""
     path = Path(path)
@@ -202,12 +253,16 @@ def leer_documento(path: str | Path) -> DocumentoLeido:
 
     ext = path.suffix.lower()
     if ext not in EXTENSIONES_SOPORTADAS:
+        pista = " Ábrelo en Word y guárdalo como .docx." if ext == ".doc" else ""
         raise DocumentoInvalidoError(
-            f"Formato no soportado: {ext}. Soportados: {sorted(EXTENSIONES_SOPORTADAS)}"
+            f"El formato {ext or 'sin extensión'} no es compatible. Vuelve a cargar el archivo en "
+            f"un formato correcto: PDF, Word (.docx), Markdown (.md) o texto (.txt).{pista}"
         )
 
     if ext == ".pdf":
         return leer_pdf(path)
+    if ext == ".docx":
+        return leer_docx(path)
     if ext in (".md", ".markdown"):
         return leer_markdown(path)
     return leer_txt(path)

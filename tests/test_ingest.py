@@ -171,3 +171,39 @@ def test_conceptos_clave_de_un_texto_sin_titulos():
         "VCN", "Oracle Cloud Infrastructure", "Internet Gateways", "NAT Gateways", "Security Lists",
         "Organización Mundial de la Salud",
     ]
+
+
+def _docx_minimo(ruta):
+    from docx import Document
+
+    doc = Document()
+    doc.add_heading("Protocolo de visitas", level=1)
+    doc.add_paragraph("Las visitas se permiten de 10:00 a 12:00 horas en todas las salas.")
+    doc.add_heading("Equipo de protección", level=2)
+    doc.add_paragraph("El personal debe usar guantes y mascarilla durante la atención.")
+    tabla = doc.add_table(rows=2, cols=2)
+    tabla.cell(0, 0).text, tabla.cell(0, 1).text = "Elemento", "Uso"
+    tabla.cell(1, 0).text, tabla.cell(1, 1).text = "Guantes", "Contacto con fluidos"
+    doc.save(str(ruta))
+
+
+def test_docx_conserva_titulos_y_tablas(tmp_path):
+    """Los títulos de Word separan las secciones y las tablas se leen fila a fila."""
+    from nuevamente.ingest.readers import leer_documento
+
+    ruta = tmp_path / "protocolo.docx"
+    _docx_minimo(ruta)
+    leido = leer_documento(ruta)
+    assert leido.titulo == "protocolo"
+    assert "Guantes | Contacto con fluidos" in leido.contenido
+    secciones = [c.seccion for c in chunkear_documento("Protocolo", leido.contenido)]
+    assert "Protocolo de visitas" in secciones and "Equipo de protección" in secciones
+
+
+def test_docx_danado_es_documento_invalido(tmp_path):
+    from nuevamente.ingest.readers import leer_documento
+
+    ruta = tmp_path / "roto.docx"
+    ruta.write_bytes(b"esto no es un docx")
+    with pytest.raises(DocumentoInvalidoError):
+        leer_documento(ruta)
