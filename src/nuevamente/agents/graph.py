@@ -27,12 +27,16 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, TypedDict
+
+from pydantic import Field, create_model
 
 from langgraph.graph import END, START, StateGraph
 
 from nuevamente.config import settings
 from nuevamente.ingest.conceptos import extraer_conceptos
+from nuevamente.fidelity.juez import JuicioIA, juez_disponible, juzgar
 from nuevamente.fidelity.verifier import ResultadoFidelidad, _fuente_mas_cercana, evaluar_fidelidad
 from nuevamente.llm.base import LLMClient, LLMError
 from nuevamente.llm.factory import crear_llm
@@ -209,6 +213,25 @@ def _investigar(coleccion: ColeccionDocumento, secciones: list[str], top_k_por_s
     ]
 
 
+@lru_cache(maxsize=None)
+def _con_metadatos(schema: type) -> type:
+    """El esquema del formato más los metadatos de aprendizaje (HU-32), para pedirlos al
+    Redactor en la misma llamada en vez de gastar otra solicitud del cupo del LLM."""
+    return create_model(
+        f"{schema.__name__}ConMetadatos",
+        __base__=schema,
+        conceptos_clave=(list[str], Field(default_factory=list, max_length=8, description="3 a 6 conceptos centrales")),
+        prerrequisitos=(list[str], Field(default_factory=list, max_length=4, description="1 a 3 conocimientos previos")),
+    )
+
+
+def _separar_metadatos(schema: type, respuesta) -> tuple[ContenidoAdaptado, list[str], list[str]]:
+    datos = respuesta.model_dump()
+    conceptos = [c.strip() for c in datos.pop("conceptos_clave", []) if c and c.strip()]
+    prerrequisitos = [p.strip() for p in datos.pop("prerrequisitos", []) if p and p.strip()]
+    return schema.model_validate(datos), conceptos[:6], prerrequisitos[:3]
+
+
 def _redactar(
     llm: LLMClient,
     schema: type,
@@ -218,7 +241,8 @@ def _redactar(
     nivel_detalle: str,
     chunks_evidencia: list[dict],
     retroalimentacion: str = "",
-) -> ContenidoAdaptado:
+    idioma: str = "es",
+) -> tuple[ContenidoAdaptado, list[str], list[str]]:
     user_payload = {
         "documento_titulo": titulo,
         "perfil": perfil,
@@ -228,8 +252,11 @@ def _redactar(
         "retroalimentacion_critico": retroalimentacion,
     }
     formato = schema.model_fields["formato"].default
-    system = construir_prompt_sistema(formato, perfil, nicho, nivel_detalle)
-    return llm.generar_estructurado(schema, system=system, user=json.dumps(user_payload, ensure_ascii=False))
+    system = construir_prompt_sistema(formato, perfil, nicho, nivel_detalle, idioma)
+    respuesta = llm.generar_estructurado(
+        _con_metadatos(schema), system=system, user=json.dumps(user_payload, ensure_ascii=False)
+    )
+    return _separar_metadatos(schema, respuesta)
 
 
 def _normalizar(texto: str) -> set[str]:
@@ -425,6 +452,7 @@ class EstadoFlujo(TypedDict, total=False):
     formato: str
     nicho: str
     nivel_detalle: str
+    idioma: str
     llm: Any
     # producido por los nodos
     t0: float
@@ -436,9 +464,12 @@ class EstadoFlujo(TypedDict, total=False):
     umbral: float
     intento: int
     contenido: ContenidoAdaptado
+    conceptos_ia: list[str]  # redactados por el modelo; vacíos con el generador local
+    prerrequisitos_ia: list[str]
     contenido_anterior: ContenidoAdaptado | None
     evaluacion_fidelidad: ResultadoFidelidad
     retroalimentacion: str
+    juicio: JuicioIA | None  # del juez de IA, si revisó este intento
     aprobado: bool
     decision: str  # "reintentar" | "terminar"
     resultado: ResultadoGeneracion
@@ -487,12 +518,16 @@ def _nodo_investigar(estado: EstadoFlujo) -> dict:
 def _nodo_redactar(estado: EstadoFlujo) -> dict:
     """Agente Redactor: única llamada pesada al LLM generativo estructurado."""
     t = time.perf_counter()
-    contenido = _depurar(_redactar(
+    redactado, conceptos, prerrequisitos = _redactar(
         estado["llm"], estado["schema"], estado["documento_titulo"], estado["perfil"], estado["nicho"],
         estado["nivel_detalle"], estado["chunks_evidencia"], estado["retroalimentacion"],
-    ))
+        estado.get("idioma", "es"),
+    )
+    contenido = _depurar(redactado)
     return {
         "contenido": contenido,
+        "conceptos_ia": conceptos,
+        "prerrequisitos_ia": prerrequisitos,
         "contenido_anterior": estado.get("contenido"),
         "intento": estado["intento"] + 1,
         "tiempos": _cronometrar(estado, "redactor_segundos", t, escala=1, acumular=True),
@@ -525,7 +560,14 @@ def _nodo_criticar(estado: EstadoFlujo) -> dict:
     """Agente Crítico: verifica la fidelidad y decide si se aprueba o se reintenta."""
     t = time.perf_counter()
     evaluacion = evaluar_fidelidad(estado["contenido"], estado["coleccion"])
-    cambios = {"evaluacion_fidelidad": evaluacion, "tiempos": _cronometrar(estado, "critico_ms", t, acumular=True)}
+    juicio = None
+    if evaluacion.total and evaluacion.score < estado["umbral"] and juez_disponible(estado["llm"]):
+        # el TF-IDF no alcanza: el juez de IA revisa las dudosas (paráfrasis, traducciones)
+        juicio = _juzgar(estado, evaluacion)
+    cambios = {
+        "evaluacion_fidelidad": evaluacion, "juicio": juicio,
+        "tiempos": _cronometrar(estado, "critico_ms", t, acumular=True),
+    }
     if evaluacion.total == 0:
         # Sin afirmaciones con fuente no hay nada que verificar: no se aprueba (sería dar
         # por fiel algo que nadie comprobó) y reintentar no lo arregla.
@@ -540,9 +582,20 @@ def _nodo_criticar(estado: EstadoFlujo) -> dict:
     return {**cambios, "decision": "reintentar", "retroalimentacion": _retroalimentacion(evaluacion, estado["umbral"])}
 
 
+def _juzgar(estado: EstadoFlujo, evaluacion: ResultadoFidelidad) -> JuicioIA | None:
+    return juzgar(
+        estado["llm"], estado["contenido"], evaluacion, estado["coleccion"],
+        formato=estado["formato"], perfil=estado["perfil"], nicho=estado["nicho"],
+    )
+
+
 def _nodo_finalizar(estado: EstadoFlujo) -> dict:
     """Metadatos de aprendizaje y evaluación de calidad del resultado final."""
     contenido, coleccion, evaluacion_fidelidad = estado["contenido"], estado["coleccion"], estado["evaluacion_fidelidad"]
+    juicio = estado.get("juicio")
+    if juicio is None and juez_disponible(estado["llm"]):
+        # aprobado por el TF-IDF: el juez evalúa la coherencia didáctica (y revisa las parciales)
+        juicio = _juzgar(estado, evaluacion_fidelidad)
     perfil, aprobado, plan = estado["perfil"], estado["aprobado"], estado["plan"]
     _asignar_secciones(contenido, coleccion)
     _agrupar_por_seccion(contenido, coleccion)
@@ -554,8 +607,9 @@ def _nodo_finalizar(estado: EstadoFlujo) -> dict:
         perfil_aplicado=perfil,
         formato_generado=estado["formato"],
         tiempo_estimado_estudio_minutos=_calcular_tiempo_estudio(contenido),
-        conceptos_clave=plan.conceptos_clave or _conceptos_clave(estado["chunks_evidencia"]),
-        prerrequisitos=plan.prerrequisitos,
+        # los del modelo (HU-32); si no los dio (generador local), los del Planificador
+        conceptos_clave=estado.get("conceptos_ia") or plan.conceptos_clave or _conceptos_clave(estado["chunks_evidencia"]),
+        prerrequisitos=estado.get("prerrequisitos_ia") or plan.prerrequisitos,
         tiempo_generacion_segundos=round(time.perf_counter() - estado["t0"], 3),
         modelo_llm=estado["llm"].nombre_modelo,
         modelo_embeddings=coleccion.modelo_embeddings,
@@ -570,7 +624,8 @@ def _nodo_finalizar(estado: EstadoFlujo) -> dict:
     )
     evaluacion = EvaluacionCalidad(
         anclaje_fuente_score=round(score_final, 4),
-        claridad_pedagogica=_claridad_desde_score(score_final),
+        # HU-37: la claridad la da el juez de IA si evaluó la coherencia; si no, se deriva del score
+        claridad_pedagogica=juicio.coherencia_didactica if juicio else _claridad_desde_score(score_final),
         observaciones=_ADAPTACION_POR_PERFIL.get(perfil, "") + (
             "Aprobado por el Crítico dentro del umbral de fidelidad."
             if aprobado
@@ -585,6 +640,9 @@ def _nodo_finalizar(estado: EstadoFlujo) -> dict:
         afirmaciones_no_sustentadas=evaluacion_fidelidad.no_sustentadas,
         umbral_aplicado=estado["umbral"],
         aprobado_por_critico=aprobado,
+        juez_fidelidad="tfidf+ia" if juicio else "tfidf",
+        coherencia_didactica=juicio.coherencia_didactica if juicio else "",
+        comentario_coherencia=juicio.comentario_coherencia if juicio else "",
     )
     return {"resultado": ResultadoGeneracion(contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion)}
 
@@ -619,6 +677,7 @@ def generar_contenido_educativo(
     nicho: str,
     nivel_detalle: str,
     llm: LLMClient | None = None,
+    idioma: str = "es",
 ) -> ResultadoGeneracion:
     """Punto de entrada del flujo completo: ejecuta el grafo de agentes (indexar,
     planificar, investigar, redactar, criticar con reintento y finalizar)."""
@@ -632,6 +691,7 @@ def generar_contenido_educativo(
             "formato": formato,
             "nicho": nicho,
             "nivel_detalle": nivel_detalle,
+            "idioma": idioma,
             "llm": llm or crear_llm(),
             "t0": time.perf_counter(),
             "tiempos": {},

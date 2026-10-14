@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 
 from nuevamente.config import settings
-from nuevamente.exports.narracion import nombre_voz, preparar_texto, sintetizar
+from nuevamente.exports.narracion import SERVICIO_TTS, generar_audio_tts, nombre_voz, preparar_texto, sintetizar
 from nuevamente.exports.video import VideoError, _ejecutar, _ffmpeg
 from nuevamente.llm import disponibilidad
 from nuevamente.schemas.formatos import PodcastContenido
@@ -53,7 +53,7 @@ _INDICACION_GEMINI = (
 
 def voces_del_podcast() -> dict[str, str] | None:
     """Tipo de voz del sistema que usará cada locutor, o None si no hay ninguna instalada."""
-    disponibles = [tipo for tipo in ("femenina", "masculina") if nombre_voz(tipo)]
+    disponibles = [tipo for tipo in ("femenina", "masculina") if nombre_voz(tipo, "sistema")]
     if not disponibles:
         return None
     return {
@@ -87,9 +87,9 @@ def _generar_con_sistema(podcast: PodcastContenido, carpeta: Path, ffmpeg: str) 
 
 # ---------- Motor "gemini" ----------
 
-_SERVICIO_TTS = "tts:gemini"
+_SERVICIO_TTS = SERVICIO_TTS
 # El audio de un bloque de diálogo tarda más que un texto: se le da el doble de tiempo.
-_FACTOR_TIMEOUT_TTS = 2
+_FACTOR_TIMEOUT_TTS = 6  # un episodio de varios minutos tarda en generarse
 
 
 def gemini_tts_configurado() -> bool:
@@ -142,14 +142,15 @@ def _sintetizar_gemini(dialogo: str) -> bytes:
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     )
-    respuesta = cliente.models.generate_content(
-        model=settings.podcast_tts_model, contents=_INDICACION_GEMINI + dialogo, config=config
-    )
-    partes = respuesta.candidates[0].content.parts if respuesta.candidates else []
-    pcm = b"".join(p.inline_data.data for p in partes if p.inline_data and p.inline_data.data)
-    if not pcm:
-        raise VideoError("Gemini TTS no devolvió audio.")
-    return pcm
+    # el mismo diálogo con cada intervención marcada con su locutor, para los modelos que lo exigen
+    partes = []
+    for linea in dialogo.split("\n"):
+        locutor, _, texto = linea.partition(": ")
+        if texto:
+            partes.append(types.Part(text=texto, speech_metadata=types.SpeechMetadata(
+                speaker=locutor, style="tono cálido y cercano, ritmo pausado, pronunciación clara")))
+    por_locutor = [types.Content(role="user", parts=partes)]
+    return generar_audio_tts(cliente, _INDICACION_GEMINI + dialogo, config, por_locutor=por_locutor)
 
 
 def _generar_con_gemini(podcast: PodcastContenido, carpeta: Path, ffmpeg: str) -> list[Path]:

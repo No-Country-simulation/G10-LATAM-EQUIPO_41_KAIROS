@@ -22,3 +22,24 @@ def test_el_prompt_del_redactor_lleva_rol_y_ejemplo(formato):
     assert prompt.startswith("Eres ")  # role prompting
     assert "[EJEMPLO]" in prompt and EJEMPLO_CHUNK["chunk_id"] in prompt  # few-shot
     assert "No copies este ejemplo" in prompt
+
+
+def test_el_idioma_de_salida_llega_al_prompt_del_redactor():
+    """HU-18: con idioma_salida="en" el Redactor recibe la orden de escribir en inglés."""
+    from nuevamente.llm.prompts import construir_prompt_sistema
+
+    assert "Escribe en español." in construir_prompt_sistema("Quiz", "Principiante", "Salud", "Didáctico")
+    en = construir_prompt_sistema("Quiz", "Principiante", "Salud", "Didáctico", idioma="en")
+    assert "Escribe todo el material en inglés" in en and "Escribe en español." not in en
+
+
+def test_el_idioma_de_la_solicitud_llega_al_redactor(api_client, documento_salud, monkeypatch):
+    from nuevamente.agents import graph
+
+    vistos = []
+    original = graph.construir_prompt_sistema
+    monkeypatch.setattr(graph, "construir_prompt_sistema", lambda *a: vistos.append(a) or original(*a))
+    body = {"documento_titulo": "Protocolo", "documento_contenido": documento_salud, "perfil_destinatario": "Principiante",
+            "formato_salida": "Flashcards", "idioma_salida": "pt"}
+    assert api_client.post("/api/v1/adaptar", json=body).status_code == 200
+    assert vistos and vistos[-1][-1] == "pt"

@@ -21,12 +21,12 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from nuevamente.exports.narracion import sintetizar
+from nuevamente.exports.narracion import narrar
 from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 2
+VERSION = 3  # 3: narración con voces naturales de Gemini TTS
 
 ANCHO, ALTO = 1280, 720
 MARGEN = 80
@@ -244,10 +244,11 @@ def _titulo_escena(apoyo_visual: str, indice: int) -> str:
     return titulo
 
 
-def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina") -> Path:
-    """Renderiza el guion completo a un MP4 en `destino` y devuelve su ruta.
+def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina") -> str:
+    """Renderiza el guion completo a un MP4 en `destino` y devuelve el motor de voz que
+    lo narró ("gemini" o "sistema").
 
-    `voz` es "femenina" o "masculina"; si no hay una voz de ese tipo instalada,
+    `voz` es "femenina" o "masculina"; si no hay ninguna voz de ese tipo disponible,
     el video sale sin narración.
     """
     ffmpeg = _ffmpeg()
@@ -257,14 +258,10 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
 
     with tempfile.TemporaryDirectory(prefix="kairos-video-") as tmp:
         carpeta = Path(tmp)
-        segmentos: list[Path] = []
+        partes: list[tuple[str, object, str, float]] = []
 
         def agregar(nombre: str, dibujar, texto: str, duracion_seg: float) -> None:
-            imagen = carpeta / f"{nombre}.png"
-            dibujar(imagen)
-            audio = sintetizar(texto, voz, carpeta / nombre)
-            segmentos.append(carpeta / f"{nombre}.mp4")
-            _segmento(ffmpeg, imagen, audio, duracion_seg, segmentos[-1])
+            partes.append((nombre, dibujar, texto, duracion_seg))
 
         agregar(
             "000",
@@ -287,6 +284,15 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
             DURACION_CIERRE_SEG,
         )
 
+        # toda la narración de una vez: con Gemini se piden varios fragmentos a la vez
+        audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
+        segmentos: list[Path] = []
+        for (nombre, dibujar, _, duracion_seg), audio in zip(partes, audios):
+            imagen = carpeta / f"{nombre}.png"
+            dibujar(imagen)
+            segmentos.append(carpeta / f"{nombre}.mp4")
+            _segmento(ffmpeg, imagen, audio, duracion_seg, segmentos[-1])
+
         lista = carpeta / "segmentos.txt"
         lista.write_text("".join(f"file '{s.name}'\n" for s in segmentos), encoding="utf-8")
         temporal = carpeta / "video.mp4"
@@ -295,16 +301,17 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
             "-c", "copy", "-movflags", "+faststart", str(temporal),
         ])
         shutil.move(str(temporal), destino)
-    return destino
+    return motor
 
 
-def convertir_a_m4a(texto: str, voz: str, destino: Path) -> Path:
-    """Narra `texto` con la voz pedida y lo guarda como M4A (reproducible en el navegador)."""
+def convertir_a_m4a(texto: str, voz: str, destino: Path) -> str:
+    """Narra `texto` con la voz pedida, lo guarda como M4A (reproducible en el navegador)
+    y devuelve el motor que lo narró ("gemini" o "sistema")."""
     ffmpeg = _ffmpeg()
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="kairos-voz-") as tmp:
-        audio = sintetizar(texto, voz, Path(tmp) / "muestra")
+        (audio,), motor = narrar([(texto, Path(tmp) / "muestra")], voz)
         if audio is None:
             raise VideoError(f"No hay una voz {voz} disponible.")
         temporal = Path(tmp) / "muestra.m4a"
@@ -313,4 +320,4 @@ def convertir_a_m4a(texto: str, voz: str, destino: Path) -> Path:
             "-c:a", "aac", "-ar", "44100", "-b:a", "160k", str(temporal),
         ])
         shutil.move(str(temporal), destino)
-    return destino
+    return motor

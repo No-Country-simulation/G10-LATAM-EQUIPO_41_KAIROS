@@ -501,7 +501,11 @@ function cancelarCreacion() {
 async function cargarRegistro(publica) {
   try {
     const resp = await fetch(`/api/v1/contenidos/${publica.almacenamiento_oci.objeto_id}/detalle`);
-    if (resp.ok) return { ...(await resp.json()), almacenamiento_oci: publica.almacenamiento_oci };
+    if (resp.ok) {
+      // el registro completo trae el documento original; la respuesta pública, el estado vigente
+      const registro = await resp.json();
+      return { ...registro, almacenamiento_oci: { ...registro.almacenamiento_oci, ...publica.almacenamiento_oci } };
+    }
   } catch {
     // sigue con la respuesta pública
   }
@@ -1347,6 +1351,12 @@ function renderCalidad(ev) {
           `${ev.afirmaciones_sustentadas} de ${ev.afirmaciones_total} afirmaciones sustentadas · umbral exigido ${Math.round(ev.umbral_aplicado * 100)}% · claridad ${ev.claridad_pedagogica.toLowerCase()}`,
         ),
         h("p", { class: "nota" }, ev.observaciones),
+        ev.juez_fidelidad === "tfidf+ia"
+          ? h("p", { class: "nota" }, "🤖 Revisado también por un juez de IA, que solo da por buena una afirmación si cita el texto exacto del documento.")
+          : null,
+        ev.coherencia_didactica
+          ? h("p", { class: "nota" }, h("strong", {}, `Coherencia didáctica: ${ev.coherencia_didactica}. `), ev.comentario_coherencia || "")
+          : null,
       ),
     ),
     ev.afirmaciones_no_sustentadas.length > 0
@@ -1375,7 +1385,14 @@ function renderAlmacenamiento(al) {
       { class: "datos" },
       h("dt", {}, "Bucket"), h("dd", {}, al.bucket || "—"),
       h("dt", {}, "Material"), h("dd", {}, al.objeto_id || "—"),
-      h("dt", {}, "Documento original"), h("dd", {}, al.objeto_documento_original || "—"),
+      h("dt", {}, "Documento original"),
+      h("dd", {},
+        al.documento_nombre || estado.tituloDocumento || "—",
+        al.objeto_archivo_original ? h("small", { class: "dato-objeto" }, al.objeto_archivo_original) : null,
+        al.objeto_documento_original ? h("small", { class: "dato-objeto" }, `${al.objeto_documento_original} (texto extraído)`) : null,
+        al.objeto_id && (al.objeto_archivo_original || al.objeto_documento_original)
+          ? h("a", { class: "enlace dato-descarga", href: `/api/v1/contenidos/${al.objeto_id}/original` }, "⬇️ Descargar original")
+          : null),
     ),
   );
 }

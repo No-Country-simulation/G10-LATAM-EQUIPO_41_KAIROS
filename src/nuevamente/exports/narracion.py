@@ -2,6 +2,14 @@
 
 Responsable en el equipo Kairos G10: Dario Higuera Moreno (No Code Developer).
 
+Dos motores de voz, igual que el podcast:
+  - "gemini" (por defecto): voces naturales de Gemini TTS (VIDEO_VOZ_FEMENINA y
+    VIDEO_VOZ_MASCULINA). Cada fragmento es una petición; se piden varios a la vez.
+  - "sistema": `say` en macOS o `espeak-ng` en Linux. Es el respaldo si Gemini no está
+    disponible (sin API key, sin cuota o sin red), o el motor fijo con VIDEO_VOCES=sistema.
+    Si un fragmento falla con Gemini, TODA la narración se rehace con el sistema: un
+    video nunca mezcla dos voces.
+
 Tres piezas:
   1. Elegir una voz del sistema según el tipo pedido (femenina o masculina):
      `say` en macOS, `espeak-ng` en Linux. Se prefieren voces de calidad
@@ -15,13 +23,19 @@ Tres piezas:
 from __future__ import annotations
 
 import functools
+import logging
 import platform
 import re
 import shutil
 import subprocess
+import time
+import wave
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from nuevamente.config import settings
+
+logger = logging.getLogger(__name__)
 
 TIPOS_VOZ = ("femenina", "masculina")
 
@@ -82,10 +96,30 @@ def _voz_macos(tipo: str) -> tuple[str, str] | None:
     return nombre, locale
 
 
-def nombre_voz(tipo: str) -> str | None:
+def _voz_gemini(tipo: str) -> str:
+    return settings.video_voz_femenina if tipo == "femenina" else settings.video_voz_masculina
+
+
+def gemini_configurado() -> bool:
+    """Gemini TTS está elegido y hay API key (aunque ahora pueda estar en pausa)."""
+    return settings.video_voces == "gemini" and bool(settings.gemini_api_key or settings.gemini_api_keys)
+
+
+def motor_voz() -> str:
+    """Motor que se intentará usar ahora: "gemini" si está configurado y no falló hace poco."""
+    from nuevamente.llm import disponibilidad
+
+    if gemini_configurado() and not disponibilidad.en_pausa(SERVICIO_TTS):
+        return "gemini"
+    return "sistema"
+
+
+def nombre_voz(tipo: str, motor: str | None = None) -> str | None:
     """Nombre legible de la voz que se usará para `tipo`, o None si no hay ninguna."""
     if settings.video_tts == "off" or tipo not in TIPOS_VOZ:
         return None
+    if (motor or motor_voz()) == "gemini":
+        return f"{_voz_gemini(tipo)} (voz natural)"
     if voz := _voz_macos(tipo):
         nombre, locale = voz
         base = nombre.split(" (")[0]
@@ -170,10 +204,211 @@ def _con_pausas_say(texto: str) -> str:
     return re.sub(r":\s+", f": [[slnc {_PAUSA_DOS_PUNTOS_MS}]] ", t)
 
 
-# ---------- Síntesis ----------
+# ---------- Síntesis con Gemini TTS ----------
+#
+# El plan gratuito de Gemini TTS admite muy pocas solicitudes por minuto, así que toda
+# la narración de un video va en UNA solicitud: los fragmentos se leen seguidos, con un
+# silencio largo entre uno y otro, y el audio se corta después en esos silencios. Cada
+# corte se busca cerca de donde debería caer según el largo del texto, para no
+# confundirlo con la pausa normal entre dos oraciones.
+
+SERVICIO_TTS = "tts:gemini"  # el mismo que pausa el podcast: si falla uno, el otro no lo espera
+_GEMINI_HZ = 24000  # Gemini TTS devuelve PCM lineal de 16 bits, mono, a 24 kHz
+_MAX_CARACTERES_POR_PETICION = 4000  # más largo, se divide en bloques de fragmentos completos
+_ESPERA_MAXIMA_SEG = 45  # si Gemini pide esperar (límite por minuto) hasta esto, se espera
+_SILENCIO_MINIMO_SEG = 0.5
+_INDICACION_GEMINI = (
+    "Lee en español latinoamericano neutro, como un profesor que explica a su clase: "
+    "tono cálido y cercano, ritmo pausado, pronunciación clara y pausas breves entre ideas. "
+    "Lee solo el texto, sin agregar nada."
+)
+
+
+def _cliente_gemini():
+    from google import genai
+    from google.genai import types
+
+    clave = next((c for c in (*settings.gemini_api_keys, settings.gemini_api_key) if c), "")
+    return genai.Client(
+        api_key=clave,
+        http_options=types.HttpOptions(timeout=settings.llm_timeout_s * 3 * 1000, retry_options=types.HttpRetryOptions(attempts=1)),
+    )
+
+
+_agotados: dict[str, float] = {}  # modelo -> hasta cuándo (time.monotonic) no tiene cuota
+
+
+def modelos_tts() -> list[str]:
+    """Modelos TTS en orden de preferencia, sin los que se quedaron sin cuota hace poco."""
+    ahora = time.monotonic()
+    todos = list(dict.fromkeys((settings.podcast_tts_model, *settings.tts_modelos_respaldo)))
+    return [m for m in todos if _agotados.get(m, 0) <= ahora] or todos
+
+
+def _segundos_de_espera(mensaje: str) -> float | None:
+    """La espera que pide Gemini en un 429 ("retry in 25.6s", "retry in 20h19m54s")."""
+    m = re.search(r"retry in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", mensaje)
+    if not m:
+        return None
+    return int(m.group(1) or 0) * 3600 + int(m.group(2) or 0) * 60 + float(m.group(3))
+
+
+def generar_audio_tts(cliente, contenido, config, por_locutor=None) -> bytes:
+    """PCM de Gemini TTS, rotando de modelo cuando uno se queda sin cuota (429) o no
+    está disponible (404/503). Si Gemini pide esperar poco (límite por minuto), espera.
+
+    `por_locutor` es el mismo diálogo con cada parte marcada con su locutor
+    (`speech_metadata`): los modelos TTS más nuevos lo exigen para varias voces y lo
+    piden con un 400; entonces se reintenta el mismo modelo con ese formato."""
+    ultimo: Exception | None = None
+    for modelo in modelos_tts():
+        entrada = contenido
+        for intento in range(3):
+            try:
+                respuesta = cliente.models.generate_content(model=modelo, contents=entrada, config=config)
+                partes = respuesta.candidates[0].content.parts if respuesta.candidates else []
+                pcm = b"".join(p.inline_data.data for p in partes if p.inline_data and p.inline_data.data)
+                if not pcm:
+                    raise RuntimeError(f"{modelo} no devolvió audio.")
+                return pcm
+            except Exception as exc:
+                ultimo = exc
+                if por_locutor is not None and entrada is contenido and "speech_metadata" in str(exc):
+                    entrada = por_locutor  # el modelo quiere cada parte marcada con su locutor
+                    continue
+                espera = _segundos_de_espera(str(exc))
+                if intento < 2 and espera is not None and espera <= _ESPERA_MAXIMA_SEG:
+                    time.sleep(espera + 1)  # límite por minuto: se espera lo que pide
+                    continue
+                if espera is not None:  # cuota diaria: no se vuelve a probar hasta que se renueve
+                    _agotados[modelo] = time.monotonic() + espera
+                logger.warning("Gemini TTS %s no disponible, se prueba el siguiente modelo: %s", modelo, str(exc)[:200])
+                break
+    raise RuntimeError(f"Ningún modelo de Gemini TTS disponible: {ultimo}")
+
+
+def _pcm_gemini(parrafos: list[str], tipo: str, cliente) -> bytes:
+    """PCM de los párrafos leídos seguidos por la voz de Gemini, con silencios largos entre ellos."""
+    from google.genai import types
+
+    indicacion = _INDICACION_GEMINI
+    if len(parrafos) > 1:
+        indicacion += f" Son {len(parrafos)} párrafos: después de cada uno haz un silencio de dos segundos."
+    config = types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=_voz_gemini(tipo)),
+        )),
+    )
+    return generar_audio_tts(cliente, indicacion + "\n\n" + "\n\n".join(parrafos), config)
+
+
+def _escribir_wav(pcm: bytes, destino: Path) -> Path:
+    with wave.open(str(destino), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(_GEMINI_HZ)
+        wav.writeframes(pcm)
+    return destino
+
+
+def _silencios(ffmpeg: str, audio: Path) -> list[tuple[float, float]]:
+    """(inicio, fin) de cada silencio del audio, según `silencedetect` de ffmpeg."""
+    salida = subprocess.run(
+        [ffmpeg, "-hide_banner", "-i", str(audio), "-af", f"silencedetect=noise=-38dB:d={_SILENCIO_MINIMO_SEG}", "-f", "null", "-"],
+        capture_output=True, text=True, timeout=120,
+    ).stderr
+    inicios = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", salida)]
+    fines = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", salida)]
+    return list(zip(inicios, fines))
+
+
+def cortes_por_silencio(silencios: list[tuple[float, float]], total: float, largos: list[int]) -> list[float]:
+    """Dónde cortar un audio de `total` segundos en len(largos) fragmentos.
+
+    Para cada frontera se calcula dónde debería caer según el largo del texto y se elige
+    el silencio más largo cerca de ese punto. Lanza ValueError si no encuentra uno."""
+    cortes: list[float] = []
+    acumulado, suma = 0, sum(largos)
+    previo = 0.0
+    for largo in largos[:-1]:
+        acumulado += largo
+        esperado = total * acumulado / suma
+        tolerancia = max(2.0, 0.4 * total / len(largos))
+        candidatos = [
+            (fin - ini, (ini + fin) / 2) for ini, fin in silencios
+            if (ini + fin) / 2 > previo + 0.5 and abs((ini + fin) / 2 - esperado) <= tolerancia
+        ]
+        if not candidatos:
+            raise ValueError("No se encontró la pausa entre dos fragmentos de la narración.")
+        # el más largo, y entre parecidos el más cercano a lo esperado
+        _, corte = max(candidatos, key=lambda c: c[0] - 0.1 * abs(c[1] - esperado) / tolerancia)
+        cortes.append(corte)
+        previo = corte
+    return cortes
+
+
+def _narrar_gemini(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
+    """Narra todos los fragmentos con Gemini en el menor número de solicitudes posible."""
+    from nuevamente.exports.video import _ejecutar, _ffmpeg
+
+    ffmpeg = _ffmpeg()
+    cliente = _cliente_gemini()
+    preparados = [(preparar_texto(texto), Path(destino)) for texto, destino in textos]
+    bloques: list[list[tuple[str, Path]]] = [[]]
+    for par in preparados:
+        if bloques[-1] and sum(len(t) for t, _ in bloques[-1]) + len(par[0]) > _MAX_CARACTERES_POR_PETICION:
+            bloques.append([])
+        bloques[-1].append(par)
+
+    audios: list[Path] = []
+    for k, bloque in enumerate(bloques):
+        completo = _escribir_wav(_pcm_gemini([t for t, _ in bloque], tipo, cliente), bloque[0][1].with_name(f"narracion-{k}.wav"))
+        if len(bloque) == 1:
+            audios.append(completo)
+            continue
+        total = len(completo.read_bytes()) / (2 * _GEMINI_HZ)
+        cortes = cortes_por_silencio(_silencios(ffmpeg, completo), total, [len(t) for t, _ in bloque])
+        limites = [0.0, *cortes, total]
+        for (_, destino), desde, hasta in zip(bloque, limites, limites[1:]):
+            audio = destino.with_suffix(".wav")
+            # cada fragmento sin el silencio largo de los bordes (silenceremove)
+            _ejecutar([
+                ffmpeg, "-y", "-loglevel", "error", "-i", str(completo), "-ss", f"{desde:.3f}", "-to", f"{hasta:.3f}",
+                "-af", "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
+                       "silenceremove=start_periods=1:start_threshold=-45dB,areverse",
+                str(audio),
+            ])
+            audios.append(audio)
+    return audios
+
+
+def narrar(textos: list[tuple[str, Path]], tipo: str) -> tuple[list[Path | None], str]:
+    """Narra varios fragmentos (texto, destino sin extensión) con una sola voz.
+
+    Devuelve los audios (None donde no hay voz) y el motor que de verdad se usó. Si
+    Gemini falla, se pausa el servicio y se narran todos con la voz del sistema, para
+    que no se mezclen dos voces.
+    """
+    from nuevamente.llm import disponibilidad
+
+    if settings.video_tts == "off" or not textos:
+        return [None] * len(textos), "sistema"
+    if motor_voz() == "gemini":
+        try:
+            audios = _narrar_gemini(textos, tipo)
+            disponibilidad.reanudar(SERVICIO_TTS)
+            return audios, "gemini"
+        except Exception as exc:  # cuota, red, modelo o pausas irreconocibles: sale igual, con otra voz
+            logger.warning("Gemini TTS no disponible, se narra con la voz del sistema: %s", exc)
+            disponibilidad.pausar(SERVICIO_TTS, str(exc))
+    return [sintetizar(texto, tipo, destino) for texto, destino in textos], "sistema"
+
+
+# ---------- Síntesis con las voces del sistema ----------
 
 def sintetizar(texto: str, tipo: str, destino: Path) -> Path | None:
-    """Genera el audio de `texto` (destino sin extensión); None si no hay voz."""
+    """Genera el audio de `texto` con la voz del sistema (destino sin extensión); None si no hay voz."""
     if settings.video_tts == "off" or tipo not in TIPOS_VOZ:
         return None
     texto = preparar_texto(texto)

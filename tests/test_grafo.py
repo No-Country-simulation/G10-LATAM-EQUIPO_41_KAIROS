@@ -51,3 +51,26 @@ def test_sin_reintentos_el_critico_no_aprueba_lo_inventado(documento_salud):
     assert len(llm.llamadas) == 1
     assert not resultado.evaluacion.aprobado_por_critico
     assert resultado.evaluacion.afirmaciones_no_sustentadas
+
+
+def test_los_metadatos_de_aprendizaje_los_redacta_el_modelo(documento_salud):
+    """HU-32: conceptos clave y prerrequisitos salen de la misma respuesta del Redactor."""
+
+    class _LLMConMetadatos:
+        nombre_modelo = "doble-de-prueba"
+
+        def generar_estructurado(self, schema, system, user):
+            assert "conceptos_clave" in schema.model_fields and "[METADATOS DE APRENDIZAJE]" in system
+            chunk = json.loads(user)["chunks"][0]
+            return schema.model_validate({
+                "titulo": "Repaso", "introduccion_contextualizada": "Tarjetas.",
+                "items": [{"frente": "¿Qué dice?", "dorso": chunk["texto"], "fuentes": [chunk["chunk_id"]]}],
+                "conceptos_clave": ["Lavado de manos", "EPP"], "prerrequisitos": ["Nociones de higiene"],
+            })
+
+    r = graph.generar_contenido_educativo(
+        "Protocolo", documento_salud, "Principiante", "Flashcards", "Salud", "Didáctico", llm=_LLMConMetadatos(),
+    )
+    assert r.metadatos.conceptos_clave == ["Lavado de manos", "EPP"]
+    assert r.metadatos.prerrequisitos == ["Nociones de higiene"]
+    assert "conceptos_clave" not in r.contenido.model_dump()  # el material no cambia de forma

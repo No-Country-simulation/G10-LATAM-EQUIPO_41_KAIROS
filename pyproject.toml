@@ -30,6 +30,9 @@ oci = ["oci"]
 gemini = ["google-genai>=1.30"]
 claude = ["anthropic>=1"]
 ui = ["streamlit"]
+# ChromaDB como vector store (VECTOR_STORE=chroma). En Python 3.14 aún no hay onnxruntime:
+# ahí instalar con `pip install --no-deps chromadb` y sus dependencias (ver README).
+chroma = ["chromadb>=1.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

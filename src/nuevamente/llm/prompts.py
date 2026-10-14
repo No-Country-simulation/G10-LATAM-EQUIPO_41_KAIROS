@@ -24,6 +24,13 @@ PROMPT_BASE = (
     "y al nivel de detalle elegidos. Escribe en español."
 )
 
+# HU-18: idioma de salida (código ISO 639-1 de SolicitudAdaptacion.idioma_salida)
+IDIOMAS = {"es": "español", "en": "inglés", "pt": "portugués", "fr": "francés", "it": "italiano", "de": "alemán"}
+
+
+def nombre_idioma(codigo: str) -> str:
+    return IDIOMAS.get((codigo or "es").lower()[:2], codigo)
+
 # Lo que hace verificable el material. El perfil y el sector cambian el enfoque, nunca los hechos.
 PROMPT_FIDELIDAD = (
     "Usa EXCLUSIVAMENTE la evidencia de los chunks recibidos. No agregues datos, dosis, "
@@ -165,7 +172,7 @@ PROMPT_POR_FORMATO = {
     "Resumen Ejecutivo": (
         "Resumen Ejecutivo con estilo profesional, directo y fácil de leer en un minuto, "
         "con esta estructura:\n"
-        "- `resumen` (unas 200 palabras): tres párrafos separados por una línea en blanco. "
+        "- `resumen` (unas 250 palabras): tres párrafos separados por una línea en blanco. "
         "1) Idea central: una o dos oraciones con la conclusión más importante del documento, "
         "lo primero que debe saber quien decide. 2) Contexto: qué trata el documento y por qué "
         "importa. 3) Hallazgos: lo esencial del resto del documento. Oraciones cortas, voz "
@@ -316,9 +323,26 @@ def prompt_ejemplo(formato: str) -> str:
     )
 
 
-def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detalle: str) -> str:
+# HU-32: los metadatos de aprendizaje los redacta el modelo en la misma respuesta
+PROMPT_METADATOS = (
+    "[METADATOS DE APRENDIZAJE]\n"
+    "Además del material, completa `conceptos_clave` con 3 a 6 conceptos centrales del documento, "
+    "cada uno en pocas palabras y con los términos del documento, y `prerrequisitos` con 1 a 3 "
+    "conocimientos previos que necesita este perfil para estudiar el material (frases breves). "
+    "Ambos van en el mismo idioma que el material."
+)
+
+
+def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detalle: str, idioma: str = "es") -> str:
+    base = PROMPT_BASE
+    if nombre_idioma(idioma) != "español":
+        base = base.replace(
+            "Escribe en español.",
+            f"Escribe todo el material en {nombre_idioma(idioma)}, aunque el documento esté en español: "
+            "traduce con fidelidad, sin agregar nada que el documento no diga.",
+        )
     partes = [
-        PROMPT_BASE,
+        base,
         (
             "[CONFIGURACIÓN SELECCIONADA EN LA WEB]\n"
             f"- Perfil: {perfil}\n"
@@ -338,6 +362,7 @@ def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detall
             f"de su esquema.\n{PROMPT_POR_FORMATO.get(formato, '')}"
         ),
         f"[FIDELIDAD AL DOCUMENTO]\n{PROMPT_FIDELIDAD}",
+        PROMPT_METADATOS,
         prompt_ejemplo(formato),
     ]
     return "\n\n".join(p for p in partes if p)

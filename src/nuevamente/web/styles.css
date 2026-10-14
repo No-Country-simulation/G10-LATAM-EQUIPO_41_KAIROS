@@ -1151,3 +1151,6 @@ pre {
   .est-grilla { grid-template-columns: 1fr; }
   .est-ejes span:nth-child(odd) { visibility: hidden; }
 }
+
+.datos .dato-objeto { display: block; margin-top: 2px; color: var(--texto-suave); font-size: 0.82em; overflow-wrap: anywhere; }
+.datos .dato-descarga { display: inline-block; margin-top: 6px; font-family: "Nunito", system-ui, sans-serif; font-weight: 800; }

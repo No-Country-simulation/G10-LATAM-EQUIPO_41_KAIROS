@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import mimetypes
+import re
 import shutil
 import tempfile
 import uuid
@@ -21,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from nuevamente import estadisticas
 from nuevamente.agents.graph import generar_contenido_educativo
 from nuevamente.config import settings
-from nuevamente.exports.narracion import TIPOS_VOZ, nombre_voz
+from nuevamente.exports.narracion import TIPOS_VOZ, motor_voz, nombre_voz
 from nuevamente.ingest.readers import EXTENSIONES_SOPORTADAS, DocumentoInvalidoError, leer_documento
 from nuevamente.llm.base import LLMError
 from nuevamente.schemas.enums import FormatoSalida, NichoSector, NivelDetalle, PerfilDestinatario
@@ -157,17 +159,24 @@ def muestra_voz(voz: Literal["femenina", "masculina"]):
     """Audio corto (M4A) para escuchar la voz antes de generar el video."""
     from nuevamente.exports.video import VideoError, convertir_a_m4a
 
-    nombre = nombre_voz(voz)
-    if nombre is None:
+    if nombre_voz(voz) is None:
         raise HTTPException(status_code=404, detail=f"No hay una voz {voz} instalada en el servidor")
-    huella = hashlib.sha256(f"{voz}::{nombre}::{_MUESTRA_VOZ}".encode("utf-8")).hexdigest()[:16]
-    destino = Path(settings.videos_dir) / f"muestra-{huella}.m4a"
-    if not destino.is_file():
-        try:
-            convertir_a_m4a(_MUESTRA_VOZ, voz, destino)
-        except VideoError as exc:
-            raise HTTPException(status_code=500, detail=f"No se pudo generar la muestra: {exc}") from exc
-    return FileResponse(destino, media_type="audio/mp4")
+
+    def archivo(motor: str) -> Path:  # el nombre de la voz incluye el motor
+        huella = hashlib.sha256(f"{voz}::{nombre_voz(voz, motor)}::{_MUESTRA_VOZ}".encode("utf-8")).hexdigest()[:16]
+        return Path(settings.videos_dir) / f"muestra-{huella}.m4a"
+
+    preferido = motor_voz()
+    if not archivo(preferido).is_file():
+        with tempfile.TemporaryDirectory(prefix="kairos-voz-") as tmp:
+            temporal = Path(tmp) / "muestra.m4a"
+            try:
+                preferido = convertir_a_m4a(_MUESTRA_VOZ, voz, temporal)
+            except VideoError as exc:
+                raise HTTPException(status_code=500, detail=f"No se pudo generar la muestra: {exc}") from exc
+            archivo(preferido).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(temporal), archivo(preferido))
+    return FileResponse(archivo(preferido), media_type="audio/mp4")
 
 
 @app.post("/api/v1/adaptar", response_model=RespuestaAdaptacion)
@@ -179,6 +188,7 @@ def adaptar(solicitud: SolicitudAdaptacion):
         formato=solicitud.formato_salida.value,
         nicho=solicitud.nicho_sector.value,
         nivel_detalle=solicitud.nivel_detalle.value,
+        idioma=solicitud.idioma_salida,
     )
 
 
@@ -189,6 +199,7 @@ async def adaptar_archivo(
     formato_salida: FormatoSalida = Form(...),
     nicho_sector: NichoSector = Form(NichoSector.GENERAL),
     nivel_detalle: NivelDetalle = Form(NivelDetalle.DIDACTICO),
+    idioma_salida: str = Form("es", min_length=2, max_length=5),
 ):
     contenido_bytes = await archivo.read()
     limite_bytes = settings.max_upload_mb * 1024 * 1024
@@ -222,12 +233,22 @@ async def adaptar_archivo(
         nicho=nicho_sector.value,
         nivel_detalle=nivel_detalle.value,
         origen=sufijo.lstrip(".").lower() or "txt",
+        documento_nombre=Path(archivo.filename or "").name,
+        idioma=idioma_salida,
+        archivo_original=(contenido_bytes, archivo.content_type or "application/octet-stream"),
     )
+
+
+def _nombre_seguro(nombre: str) -> str:
+    """Nombre de archivo apto para un objeto: sin rutas ni caracteres raros."""
+    nombre = re.sub(r"[^\w.\- ]", "_", Path(nombre or "documento").name).strip() or "documento"
+    return nombre[:150]
 
 
 def _procesar_adaptacion(
     *, titulo: str, contenido: str, perfil: str, formato: str, nicho: str, nivel_detalle: str,
-    origen: str = "texto",
+    origen: str = "texto", documento_nombre: str = "", idioma: str = "es",
+    archivo_original: tuple[bytes, str] | None = None,
 ) -> RespuestaAdaptacion:
     request_id = str(uuid.uuid4())
     try:
@@ -238,6 +259,7 @@ def _procesar_adaptacion(
             formato=formato,
             nicho=nicho,
             nivel_detalle=nivel_detalle,
+            idioma=idioma,
         )
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=f"Fallo del generador de contenido: {exc}") from exc
@@ -258,6 +280,10 @@ def _procesar_adaptacion(
         bucket=settings.oci_bucket,
         objeto_id=objeto_id,
         objeto_documento_original=objeto_original_id,
+        documento_nombre=documento_nombre or titulo,
+        objeto_archivo_original=(
+            f"originals/{resultado.coleccion.doc_id}/{_nombre_seguro(documento_nombre)}" if archivo_original else ""
+        ),
         status_upload="completado" if storage.disponible_oci() else "fallido_local",
     )
     registro = RegistroAdaptacion(
@@ -269,6 +295,8 @@ def _procesar_adaptacion(
     )
 
     storage.subir_texto(objeto_original_id, contenido, content_type="text/plain")
+    if archivo_original:  # HU-55: además del texto extraído, el archivo que subió el usuario
+        storage.subir_bytes(almacenamiento.objeto_archivo_original, archivo_original[0], archivo_original[1])
     subida = storage.subir_json(objeto_id, registro.model_dump(mode="json"))
     if subida.status_upload != almacenamiento.status_upload:
         registro.almacenamiento_oci = almacenamiento.model_copy(update={"status_upload": subida.status_upload})
@@ -413,16 +441,32 @@ def video_contenido(
         raise HTTPException(status_code=422, detail="Solo se puede generar video a partir de un Guion de Clase")
 
     titulo = titulo.strip()[:200] or "Guion de clase"
-    clave = f"v{VERSION}::{objeto_id}::{titulo}::{voz}::{nombre_voz(voz)}"
-    huella = hashlib.sha256(clave.encode("utf-8")).hexdigest()[:16]
-    destino = Path(settings.videos_dir) / f"{huella}.mp4"
-    if not destino.is_file():
+
+    def archivo(motor: str) -> Path:
+        clave = f"v{VERSION}::{objeto_id}::{titulo}::{voz}::{motor}::{nombre_voz(voz, motor)}"
+        return Path(settings.videos_dir) / f"{hashlib.sha256(clave.encode('utf-8')).hexdigest()[:16]}.mp4"
+
+    def entregar(motor: str):
+        estadisticas.registrar("descarga", objeto_id=objeto_id, formato="video")
+        return FileResponse(
+            archivo(motor), media_type="video/mp4", filename="guion_de_clase.mp4",
+            content_disposition_type="inline", headers={"X-Video-Voces": motor},
+        )
+
+    preferido = motor_voz()
+    if archivo(preferido).is_file():
+        return entregar(preferido)
+    with tempfile.TemporaryDirectory(prefix="kairos-video-") as tmp:
+        temporal = Path(tmp) / "video.mp4"
         try:
-            generar_video(respuesta.contenido_adaptado, titulo, destino, voz=voz)
+            motor = generar_video(respuesta.contenido_adaptado, titulo, temporal, voz=voz)
         except VideoError as exc:
             raise HTTPException(status_code=500, detail=f"No se pudo generar el video: {exc}") from exc
-    estadisticas.registrar("descarga", objeto_id=objeto_id, formato="video")
-    return FileResponse(destino, media_type="video/mp4", filename="guion_de_clase.mp4", content_disposition_type="inline")
+        # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima
+        # vez se vuelve a intentar con la voz natural
+        archivo(motor).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(temporal), archivo(motor))
+    return entregar(motor)
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/podcast")
@@ -455,7 +499,7 @@ def podcast_contenido(objeto_id: str):
         if motor == "gemini":
             voces = f"{settings.podcast_tts_model}:{settings.podcast_voz_ana}:{settings.podcast_voz_leo}"
         else:
-            voces = ":".join(f"{t}={nombre_voz(t)}" for t in ("femenina", "masculina"))
+            voces = ":".join(f"{t}={nombre_voz(t, 'sistema')}" for t in ("femenina", "masculina"))
         huella = hashlib.sha256(f"v{VERSION}::{objeto_id}::{motor}::{voces}".encode("utf-8")).hexdigest()[:16]
         return Path(settings.videos_dir) / f"podcast-{motor}-{huella}.mp3"
 
@@ -503,7 +547,41 @@ def _leer_registro(objeto_id: str) -> tuple[RegistroAdaptacion | None, str]:
             objeto_id=objeto_id,
             status_upload="completado" if storage.disponible_oci() else "fallido_local",
         )
+    if not registro.almacenamiento_oci.objeto_documento_original:
+        # guardado antes de registrar el original: está en originals/<doc_id>.txt
+        partes = objeto_id.split("/")
+        original = f"originals/{partes[1]}.txt" if len(partes) >= 3 and partes[0] == "contenidos" else ""
+        if original and storage.descargar_texto(original) is not None:
+            registro.almacenamiento_oci = registro.almacenamiento_oci.model_copy(
+                update={"objeto_documento_original": original}
+            )
     return registro, crudo
+
+
+@app.get("/api/v1/contenidos/{objeto_id:path}/original")
+def descargar_original(objeto_id: str):
+    """El documento original de un material: el archivo tal como se subió (PDF, Word…)
+    o, si se pegó texto, el texto."""
+    from fastapi.responses import Response
+
+    registro, _ = _leer_registro(objeto_id)
+    if registro is None:
+        raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado")
+    al = registro.almacenamiento_oci
+    storage = get_storage_service()
+    for objeto, tipo in ((al.objeto_archivo_original, None), (al.objeto_documento_original, "text/plain; charset=utf-8")):
+        datos = storage.descargar_bytes(objeto) if objeto else None
+        if datos is not None:
+            nombre = Path(objeto).name if tipo is None else f"{Path(al.documento_nombre or 'documento').stem}.txt"
+            media = tipo or mimetypes.guess_type(nombre)[0] or "application/octet-stream"
+            return Response(datos, media_type=media, headers={"Content-Disposition": _adjunto(nombre)})
+    raise HTTPException(status_code=404, detail="El documento original de este material no está guardado")
+
+
+def _adjunto(nombre: str) -> str:
+    from urllib.parse import quote
+
+    return f"attachment; filename=\"documento\"; filename*=UTF-8''{quote(nombre)}"
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/detalle", include_in_schema=False)

@@ -43,13 +43,79 @@ _ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)[.)]?\s+([^\W\d_].{1
 # emoji o símbolo decorativo delante de un título ("🏥 1. Ámbito de la Salud")
 _SIMBOLO_INICIAL = re.compile(r"^(?:[\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?\s*)+")
 
-_PALABRAS_CORTAS = {"a", "al", "de", "del", "e", "el", "en", "la", "las", "lo", "los", "o", "por", "se", "su", "sus", "u", "un", "una", "y", "que", "con", "sin"}
+_PALABRAS_CORTAS = {
+    "a", "al", "de", "del", "e", "el", "en", "la", "las", "lo", "los", "o", "por", "se", "su", "sus",
+    "u", "un", "una", "y", "que", "con", "sin", "no", "si", "sí", "ya", "mi", "tu", "es", "le", "nos", "para",
+}
+# siglas frecuentes en documentación técnica y de salud que tienen vocales y más de 2 letras
+_SIGLAS_CONOCIDAS = {
+    "API", "APIS", "OCI", "OSPF", "LAN", "WAN", "VLAN", "VCN", "EPP", "OMS", "OPS", "IOT", "IOS", "AWS", "GCP", "ERP",
+    "CRM", "SAP", "UCI", "UTI", "ONU", "UNESCO", "COVID", "SIDA", "RAG", "LLM", "JSON", "YAML", "HTML", "CSS", "URL",
+    "USB", "RAM", "CPU", "GPU", "SSD", "NAT", "DHCP", "BGP", "EIGRP", "RIP", "MPLS", "ACL", "IDE", "SDK", "UI", "UX",
+}
+_VOCALES = set("AEIOUÁÉÍÓÚÜ")
+_ROTULO_Y_ORACION = re.compile(
+    r":\s+(?:el|la|los|las|un|una|unos|unas|este|esta|estos|estas|ese|esa|se|es|son|en|su|sus|al|del)\s",
+    re.IGNORECASE,
+)
+_PALABRA_MAYUS = re.compile(r"\b[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9]{1,7}\b")
+_PALABRA = re.compile(r"[^\W\d_]{2,}")
 
 
-def _titulo_legible(texto: str) -> str:
+@dataclass(frozen=True)
+class _Siglas:
+    """Cómo escribe el documento cada palabra fuera de los títulos: "OSPF" en mayúsculas
+    es una sigla; "guía" en minúsculas es una palabra común aunque un título diga "GUÍA"."""
+
+    en_mayusculas: frozenset[str] = frozenset()
+    en_minusculas: frozenset[str] = frozenset()
+    # nombres propios: con mayúscula inicial en medio de una oración ("de Rodrigo Espinoza")
+    nombres: frozenset[str] = frozenset()
+
+
+def _siglas_del_documento(contenido: str) -> _Siglas:
+    mayus: set[str] = set()
+    minus: set[str] = set()
+    nombres: set[str] = set()
+    for linea in contenido.split("\n"):
+        letras = [c for c in linea if c.isalpha()]
+        # solo el texto corrido: un título en mayúsculas no dice qué palabras son siglas
+        if len(linea.split()) < 4 or not letras or sum(c.isupper() for c in letras) / len(letras) > 0.5:
+            continue
+        mayus.update(_PALABRA_MAYUS.findall(linea))
+        minus.update(p for p in _PALABRA.findall(linea) if p.islower())
+        anterior = ""
+        for token in linea.split():
+            palabra = token.strip("()[]«»\"'.,;:¿?¡!")
+            if anterior and anterior[-1] not in ".:!?¿¡" and len(palabra) > 2 and palabra[:1].isupper() and palabra[1:].islower():
+                nombres.add(palabra)
+            anterior = token
+    return _Siglas(frozenset(mayus), frozenset(minus), frozenset(nombres - {m.capitalize() for m in minus}))
+
+
+def _es_sigla(palabra: str, siglas: _Siglas) -> bool:
+    nucleo = palabra.strip("()[]«»\"'.,;:¿?¡!")
+    if not nucleo or nucleo.lower() in _PALABRAS_CORTAS:
+        return False
+    if nucleo in siglas.en_mayusculas:
+        return True
+    if nucleo.lower() in siglas.en_minusculas:
+        return False
+    return (
+        any(c.isdigit() or c == "/" for c in nucleo)  # TCP/IP, IPv4, 5G
+        or len(nucleo) <= 2  # IP, TI, IA
+        or not (set(nucleo.upper()) & _VOCALES)  # BGP, SSH, DNS, HTTP
+        or nucleo.upper() in _SIGLAS_CONOCIDAS
+    )
+
+
+def _titulo_legible(texto: str, siglas: _Siglas | None = None) -> str:
     """Normaliza un título de sección: sin numeración de origen ("1.", "2.3") para que
     todos los títulos se vean igual, y en tipo oración si venía en mayúsculas
-    ("MODOS DE CONFIGURACION"), conservando las siglas cortas ("IP", "OSPF")."""
+    ("MODOS DE CONFIGURACION"), conservando las siglas ("IP", "OSPF"). Qué palabra es
+    sigla lo decide el propio documento (`siglas`) y, si no la usa fuera del título,
+    su forma: sin vocales, con números, de dos letras o una sigla técnica conocida."""
+    siglas = siglas or _Siglas()
     texto = " ".join(texto.split()).rstrip(":").strip()
     texto = re.sub(r"^\d{1,2}(?:\.\d{1,2})*[.)]?\s+", "", texto) or texto
     letras = [c for c in texto if c.isalpha()]
@@ -57,15 +123,17 @@ def _titulo_legible(texto: str) -> str:
         return texto
     palabras = []
     for i, p in enumerate(texto.split()):
-        sigla = len(p) <= 4 and p.lower() not in _PALABRAS_CORTAS
-        if sigla:
+        nucleo = p.strip("()[]«»\"'.,;:¿?¡!")
+        if _es_sigla(p, siglas):
             palabras.append(p)
+        elif i == 0 or nucleo.capitalize() in siglas.nombres:
+            palabras.append(p.replace(nucleo, nucleo.capitalize()) if nucleo else p.capitalize())
         else:
-            palabras.append(p.capitalize() if i == 0 else p.lower())
+            palabras.append(p.lower())
     return " ".join(palabras)
 
 
-def _es_encabezado_texto(linea: str) -> str | None:
+def _es_encabezado_texto(linea: str, siglas: _Siglas | None = None) -> str | None:
     """Reconoce encabezados en documentos sin Markdown (PDF, texto plano).
 
     Acepta títulos numerados ("1. Acceso a la consola") y líneas completas en
@@ -76,13 +144,18 @@ def _es_encabezado_texto(linea: str) -> str | None:
         return None
     m = _ENCABEZADO_NUMERADO.match(linea)
     # un título no trae comas ni punto seguido; una oración numerada sí suele traerlos,
-    # y si termina en ":" es un punto de una lista que presenta lo que sigue
-    if m and len(m.group(2).split()) <= 10 and not re.search(r"[,;]|\.\s|:$", m.group(2)):
-        return _titulo_legible(m.group(2))
+    # y si termina en ":" es un punto de una lista que presenta lo que sigue. "Rótulo: La
+    # oración…" también es un punto de lista: tras los dos puntos empieza una oración.
+    if (
+        m and len(m.group(2).split()) <= 10
+        and not re.search(r"[,;]|\.\s|:$", m.group(2))
+        and not _ROTULO_Y_ORACION.search(m.group(2))
+    ):
+        return _titulo_legible(m.group(2), siglas)
     palabras = linea.split()
     letras = [c for c in linea if c.isalpha()]
     if 2 <= len(palabras) <= 12 and len(letras) >= 6 and all(c.isupper() for c in letras):
-        return _titulo_legible(linea)
+        return _titulo_legible(linea, siglas)
     return None
 
 
@@ -132,15 +205,32 @@ def _secciones_desde(contenido: str, marcas: list[tuple]) -> list[tuple[str, str
 def _detectar_secciones(contenido: str) -> list[tuple[str, str]]:
     """Divide por encabezados Markdown (#, ##, ###) si existen; si no, por encabezados
     numerados o en mayúsculas (típicos de un PDF); si tampoco hay, una sola sección."""
-    marcas = [(m.start(), m.end(), _titulo_legible(m.group(2))) for m in _ENCABEZADO_MD.finditer(contenido)]
+    siglas = _siglas_del_documento(contenido)
+    marcas = [(m.start(), m.end(), _titulo_legible(m.group(2), siglas)) for m in _ENCABEZADO_MD.finditer(contenido)]
 
     if not marcas:
-        posicion = 0
-        for linea in contenido.split("\n"):
-            titulo = _es_encabezado_texto(linea)
+        lineas = contenido.split("\n")
+        inicios = [0]
+        for linea in lineas[:-1]:
+            inicios.append(inicios[-1] + len(linea) + 1)
+        i = 0
+        while i < len(lineas):
+            linea = lineas[i]
+            titulo = _es_encabezado_texto(linea, siglas)
+            siguiente = next((l.strip() for l in lineas[i + 1 :] if l.strip()), "")
+            if titulo and siguiente[:1].islower() and not linea.rstrip().endswith(":"):
+                titulo = None  # una oración que el PDF partió en dos líneas, no un título
             if titulo:
-                marcas.append((posicion, posicion + len(linea), titulo, _nivel_numerado(linea)))
-            posicion += len(linea) + 1
+                inicio, fin = inicios[i], inicios[i] + len(linea)
+                # un título en mayúsculas que sigue en la línea de abajo ("... EN CASO" / "COMPLEJO (...)")
+                if not _nivel_numerado(linea) and i + 1 < len(lineas) and lineas[i + 1].strip():
+                    continuacion = lineas[i + 1]
+                    if not _nivel_numerado(continuacion) and _es_encabezado_texto(continuacion, siglas):
+                        titulo = _titulo_legible(f"{linea.strip()} {continuacion.strip()}", siglas)
+                        fin = inicios[i + 1] + len(continuacion)
+                        i += 1
+                marcas.append((inicio, fin, titulo, _nivel_numerado(linea)))
+            i += 1
         if len(marcas) < 2:  # un único "encabezado" suele ser ruido, no estructura
             marcas = []
 
