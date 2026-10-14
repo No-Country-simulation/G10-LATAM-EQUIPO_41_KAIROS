@@ -1,89 +1,58 @@
 > Generado por NuevaMente a partir de: Protocolo de Bioseguridad
 
-# Protocolo General de Bioseguridad en Entornos de Salud
-
-## Introducción
-
-### Pregunta 1: ¿Cuál es el impacto principal de implementar de manera rigurosa los protocolos de bioseguridad en un establecimiento de salud?
-
-- ◻️ A) Reemplaza la necesidad de segregar los residuos en el punto de generación.
-- ◻️ B) Permite prescindir de la capacitación periódica del personal con experiencia clínica previa.
-- ◻️ C) Elimina totalmente los riesgos físicos y químicos sin requerir equipos de protección personal.
-- ✅ D) Reduce de forma significativa la incidencia de infecciones asociadas a la atención sanitaria y protege al personal de exposiciones innecesarias.
-
-**Justificación:** El documento indica que aplicar correctamente los protocolos de bioseguridad hospitalaria reduce de forma significativa las infecciones asociadas a la atención sanitaria y protege a los profesionales frente a exposiciones innecesarias a riesgos biológicos, físicos y químicos.
+# Protocolos de Bioseguridad y Gestión de Riesgos en Entornos de Salud
 
 ## Higiene de manos
 
-### Pregunta 2: Al establecer la lógica de control para la higiene de manos, ¿en qué condición es aceptable recurrir a una solución a base de alcohol en gel en lugar de agua y jabón?
+### Pregunta 1: En el desarrollo de un módulo de validación para higiene de manos, ¿cuál es la condición necesaria para que el uso de alcohol en gel sea considerado una alternativa válida al lavado con agua y jabón?
 
-- ◻️ A) Solo antes de procedimientos quirúrgicos invasivos en sustitución definitiva del agua y jabón.
-- ✅ B) Siempre que las manos no estén visiblemente sucias, manteniendo la fricción hasta que el producto se seque por completo.
-- ◻️ C) En cualquier escenario con suciedad visible si se efectúa una doble aplicación consecutiva.
-- ◻️ D) Únicamente si el tiempo de aplicación se reduce a menos de diez segundos para agilizar el flujo de atención.
+- ◻️ A) Que se utilice solo después de procedimientos quirúrgicos
+- ✅ B) Que las manos no presenten suciedad visible
+- ◻️ C) Que se aplique únicamente en el dorso de las manos
+- ◻️ D) Que el procedimiento dure menos de 10 segundos
 
-**Justificación:** El documento señala que el alcohol en gel es una alternativa aceptable cuando no se dispone de agua y jabón, siempre que las manos no estén visiblemente sucias y manteniendo la fricción sobre palmas, dorso, espacios interdigitales y uñas hasta secarse por completo.
+**Justificación:** Según el documento, el alcohol en gel es una alternativa aceptable siempre y cuando las manos no estén visiblemente sucias, debiendo mantenerse la fricción hasta que el producto se seque por completo.
 
 ## Equipo de protección personal (EPP)
 
-### Pregunta 3: ¿Qué riesgo operativo describe el protocolo cuando los guantes se reutilizan entre pacientes o se portan durante tareas administrativas?
+### Pregunta 2: Si estuvieras implementando un algoritmo para el orden de retiro (doffing) del Equipo de Protección Personal (EPP), ¿cuál sería la secuencia lógica correcta para minimizar el riesgo de contaminación?
 
-- ◻️ A) Facilita el flujo de trabajo clínico sin requerir retiro ni sustitución entre actividades.
-- ◻️ B) Sustituye formalmente la obligación de realizar higiene de manos antes y después de cada procedimiento.
-- ✅ C) Anula su función protectora y puede convertirlos en un vector de contaminación cruzada.
-- ◻️ D) Conserva intacta su barrera protectora si se desinfectan superficialmente con alcohol.
+- ◻️ A) Protección ocular, guantes, mascarilla y bata
+- ◻️ B) Bata, guantes, mascarilla y protección ocular
+- ◻️ C) Mascarilla, bata, protección ocular y guantes
+- ✅ D) Guantes, protección ocular, bata y finalmente mascarilla
 
-**Justificación:** El documento advierte expresamente que reutilizar guantes entre pacientes distintos, o usarlos durante tareas administrativas ajenas al procedimiento, anula su función protectora y puede convertirlos en un vector de contaminación cruzada.
-
-### Pregunta 4: Para evitar el contacto de superficies contaminadas con la piel o la ropa, ¿cuál es el orden estricto establecido para la retirada del EPP?
-
-- ✅ A) Primero los guantes, luego la protección ocular, la bata y finalmente la mascarilla.
-- ◻️ B) Primero la protección ocular, luego los guantes, la mascarilla y finalmente la bata.
-- ◻️ C) Primero la mascarilla, luego la bata, la protección ocular y finalmente los guantes.
-- ◻️ D) Primero la bata, luego los guantes, la mascarilla y la protección ocular.
-
-**Justificación:** El protocolo define que para retirar el equipo se prioriza evitar el contacto contaminante retirando primero los guantes, luego la protección ocular, la bata y finalmente la mascarilla, ejecutando higiene de manos tras cada elemento retirado.
+**Justificación:** El documento establece que para retirar el EPP el orden se invierte para evitar contacto con superficies contaminadas: primero guantes, luego protección ocular, bata y finalmente la mascarilla.
 
 ## Manejo de residuos biocontaminados
 
-### Pregunta 5: ¿Cómo deben manejarse y descartarse los residuos punzocortantes, tales como agujas y hojas de bisturí, en el punto de generación?
+### Pregunta 3: Al diseñar un sistema de inventario y disposición de residuos, ¿cómo deben clasificarse y segregarse los materiales punzocortantes como agujas y hojas de bisturí?
 
-- ◻️ A) Reencapuchando las agujas antes de disponerlas en bolsas rojas de residuos biocontaminados comunes.
-- ◻️ B) Disponiéndolos en bateas abiertas para su consolidación al término del turno asistencial.
-- ◻️ C) Forzando manualmente su ingreso en contenedores flexibles para maximizar el volumen de acopio.
-- ✅ D) Descartándolos de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar agujas y sin forzar su entrada si se alcanza el límite indicado.
+- ◻️ A) En bolsas rojas tras reencapuchar las agujas para mayor seguridad
+- ◻️ B) En bolsas de color común si no tienen sangre visible
+- ✅ C) En contenedores rígidos resistentes a punción, sin reencapuchar las agujas
+- ◻️ D) En contenedores flexibles siempre que se llenen hasta el tope
 
-**Justificación:** Según el documento, los punzocortantes deben ser descartados de inmediato en contenedores rígidos resistentes a punción, sin reencapuchar las agujas y sin forzar su entrada cuando el contenedor llega a su límite indicado.
+**Justificación:** El protocolo indica que los punzocortantes deben descartarse de inmediato en contenedores rígidos resistentes a punción, prohibiendo explícitamente reencapuchar las agujas.
 
 ## Limpieza y desinfección de superficies
 
-### Pregunta 6: ¿Por qué la limpieza física debe preceder siempre al proceso de desinfección en las superficies hospitalarias?
+### Pregunta 4: Desde una perspectiva de procesos secuenciales, ¿cuál es la relación correcta entre la limpieza y la desinfección de superficies de alto contacto en un hospital?
 
-- ◻️ A) Porque los agentes desinfectantes eliminan de forma mecánica la suciedad visible sin requerir fricción previa.
-- ◻️ B) Porque el fabricante exige aplicar el desinfectante únicamente sobre superficies con polvo acumulado.
-- ✅ C) Porque la materia orgánica remanente puede inactivar parcialmente algunos desinfectantes químicos.
-- ◻️ D) Porque la desinfección solo está autorizada reglamentariamente para superficies de bajo contacto.
+- ✅ A) La superficie debe limpiarse físicamente antes de aplicar el desinfectante
+- ◻️ B) Ambos procesos deben ejecutarse simultáneamente para ahorrar tiempo
+- ◻️ C) La limpieza es opcional si el desinfectante es de alta potencia
+- ◻️ D) La desinfección debe realizarse antes de la limpieza física
 
-**Justificación:** La limpieza y la desinfección son procesos distintos y secuenciales: una superficie debe limpiarse antes de desinfectarse debido a que la materia orgánica puede inactivar parcialmente algunos desinfectantes químicos.
+**Justificación:** El documento aclara que son procesos distintos y secuenciales: una superficie debe limpiarse antes de desinfectarse, ya que la materia orgánica puede inactivar los desinfectantes.
 
 ## Notificación de incidentes y exposiciones
 
-### Pregunta 7: Ante una punción accidental o salpicadura de fluidos corporales a mucosas, ¿cuál es el objetivo clave de notificar de inmediato a salud ocupacional?
+### Pregunta 5: En caso de un incidente de exposición a fluidos (como un pinchazo accidental), ¿cuál es el flujo de trabajo inmediato que debe seguir el personal según el protocolo?
 
-- ✅ A) Permitir la evaluación de riesgo e intervenciones dentro de ventanas de tiempo recomendadas, además de alimentar el registro epidemiológico interno.
-- ◻️ B) Sustituir el lavado de manos estándar por protocolos de desinfección ambiental.
-- ◻️ C) Proceder a la incineración de todos los equipos de protección usados durante la jornada asistencial.
-- ◻️ D) Eximir al personal de cumplir con los circuitos de traslado de residuos biocontaminados.
+- ◻️ A) Reiniciar el sistema de bioseguridad antes de atender a otro paciente
+- ◻️ B) Realizar una limpieza profunda y no notificar si la herida es pequeña
+- ◻️ C) Esperar a finalizar el turno para reportar el incidente
+- ✅ D) Notificar de inmediato al personal de salud ocupacional
 
-**Justificación:** La notificación oportuna ante una exposición a fluidos corporales permite iniciar la evaluación de riesgo y las medidas pertinentes dentro de las ventanas de tiempo recomendadas, además de nutrir el registro epidemiológico interno que impulsa la mejora continua.
-
-## Capacitación continua del personal
-
-### Pregunta 8: ¿Qué criterio pedagógico e institucional garantiza que los programas de capacitación en bioseguridad reduzcan efectivamente los incidentes de forma sostenida?
-
-- ◻️ A) Limitar la formación a una sesión teórica única impartida durante la inducción inicial.
-- ✅ B) Mantener programas periódicos, continuos y verificables que evalúen el conocimiento adquirido.
-- ◻️ C) Distribuir manuales escritos prescindiendo de evaluaciones o registros de seguimiento.
-- ◻️ D) Registrar exclusivamente la lista de asistencia a charlas sin comprobar el aprendizaje.
-
-**Justificación:** El documento explica que los establecimientos que logran reducir incidentes de forma sostenida son aquellos que implementan programas de capacitación continua y verificable, con evaluación del conocimiento adquirido y no limitándose a la mera asistencia o a una inducción inicial.
+**Justificación:** Todo incidente de exposición debe notificarse de inmediato al responsable de salud ocupacional para iniciar la evaluación de riesgo dentro de las ventanas de tiempo recomendadas.
