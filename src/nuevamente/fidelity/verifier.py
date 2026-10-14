@@ -35,6 +35,8 @@ class VeredictoAfirmacion:
     chunk_id_evidencia: str
     similitud: float
     veredicto: VeredictoFidelidad
+    cita: str = ""  # fragmento textual del chunk que la sustenta (lo da el juez de IA)
+    juez: str = "tfidf"  # "tfidf" | "ia"
 
 
 @dataclass

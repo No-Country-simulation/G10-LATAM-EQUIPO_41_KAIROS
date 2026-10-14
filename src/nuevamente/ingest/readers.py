@@ -187,11 +187,56 @@ def leer_pdf(path: Path) -> DocumentoLeido:
         if por_posicion.strip() and _encabezados_apilados(por_posicion) < _encabezados_apilados(contenido):
             contenido = por_posicion
     if not contenido.strip():
-        raise DocumentoInvalidoError(
-            f"El PDF {path.name} no tiene texto extraíble (posible escaneo sin OCR). "
-            "NuevaMente no hace OCR en este MVP."
-        )
+        # PDF escaneado (solo imágenes): se transcribe con OCR (HU-08)
+        contenido = ocr_pdf(path)
     return DocumentoLeido(titulo=path.stem, contenido=limpiar_texto(contenido), fuente=path.name)
+
+
+_MIN_CARACTERES_OCR = 40
+_INDICACION_OCR = (
+    "Este PDF es un documento escaneado. Transcribe TODO su texto, página por página y en el orden "
+    "de lectura, tal como está escrito: no resumas, no traduzcas, no corrijas ni agregues nada. "
+    "Escribe cada título en su propia línea. Si una página no tiene texto, omítela. Devuelve solo el texto."
+)
+
+
+def ocr_pdf(path: Path) -> str:
+    """Texto de un PDF escaneado, leído por Gemini (sin programas de OCR en el servidor).
+
+    Lanza DocumentoInvalidoError si el OCR está apagado, no hay API key o no se reconoce
+    texto suficiente."""
+    from nuevamente.config import settings
+
+    claves = [c for c in (*settings.gemini_api_keys, settings.gemini_api_key) if c]
+    if settings.ocr == "off" or not claves:
+        raise DocumentoInvalidoError(
+            f"El PDF {path.name} no tiene texto extraíble (posible escaneo). Para leerlo con OCR hace "
+            "falta configurar GEMINI_API_KEY; o sube una versión del documento con texto."
+        )
+    from google import genai
+    from google.genai import types
+
+    cliente = genai.Client(api_key=claves[0], http_options=types.HttpOptions(timeout=settings.llm_timeout_s * 3 * 1000))
+    parte_pdf = types.Part.from_bytes(data=path.read_bytes(), mime_type="application/pdf")
+    ultimo: Exception | None = None
+    for modelo in dict.fromkeys((settings.llm_model, *settings.llm_modelos_respaldo)):
+        try:
+            respuesta = cliente.models.generate_content(model=modelo, contents=[parte_pdf, _INDICACION_OCR])
+            texto = (respuesta.text or "").strip()
+            break
+        except Exception as exc:  # sin cuota o saturado: se prueba el modelo siguiente
+            ultimo, texto = exc, None
+    if texto is None:
+        raise DocumentoInvalidoError(
+            f"El PDF {path.name} está escaneado y no se pudo leer con OCR en este momento ({ultimo}). "
+            "Intenta más tarde o sube una versión del documento con texto."
+        )
+    if len(texto) < _MIN_CARACTERES_OCR:
+        raise DocumentoInvalidoError(
+            f"El OCR no reconoció texto suficiente en {path.name}. Revisa que el escaneo sea legible "
+            "o sube una versión del documento con texto."
+        )
+    return texto
 
 
 def _nivel_de_titulo(parrafo) -> int:

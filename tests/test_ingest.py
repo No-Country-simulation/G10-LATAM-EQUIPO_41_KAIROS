@@ -207,3 +207,124 @@ def test_docx_danado_es_documento_invalido(tmp_path):
     ruta.write_bytes(b"esto no es un docx")
     with pytest.raises(DocumentoInvalidoError):
         leer_documento(ruta)
+
+
+# ---------- Títulos de sección (requisitos del chunking) ----------
+
+_CUERPO = "Este párrafo explica el tema con suficiente detalle para formar un fragmento de texto corrido."
+
+
+def _secciones(texto):
+    vistas = []
+    for c in chunkear_documento("Doc", texto):
+        if c.seccion not in vistas:
+            vistas.append(c.seccion)
+    return vistas
+
+
+def test_reconoce_encabezados_markdown_de_tres_niveles():
+    md = f"# Redes en la nube\n{_CUERPO}\n\n## Configuración de IP\n{_CUERPO}\n\n### Rutas OSPF\n{_CUERPO}\n"
+    assert _secciones(md) == ["Redes en la nube", "Configuración de IP", "Rutas OSPF"]
+
+
+def test_en_texto_plano_reconoce_titulos_numerados_y_en_mayusculas():
+    txt = (f"1. Acceso a la consola\n{_CUERPO}\n\n2. CONFIGURACIÓN DE DIRECCIONES IP\n{_CUERPO}\n\n"
+           f"MANEJO DE RUTAS OSPF\n{_CUERPO}\n")
+    assert _secciones(txt) == ["Acceso a la consola", "Configuración de direcciones IP", "Manejo de rutas OSPF"]
+
+
+def test_titulos_sin_numeracion_en_tipo_oracion_y_con_siglas():
+    """Las palabras comunes cortas en mayúsculas (GUÍA, USO, RED) no se toman por siglas."""
+    md = (f"# 1. GUÍA DE OSPF Y BGP\n{_CUERPO} Esta guía usa la red.\n\n"
+          f"# 2.1 USO DEL EPP EN LA RED\n{_CUERPO}\n\n# 3. INTRODUCCIÓN A TCP/IP E IPv4\n{_CUERPO}\n")
+    assert _secciones(md) == ["Guía de OSPF y BGP", "Uso del EPP en la red", "Introducción a TCP/IP e IPv4"]
+
+
+def test_una_sigla_del_documento_se_conserva_aunque_tenga_vocales():
+    """KAIROS no es una sigla conocida, pero el documento la escribe así en el texto."""
+    md = f"# MANUAL DE KAIROS\nEl sistema KAIROS adapta documentos para cada perfil del equipo.\n\n# OTRO APARTADO\n{_CUERPO}\n"
+    assert _secciones(md)[0] == "Manual de KAIROS"
+
+
+def test_el_texto_antes_del_primer_titulo_es_la_introduccion():
+    md = f"Texto previo al primer título que presenta el documento completo.\n\n# Primer tema\n{_CUERPO}\n"
+    assert _secciones(md) == ["Introducción", "Primer tema"]
+    assert _secciones(f"# Primer tema\n{_CUERPO}\n") == ["Primer tema"]  # sin texto previo, sin introducción
+
+
+def test_items_de_lista_y_oraciones_partidas_no_son_titulos():
+    """En un PDF, "1. Rótulo: La oración…" es un punto de lista, y una línea que sigue en
+    minúscula en la de abajo es una oración partida: ninguno abre una sección."""
+    txt = (f"1. Acceso a la consola\n{_CUERPO}\n"
+           "1. Enfoque Cognitivo: Este marco resulta idóneo para comprender la\nrigidez del paciente en su entorno.\n"
+           "2. Interacción y Colapso: La combinación de un\nNeuroticismo alto con baja Amabilidad.\n\n"
+           f"2. Configuración de la red\n{_CUERPO}\n")
+    assert _secciones(txt) == ["Acceso a la consola", "Configuración de la red"]
+
+
+def test_titulo_en_dos_lineas_y_nombres_propios():
+    txt = (f"EVALUACIÓN INTEGRAL EN CASO\nCOMPLEJO (PACIENTE RODRIGO ESPINOZA)\n\nEl informe analiza el caso de Rodrigo Espinoza con detalle suficiente.\n\n"
+           f"MANIFESTACIONES CLÍNICAS DEL CASO\n{_CUERPO}\n")
+    assert _secciones(txt)[0] == "Evaluación integral en caso complejo (paciente Rodrigo Espinoza)"
+
+
+# ---------- OCR de PDF escaneados (HU-08) ----------
+
+def _pdf_escaneado(tmp_path):
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.rect(20, 20, 100, 60)  # solo dibujo, ningún texto: como una página escaneada
+    ruta = tmp_path / "escaneo.pdf"
+    pdf.output(str(ruta))
+    return ruta
+
+
+def _con_gemini(monkeypatch, texto_ocr):
+    import dataclasses
+    from types import SimpleNamespace
+
+    from google import genai
+
+    from nuevamente import config
+
+    monkeypatch.setattr(config, "settings", dataclasses.replace(config.settings, gemini_api_key="clave-de-prueba", ocr="auto"))
+    pedidos = []
+
+    class _Modelos:
+        def generate_content(self, model, contents, config=None):
+            pedidos.append((model, contents[0].inline_data.mime_type))
+            return SimpleNamespace(text=texto_ocr)
+
+    monkeypatch.setattr(genai, "Client", lambda **_: SimpleNamespace(models=_Modelos()))
+    return pedidos
+
+
+def test_pdf_escaneado_se_lee_con_ocr(monkeypatch, tmp_path):
+    from nuevamente.ingest.readers import leer_pdf
+
+    texto = "1. Lavado de manos\nEl lavado de manos con agua y jabón elimina la mayoría de los microorganismos."
+    pedidos = _con_gemini(monkeypatch, texto)
+    leido = leer_pdf(_pdf_escaneado(tmp_path))
+    assert "elimina la mayoría de los microorganismos" in leido.contenido
+    assert pedidos[0][1] == "application/pdf"  # Gemini recibe el PDF tal cual
+
+
+def test_ocr_sin_texto_suficiente_avisa(monkeypatch, tmp_path):
+    from nuevamente.ingest.readers import leer_pdf
+
+    _con_gemini(monkeypatch, "  ")
+    with pytest.raises(DocumentoInvalidoError, match="no reconoció texto suficiente"):
+        leer_pdf(_pdf_escaneado(tmp_path))
+
+
+def test_sin_api_key_el_pdf_escaneado_explica_que_falta(monkeypatch, tmp_path):
+    import dataclasses
+
+    from nuevamente import config
+    from nuevamente.ingest.readers import leer_pdf
+
+    monkeypatch.setattr(config, "settings", dataclasses.replace(config.settings, gemini_api_key="", gemini_api_keys=()))
+    with pytest.raises(DocumentoInvalidoError, match="no tiene texto extraíble"):
+        leer_pdf(_pdf_escaneado(tmp_path))

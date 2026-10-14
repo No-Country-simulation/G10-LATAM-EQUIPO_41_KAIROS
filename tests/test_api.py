@@ -229,7 +229,12 @@ def test_exportar_presentacion_pptx(api_client, documento_salud, formato):
     textos = " ".join(sh.text_frame.text for s in deck.slides for sh in s.shapes if sh.has_text_frame)
     assert "Protocolo" in textos and "¡Gracias!" in textos
     if formato == "Guion de Clase":  # la narración va en las notas del orador
-        assert deck.slides[1].notes_slide.notes_text_frame.text.startswith("Narración")
+        notas = [sl.notes_slide.notes_text_frame.text for sl in deck.slides if sl.has_notes_slide]
+        assert notas and notas[0].startswith("Narración")
+    if formato != "Resumen Ejecutivo":  # HU-47: una diapositiva por sección del documento, sin numerar
+        separadores = [s for s in textos.split("SECCIÓN ")[1:]]
+        assert len(separadores) == 3
+        assert "Lavado de manos" in textos and "Manejo de residuos" in textos
 
 
 @pytest.mark.parametrize("formato", ["Flashcards", "Quiz", "Tutorial", "Resumen Ejecutivo", "Guion de Clase"])
@@ -474,3 +479,80 @@ def test_adaptar_archivo_danado_nombra_el_archivo_del_usuario(api_client):
 def test_opciones_informa_las_extensiones_aceptadas(api_client):
     assert ".docx" in api_client.get("/api/v1/opciones").json()["extensiones"]
 
+
+
+def test_guardado_registra_el_documento_original_y_su_nombre(api_client, documento_salud):
+    files = {"archivo": ("Protocolo final.md", documento_salud.encode("utf-8"), "text/markdown")}
+    data = {"perfil_destinatario": "Principiante", "formato_salida": "Flashcards"}
+    publica = api_client.post("/api/v1/adaptar/archivo", files=files, data=data).json()
+    assert "documento_nombre" not in publica["almacenamiento_oci"]  # la respuesta pública no cambia
+    al = api_client.get(f"/api/v1/contenidos/{publica['almacenamiento_oci']['objeto_id']}/detalle").json()["almacenamiento_oci"]
+    assert al["documento_nombre"] == "Protocolo final.md"
+    assert al["objeto_documento_original"].startswith("originals/")
+
+
+def test_material_antiguo_recupera_su_documento_original(api_client, documento_salud):
+    """Guardado sin `objeto_documento_original`: se completa con originals/<doc_id>.txt."""
+    import json
+
+    from nuevamente.storage.oci_client import get_storage_service
+
+    objeto_id = _crear(api_client, documento_salud, "Flashcards")
+    storage = get_storage_service()
+    registro = json.loads(storage.descargar_texto(objeto_id))
+    registro["almacenamiento_oci"].pop("objeto_documento_original")
+    registro["almacenamiento_oci"].pop("documento_nombre", None)
+    storage.subir_json(objeto_id, registro)
+    al = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()["almacenamiento_oci"]
+    assert al["objeto_documento_original"] == f"originals/{objeto_id.split('/')[1]}.txt"
+
+
+def test_el_namespace_de_oci_se_consulta_una_sola_vez(tmp_path):
+    """HU-56: cada consulta del namespace gasta una solicitud del cupo gratuito."""
+    from types import SimpleNamespace
+
+    from nuevamente.storage.oci_client import StorageService
+
+    consultas = []
+
+    class _Cliente:
+        def get_namespace(self):
+            consultas.append(1)
+            return SimpleNamespace(data="mi-namespace")
+
+        def put_object(self, *args, **kwargs):
+            return None
+
+    storage = StorageService()
+    storage._cliente_oci = _Cliente()
+    for i in range(3):
+        assert storage.subir_texto(f"prueba/{i}.txt", "hola").status_upload == "completado"
+    assert len(consultas) == 1
+
+
+def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path):
+    """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario."""
+    from docx import Document
+
+    doc = Document()
+    for parrafo in documento_salud.split("\n\n"):
+        doc.add_paragraph(parrafo)
+    ruta = tmp_path / "Protocolo final.docx"
+    doc.save(str(ruta))
+    original = ruta.read_bytes()
+    files = {"archivo": (ruta.name, original, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    data = {"perfil_destinatario": "Principiante", "formato_salida": "Flashcards"}
+    objeto_id = api_client.post("/api/v1/adaptar/archivo", files=files, data=data).json()["almacenamiento_oci"]["objeto_id"]
+
+    al = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()["almacenamiento_oci"]
+    assert al["objeto_archivo_original"].endswith("/Protocolo final.docx")
+    r = api_client.get(f"/api/v1/contenidos/{objeto_id}/original")
+    assert r.status_code == 200 and r.content == original  # byte a byte
+    assert "Protocolo%20final.docx" in r.headers["content-disposition"]
+
+
+def test_texto_pegado_descarga_su_texto_como_original(api_client, documento_salud):
+    objeto_id = _crear(api_client, documento_salud, "Quiz")
+    r = api_client.get(f"/api/v1/contenidos/{objeto_id}/original")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    assert "Lavado de manos" in r.text
