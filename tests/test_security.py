@@ -51,3 +51,16 @@ def test_todo_dorso_generado_esta_anclado_a_un_chunk_real(documento_salud):
     for item in r.contenido.items:
         assert item.fuentes, "cada item debe declarar su chunk de evidencia"
         assert all(fid in ids_reales for fid in item.fuentes)
+
+
+def test_el_modulo_de_oci_no_desactiva_la_verificacion_ssl_del_proceso():
+    """Desactivar TLS es solo para el cliente de OCI y solo con OCI_SSL_VERIFY=false; nunca
+    debe afectar a las demás conexiones (Gemini, etc.)."""
+    import os
+    import ssl
+
+    import nuevamente.storage.oci_client  # noqa: F401
+
+    assert ssl._create_default_https_context is ssl.create_default_context
+    assert os.environ.get("PYTHONHTTPSVERIFY") != "0"
+    assert os.environ.get("REQUESTS_CA_BUNDLE", "x") != ""

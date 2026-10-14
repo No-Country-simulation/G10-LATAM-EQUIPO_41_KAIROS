@@ -11,12 +11,15 @@ oculto.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from nuevamente.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,10 +50,17 @@ class StorageService:
         try:
             config = oci.config.from_file(str(config_path), settings.oci_profile)
             oci.config.validate_config(config)
-            return oci.object_storage.ObjectStorageClient(config)
-        except Exception:
+            cliente = oci.object_storage.ObjectStorageClient(config)
+            if not settings.oci_ssl_verify:
+                # Solo para redes con un proxy o antivirus que intercepta HTTPS (OCI_SSL_VERIFY=false).
+                # Afecta únicamente a la sesión de este cliente de OCI, nunca al resto del proceso.
+                logger.warning("OCI_SSL_VERIFY=false: el cliente de OCI no verifica certificados TLS.")
+                cliente.base_client.session.verify = False
+            return cliente
+        except Exception as exc:
             # Cualquier problema de credenciales o red: caemos a fallback local,
-            # sin tumbar la aplicación.
+            # sin tumbar la aplicación (y se registra por qué).
+            logger.warning("OCI Object Storage no disponible, se usa el respaldo local: %s", exc)
             return None
 
     def _namespace(self) -> str:
@@ -70,8 +80,8 @@ class StorageService:
                     self._namespace(), settings.oci_bucket, objeto_id, datos, content_type=content_type
                 )
                 return ResultadoSubida(bucket=settings.oci_bucket, objeto_id=objeto_id, status_upload="completado")
-            except Exception:
-                pass  # cae a fallback local abajo
+            except Exception as exc:  # cae a fallback local abajo
+                logger.warning("No se pudo subir %s a OCI, se guarda en el respaldo local: %s", objeto_id, exc)
 
         destino = self._fallback_dir / objeto_id.replace("/", "__")
         destino.parent.mkdir(parents=True, exist_ok=True)

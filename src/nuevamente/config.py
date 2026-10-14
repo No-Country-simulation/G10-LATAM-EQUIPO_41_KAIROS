@@ -194,6 +194,8 @@ class Settings:
     oci_profile: str = os.getenv("OCI_PROFILE", "DEFAULT")
     oci_compartment_id: str = os.getenv("OCI_COMPARTMENT_ID", "")
     oci_bucket: str = os.getenv("OCI_BUCKET", "nuevamente-contenidos-educativos")
+    # false solo en redes con un proxy/antivirus que intercepta HTTPS: afecta únicamente al cliente de OCI
+    oci_ssl_verify: bool = os.getenv("OCI_SSL_VERIFY", "true").strip().lower() not in ("0", "false", "no")
 
     # --- Fallback local (cuando OCI no está configurado o falla) ---
     fallback_dir: str = os.getenv("FALLBACK_DIR", "data/fallback")
