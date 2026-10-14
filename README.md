@@ -322,6 +322,8 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 - [x] Tests automatizados (253), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
       [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
+- [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
+      `Dockerfile`, `render.yaml` y guía en [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)
 
 ## 9. Estructura del repositorio
 
