@@ -5,13 +5,18 @@ Responsable en el equipo Kairos G10: Bryan Infante (AI Engineer), con Adrian Gil
 
 Grafo (`StateGraph`), un nodo por agente:
 
-    indexar -> planificar -> investigar -> redactar -> criticar --(aprobado / sin mejora)--> finalizar
-                                               ^                        |
-                                               +----(reintento con retroalimentación)----+
+    indexar -> planificar -> investigar -> consultar_cache --(acierto)--> fin
+                                                       |
+                                                       v
+                                                    redactar -> criticar --(aprobado / sin mejora)--> finalizar
+                                                       ^             |
+                                                       +--(reintento con retroalimentación)--+
 
 - indexar: ingesta, chunking y embeddings (RAG).
 - planificar: secciones didácticas, conceptos clave y prerrequisitos.
 - investigar: evidencia por sección (Investigador RAG).
+- consultar_cache: si ese mismo material ya se aprobó antes (mismo documento, evidencia,
+  opciones y versión de los prompts), se devuelve sin llamar al LLM (cache/contenido.py).
 - redactar: única llamada pesada al LLM, con salida estructurada (Pydantic).
 - criticar: verifica cada afirmación contra su chunk; si no alcanza el umbral del
   nicho, devuelve retroalimentación concreta y el grafo vuelve a redactar.
@@ -34,6 +39,7 @@ from pydantic import Field, create_model
 
 from langgraph.graph import END, START, StateGraph
 
+from nuevamente.cache.contenido import ContentCache, version_prompts_formatos
 from nuevamente.config import settings
 from nuevamente.ingest.conceptos import extraer_conceptos
 from nuevamente.fidelity.juez import JuicioIA, juez_disponible, juzgar
@@ -470,6 +476,7 @@ class EstadoFlujo(TypedDict, total=False):
     evaluacion_fidelidad: ResultadoFidelidad
     retroalimentacion: str
     juicio: JuicioIA | None  # del juez de IA, si revisó este intento
+    clave_cache: str | None  # None: el caché no aplica a esta generación
     aprobado: bool
     decision: str  # "reintentar" | "terminar"
     resultado: ResultadoGeneracion
@@ -513,6 +520,91 @@ def _nodo_investigar(estado: EstadoFlujo) -> dict:
         "aprobado": False,
         "tiempos": _cronometrar(estado, "investigador_ms", t),
     }
+
+
+# ---------- Caché de contenido aprobado (Ethan Espinoza, cache/contenido.py) ----------
+
+# un solo caché por proceso; guarda únicamente material ya aprobado por el Crítico
+_cache_contenido = ContentCache(
+    max_entries=settings.cache_contenido_max_entries,
+    ttl_s=settings.cache_contenido_ttl_s,
+)
+
+
+def _cache_activa_para(formato: str, nicho: str) -> bool:
+    if not settings.cache_contenido_activado:
+        return False
+    if not settings.cache_contenido_scoped:
+        return True
+    # scoped seguro: solo Resumen Ejecutivo + Salud (tal como se acordó)
+    return formato == "Resumen Ejecutivo" and nicho == "Salud"
+
+
+def _clave_cache(estado: EstadoFlujo) -> str | None:
+    if not _cache_activa_para(estado["formato"], estado["nicho"]):
+        return None
+    return _cache_contenido.make_key(
+        doc_id=estado["coleccion"].doc_id,
+        perfil=estado["perfil"],
+        formato=estado["formato"],
+        nicho=estado["nicho"],
+        # el idioma también cambia el material
+        nivel_detalle=f"{estado['nivel_detalle']}|{estado.get('idioma', 'es')}",
+        umbral_fidelidad=estado["umbral"],
+        chunk_ids=[c["chunk_id"] for c in estado["chunks_evidencia"]],
+        prompts_sha=version_prompts_formatos() if settings.cache_incluir_prompts_sha else "vpf-off",
+    )
+
+
+def _nodo_consultar_cache(estado: EstadoFlujo) -> dict:
+    """Si este material ya se aprobó antes, se devuelve tal cual, sin llamar al LLM."""
+    t = time.perf_counter()
+    clave = _clave_cache(estado)
+    entrada = _cache_contenido.get(clave) if clave else None
+    if entrada is None:
+        return {"clave_cache": clave, "decision": "redactar"}
+    tiempos = {
+        **estado["tiempos"], "redactor_segundos": 0.0, "critico_ms": 0.0,
+        "cache_hit_ms": round((time.perf_counter() - t) * 1000, 2),
+    }
+    metadatos = Metadatos.model_validate({
+        **entrada.metadatos_base_json,
+        "desde_cache": True,
+        "tiempo_generacion_segundos": round(time.perf_counter() - estado["t0"], 3),
+        "tiempos_por_agente": tiempos,
+    })
+    resultado = ResultadoGeneracion(
+        contenido=estado["schema"].model_validate(entrada.contenido_json),
+        metadatos=metadatos,
+        evaluacion=EvaluacionCalidad.model_validate(entrada.evaluacion_json),
+        coleccion=estado["coleccion"],
+    )
+    return {"clave_cache": clave, "decision": "cache", "resultado": resultado}
+
+
+def _guardar_en_cache(estado: EstadoFlujo, resultado: ResultadoGeneracion) -> None:
+    clave = estado.get("clave_cache")
+    if not clave or not resultado.evaluacion.aprobado_por_critico:
+        return  # solo se cachea lo aprobado
+    ev = resultado.evaluacion
+    _cache_contenido.set(clave, ContentCache.entry_from_aprobado(
+        key=clave,
+        ttl_s=settings.cache_contenido_ttl_s,
+        doc_id=resultado.coleccion.doc_id,
+        chunk_ids=[c["chunk_id"] for c in estado["chunks_evidencia"]],
+        secciones_plan=list(estado["plan"].secciones),
+        conceptos_clave_plan=list(resultado.metadatos.conceptos_clave),
+        prerrequisitos_plan=list(resultado.metadatos.prerrequisitos),
+        contenido=resultado.contenido,
+        evaluacion_json=ev.model_dump(mode="json"),
+        metadatos_base_json=resultado.metadatos.model_dump(mode="json"),
+        umbral_aplicado=ev.umbral_aplicado,
+        score_final=ev.anclaje_fuente_score,
+        afirmaciones_total=ev.afirmaciones_total,
+        afirmaciones_sustentadas=ev.afirmaciones_sustentadas,
+        afirmaciones_no_sustentadas=list(ev.afirmaciones_no_sustentadas),
+        aprobado_por_critico=True,
+    ))
 
 
 def _nodo_redactar(estado: EstadoFlujo) -> dict:
@@ -644,7 +736,9 @@ def _nodo_finalizar(estado: EstadoFlujo) -> dict:
         coherencia_didactica=juicio.coherencia_didactica if juicio else "",
         comentario_coherencia=juicio.comentario_coherencia if juicio else "",
     )
-    return {"resultado": ResultadoGeneracion(contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion)}
+    resultado = ResultadoGeneracion(contenido=contenido, metadatos=metadatos, evaluacion=evaluacion, coleccion=coleccion)
+    _guardar_en_cache(estado, resultado)
+    return {"resultado": resultado}
 
 
 def construir_grafo():
@@ -653,13 +747,15 @@ def construir_grafo():
     grafo.add_node("indexar", _nodo_indexar)
     grafo.add_node("planificar", _nodo_planificar)
     grafo.add_node("investigar", _nodo_investigar)
+    grafo.add_node("consultar_cache", _nodo_consultar_cache)
     grafo.add_node("redactar", _nodo_redactar)
     grafo.add_node("criticar", _nodo_criticar)
     grafo.add_node("finalizar", _nodo_finalizar)
     grafo.add_edge(START, "indexar")
     grafo.add_edge("indexar", "planificar")
     grafo.add_edge("planificar", "investigar")
-    grafo.add_edge("investigar", "redactar")
+    grafo.add_edge("investigar", "consultar_cache")
+    grafo.add_conditional_edges("consultar_cache", lambda e: e["decision"], {"redactar": "redactar", "cache": END})
     grafo.add_edge("redactar", "criticar")
     grafo.add_conditional_edges("criticar", lambda e: e["decision"], {"reintentar": "redactar", "terminar": "finalizar"})
     grafo.add_edge("finalizar", END)
