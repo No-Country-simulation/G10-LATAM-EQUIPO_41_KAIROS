@@ -14,10 +14,10 @@ const PERFILES = {
 const nombrePerfil = (p) => PERFILES[p]?.nombre || p;
 
 const FORMATOS = {
-  "Flashcards": { icono: "🃏", ayuda: "Tarjetas para repasar" },
-  "Quiz": { icono: "❓", ayuda: "Preguntas con respuesta" },
-  "Tutorial": { icono: "🧭", ayuda: "Paso a paso" },
-  "Resumen Ejecutivo": { icono: "📊", ayuda: "Lo esencial en 1 minuto" },
+  "Flashcards": { icono: "🃏", ayuda: "Tarjetas de memorización" },
+  "Quiz": { icono: "❓", ayuda: "Interactivo, con justificaciones" },
+  "Tutorial": { icono: "🧭", ayuda: "Guía práctica paso a paso" },
+  "Resumen Ejecutivo": { icono: "📊", ayuda: "TL;DR: lo esencial en 1 minuto" },
   "Guion de Clase": { icono: "🎬", ayuda: "Para explicar en clase" },
   "Podcast": { icono: "🎙️", ayuda: "Para escuchar" },
 };
@@ -320,7 +320,7 @@ function construirPeticion() {
     datos.append("archivo", estado.archivo);
     for (const [k, v] of Object.entries(comunes)) datos.append(k, v);
     const titulo = estado.archivo.name.replace(/\.[^.]+$/, "");
-    return { url: "/api/v1/adaptar/archivo", opciones: { method: "POST", body: datos }, titulo };
+    return { url: "/api/v1/adaptar/archivo", opciones: { method: "POST", body: datos }, titulo, documento: estado.archivo.name };
   }
 
   const contenido = $("#contenido").value.trim();
@@ -335,6 +335,7 @@ function construirPeticion() {
       body: JSON.stringify({ documento_titulo: titulo, documento_contenido: contenido, ...comunes }),
     },
     titulo,
+    documento: "", // texto pegado: no hay archivo
   };
 }
 
@@ -458,7 +459,7 @@ async function generar(evento) {
     if (controlador.signal.aborted) throw new DOMException("Cancelado", "AbortError");
     estado.tituloDocumento = peticion.titulo;
     mostrarResultado(registro, peticion.titulo, publica);
-    agregarAlHistorial(publica, peticion.titulo);
+    agregarAlHistorial(publica, peticion.titulo, peticion.documento);
   } catch (err) {
     mostrarVista(vistaAnterior);
     if (controlador.signal.aborted) {
@@ -1020,9 +1021,9 @@ function renderResumen(c) {
   return h(
     "div",
     { class: "resumen-ejecutivo" },
-    cabeceraMaterial("Resumen ejecutivo", `Lo esencial de «${estado.tituloDocumento || "el documento"}» en un minuto.`),
+    cabeceraMaterial("Resumen ejecutivo (TL;DR)", `Lo esencial de «${estado.tituloDocumento || "el documento"}» en un minuto.`),
     h("div", { class: "etiquetas resumen-metricas" }, metricas.map((m) => h("span", {}, m))),
-    h("div", { class: "resumen-idea" }, h("h4", {}, "🎯 Idea central"), h("p", {}, idea)),
+    h("div", { class: "resumen-idea" }, h("h4", {}, "🎯 TL;DR · Idea central"), h("p", {}, idea)),
     resto.length > 0 &&
       caja("📄 Contexto y hallazgos", ...resto.map((p) => h("p", { class: "resumen-texto" }, p))),
     caja(
@@ -1107,6 +1108,19 @@ function selectorVoz() {
   );
 }
 
+// Video y podcast tardan minutos: el servidor responde 202 mientras los genera en segundo
+// plano y se vuelve a pedir cada pocos segundos, sin dejar una conexión abierta (error 502).
+async function pedirArchivoGenerado(url) {
+  const limite = Date.now() + 20 * 60 * 1000;
+  const separador = url.includes("?") ? "&" : "?";
+  for (;;) {
+    const resp = await fetch(`${url}${separador}asincrono=1`);
+    if (resp.status !== 202) return resp;
+    if (Date.now() > limite) throw new Error("la generación tardó demasiado; inténtalo de nuevo");
+    await esperar(3000);
+  }
+}
+
 function panelVideo(escenas) {
   const objetoId = estado.respuesta?.almacenamiento_oci?.objeto_id;
   const titulo = estado.tituloDocumento || "Guion de clase";
@@ -1134,7 +1148,7 @@ function panelVideo(escenas) {
     zona.replaceChildren(avance.el);
     try {
       const parametros = new URLSearchParams({ titulo, voz: estado.voz });
-      const resp = await fetch(`/api/v1/contenidos/${objetoId}/video?${parametros}`);
+      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/video?${parametros}`);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
       const videoBlob = await resp.blob();
       await avance.terminar();
@@ -1270,7 +1284,7 @@ function renderPodcast(c) {
     });
     zona.replaceChildren(avance.el);
     try {
-      const resp = await fetch(`/api/v1/contenidos/${objetoId}/podcast`);
+      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/podcast`);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
       const audioBlob = await resp.blob();
       await avance.terminar();
@@ -1432,12 +1446,66 @@ async function exportar(formato, boton) {
 
 // ---------- Historial ----------
 
-function agregarAlHistorial(respuesta, titulo) {
+// Tipo de documento por su extensión, para el historial
+const TIPOS_DOCUMENTO = {
+  pdf: { icono: "📕", tipo: "PDF" },
+  docx: { icono: "📘", tipo: "Word" },
+  md: { icono: "📝", tipo: "Markdown" },
+  markdown: { icono: "📝", tipo: "Markdown" },
+  txt: { icono: "📄", tipo: "Texto" },
+};
+
+function describirDocumento(nombre) {
+  if (nombre === undefined) return null; // material guardado antes de registrar el documento
+  if (!nombre) return { icono: "✍️", texto: "Texto pegado" };
+  const ext = (nombre.match(/\.([^.]+)$/)?.[1] || "").toLowerCase();
+  const { icono, tipo } = TIPOS_DOCUMENTO[ext] || { icono: "📄", tipo: ext.toUpperCase() || "Archivo" };
+  return { icono, texto: `${tipo} · ${nombre}` };
+}
+
+// Documento de origen de un material, a partir de su registro guardado: el nombre del archivo
+// con su extensión, "" si se pegó el texto, o undefined si no se sabe.
+function documentoDelRegistro(al, titulo) {
+  if (!al) return undefined;
+  if (al.tipo_origen === "texto") return "";
+  if (al.objeto_archivo_original) return al.objeto_archivo_original.split("/").pop();
+  if (/\.[a-z0-9]{2,8}$/i.test(al.documento_nombre || "")) return al.documento_nombre;
+  if (al.tipo_origen) return `${titulo}.${al.tipo_origen}`;
+  return undefined;
+}
+
+// Las entradas guardadas antes de registrar el documento lo piden al servidor una vez.
+async function completarHistorial() {
+  const lista = leerHistorial();
+  const faltan = lista.filter((item) => item.documento === undefined);
+  if (!faltan.length) return;
+  let cambio = false;
+  await Promise.all(faltan.map(async (item) => {
+    try {
+      const resp = await fetch(`/api/v1/contenidos/${item.objeto_id}/detalle`);
+      if (!resp.ok) return;
+      const documento = documentoDelRegistro((await resp.json()).almacenamiento_oci, item.titulo);
+      if (documento !== undefined) {
+        item.documento = documento;
+        cambio = true;
+      }
+    } catch {
+      // sin conexión: se intenta en la próxima visita
+    }
+  }));
+  if (cambio) {
+    guardarHistorial(lista);
+    renderHistorial();
+  }
+}
+
+function agregarAlHistorial(respuesta, titulo, documento = "") {
   const objetoId = respuesta.almacenamiento_oci.objeto_id;
   const lista = leerHistorial().filter((x) => x.objeto_id !== objetoId);
   lista.unshift({
     objeto_id: objetoId,
     titulo,
+    documento, // nombre del archivo con su extensión; "" si se pegó el texto
     formato: respuesta.metadatos.formato_generado,
     perfil: respuesta.metadatos.perfil_aplicado,
     fecha: new Date().toISOString(),
@@ -1462,7 +1530,9 @@ function renderHistorial() {
   // puede filtrar con su buscador
   const consulta = normalizar($("#buscar-historial").value);
   const filtrada = consulta
-    ? lista.filter((item) => normalizar(`${item.titulo} ${item.formato} ${item.perfil} ${nombrePerfil(item.perfil)}`).includes(consulta))
+    ? lista.filter((item) => normalizar(
+        `${item.titulo} ${item.formato} ${item.perfil} ${nombrePerfil(item.perfil)} ${describirDocumento(item.documento)?.texto || ""}`,
+      ).includes(consulta))
     : lista;
   $("#historial-sin-resultados").hidden = filtrada.length > 0;
   const elementos = (items) =>
@@ -1481,6 +1551,10 @@ function renderHistorial() {
             },
           },
           h("span", {}, `${FORMATOS[item.formato]?.icono || "📄"} ${item.titulo}`),
+          (() => {
+            const doc = describirDocumento(item.documento);
+            return doc ? h("small", { class: "historial-documento", title: doc.texto }, `${doc.icono} ${doc.texto}`) : null;
+          })(),
           h("small", {}, `${item.formato} · ${nombrePerfil(item.perfil)} · ${new Date(item.fecha).toLocaleString()}`),
         ),
       ),
@@ -1751,6 +1825,7 @@ function iniciar() {
   });
 
   renderHistorial();
+  completarHistorial();
   cargarEstado();
   cargarOpciones().catch((err) => mostrarError(`No se pudieron cargar las opciones: ${err.message}`));
 }

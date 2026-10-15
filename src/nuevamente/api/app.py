@@ -10,6 +10,7 @@ import mimetypes
 import re
 import shutil
 import tempfile
+import threading
 import uuid
 from pathlib import Path
 from typing import Literal
@@ -20,7 +21,7 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from nuevamente import estadisticas
+from nuevamente import VERSION_VISIBLE, __version__, estadisticas
 from nuevamente.agents.graph import generar_contenido_educativo
 from nuevamente.cache.contenido import version_prompts_formatos
 from nuevamente.config import settings
@@ -38,7 +39,7 @@ app = FastAPI(
         "Sistema Inteligente de Adaptación y Generación de Contenido Educativo — "
         "Hackathon ONE G10 (Kairos G10), nicho de foco: Salud."
     ),
-    version="0.1.0",
+    version=__version__,
 )
 
 # Front end web (HTML/CSS/JS sin build), servido por la misma API.
@@ -64,7 +65,7 @@ def _con_version(html: str, archivo: str) -> str:
 
 
 def _pagina(nombre: str, scripts: tuple[str, ...]) -> HTMLResponse:
-    html = (WEB_DIR / nombre).read_text(encoding="utf-8")
+    html = (WEB_DIR / nombre).read_text(encoding="utf-8").replace("{{version}}", VERSION_VISIBLE)
     for archivo in (*scripts, "styles.css"):
         html = _con_version(html, archivo)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
@@ -102,6 +103,7 @@ def health():
     storage = get_storage_service()
     return {
         "status": "ok",
+        "version": __version__,
         "oci_disponible": storage.disponible_oci(),
     }
 
@@ -117,6 +119,7 @@ def opciones():
         "umbral_por_nicho": {n.value: settings.fidelity_min_for(n.value) for n in NichoSector},
         "max_upload_mb": settings.max_upload_mb,
         "extensiones": sorted(EXTENSIONES_SOPORTADAS),
+        "version": VERSION_VISIBLE,
         # Qué API va a generar y, con LLM_PROVIDER=auto, el orden de rotación. Solo lectura:
         # el proveedor se cambia en el .env, no por petición.
         "llm": {
@@ -303,6 +306,7 @@ def _procesar_adaptacion(
         objeto_id=objeto_id,
         objeto_documento_original=objeto_original_id,
         documento_nombre=documento_nombre or titulo,
+        tipo_origen=origen,
         objeto_archivo_original=(
             f"originals/{resultado.coleccion.doc_id}/{_nombre_seguro(documento_nombre)}" if archivo_original else ""
         ),
@@ -442,14 +446,72 @@ def exportar_contenido(objeto_id: str, formato: str = "markdown", titulo: str = 
     raise HTTPException(status_code=400, detail="formato debe ser 'markdown', 'anki_csv', 'pptx', 'docx' o 'pdf'")
 
 
+# ---------- Video y podcast: archivos pesados ----------
+# Generarlos tarda minutos y usa mucha memoria (ffmpeg + voces). Para que un servidor
+# pequeño (Render gratis: 512 MB) no se caiga ni corte la conexión (error 502):
+#   - se genera uno a la vez por proceso;
+#   - con ?asincrono=1 la solicitud responde 202 "generando" al instante y el archivo se
+#     produce en segundo plano; la interfaz vuelve a pedirlo hasta recibirlo.
+_un_archivo_a_la_vez = threading.Lock()
+_trabajos: dict[str, dict] = {}
+_candado_trabajos = threading.Lock()
+
+
+def _fabricar(generar, destino_de, prefijo: str, extension: str) -> str:
+    """Genera el archivo en un temporal y lo mueve a su destino según el motor que lo narró."""
+    with _un_archivo_a_la_vez, tempfile.TemporaryDirectory(prefix=prefijo) as tmp:
+        temporal = Path(tmp) / f"archivo{extension}"  # ffmpeg elige el formato por la extensión
+        motor = generar(temporal)
+        # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima vez
+        # se vuelve a intentar con la voz natural
+        destino_de(motor).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(temporal), destino_de(motor))
+    return motor
+
+
+def _producir(clave: str, generar, destino_de, *, asincrono: bool, que: str, prefijo: str, extension: str):
+    """Devuelve el motor con que quedó el archivo, o una respuesta 202 si sigue en curso."""
+    from nuevamente.exports.video import VideoError
+
+    if not asincrono:
+        try:
+            return _fabricar(generar, destino_de, prefijo, extension)
+        except VideoError as exc:
+            raise HTTPException(status_code=500, detail=f"No se pudo generar el {que}: {exc}") from exc
+
+    with _candado_trabajos:
+        trabajo = _trabajos.get(clave)
+        if trabajo and trabajo["estado"] == "listo":
+            _trabajos.pop(clave)
+            return trabajo["motor"]
+        if trabajo and trabajo["estado"] == "error":
+            _trabajos.pop(clave)  # la próxima solicitud lo vuelve a intentar
+            raise HTTPException(status_code=500, detail=trabajo["detalle"])
+        if trabajo is None:
+            _trabajos[clave] = {"estado": "generando"}
+
+            def tarea():
+                try:
+                    resultado = {"estado": "listo", "motor": _fabricar(generar, destino_de, prefijo, extension)}
+                except Exception as exc:  # ffmpeg, voces, disco: el error llega a la interfaz
+                    resultado = {"estado": "error", "detalle": f"No se pudo generar el {que}: {exc}"}
+                with _candado_trabajos:
+                    _trabajos[clave] = resultado
+
+            threading.Thread(target=tarea, name=f"kairos-{clave[:24]}", daemon=True).start()
+    return JSONResponse(status_code=202, content={"estado": "generando", "mensaje": f"Generando el {que}…"})
+
+
 @app.get("/api/v1/contenidos/{objeto_id:path}/video")
 def video_contenido(
     objeto_id: str,
     titulo: str = "Guion de clase",
     voz: Literal["femenina", "masculina"] = "femenina",
+    asincrono: bool = False,
 ):
-    """MP4 narrado de un Guion de Clase guardado. Se genera la primera vez y queda en caché."""
-    from nuevamente.exports.video import VERSION, VideoError, generar_video
+    """MP4 narrado de un Guion de Clase guardado. Se genera la primera vez y queda en caché.
+    Con asincrono=1 responde 202 mientras se genera (ver _producir)."""
+    from nuevamente.exports.video import VERSION, generar_video
 
     storage = get_storage_service()
     crudo = storage.descargar_texto(objeto_id)
@@ -478,21 +540,16 @@ def video_contenido(
     preferido = motor_voz()
     if archivo(preferido).is_file():
         return entregar(preferido)
-    with tempfile.TemporaryDirectory(prefix="kairos-video-") as tmp:
-        temporal = Path(tmp) / "video.mp4"
-        try:
-            motor = generar_video(respuesta.contenido_adaptado, titulo, temporal, voz=voz)
-        except VideoError as exc:
-            raise HTTPException(status_code=500, detail=f"No se pudo generar el video: {exc}") from exc
-        # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima
-        # vez se vuelve a intentar con la voz natural
-        archivo(motor).parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(temporal), archivo(motor))
-    return entregar(motor)
+    motor = _producir(
+        f"video::{archivo(preferido).name}",
+        lambda temporal: generar_video(respuesta.contenido_adaptado, titulo, temporal, voz=voz),
+        archivo, asincrono=asincrono, que="video", prefijo="kairos-video-", extension=".mp4",
+    )
+    return motor if isinstance(motor, JSONResponse) else entregar(motor)
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/podcast")
-def podcast_contenido(objeto_id: str):
+def podcast_contenido(objeto_id: str, asincrono: bool = False):
     """MP3 de un Podcast guardado, con Ana y Leo en voces distintas. Queda en caché.
 
     La cabecera X-Podcast-Voces indica con qué se narró: "gemini" (voces naturales)
@@ -500,7 +557,6 @@ def podcast_contenido(objeto_id: str):
     """
     from nuevamente.exports.podcast import (
         VERSION,
-        VideoError,
         gemini_tts_configurado,
         generar_podcast,
         voces_del_podcast,
@@ -538,17 +594,12 @@ def podcast_contenido(objeto_id: str):
     if preferido == "sistema" and voces_del_podcast() is None:
         raise HTTPException(status_code=503, detail="No hay voces instaladas en el servidor para narrar el podcast.")
 
-    with tempfile.TemporaryDirectory(prefix="kairos-podcast-") as tmp:
-        temporal = Path(tmp) / "podcast.mp3"
-        try:
-            motor = generar_podcast(respuesta.contenido_adaptado, temporal)
-        except VideoError as exc:
-            raise HTTPException(status_code=500, detail=f"No se pudo generar el podcast: {exc}") from exc
-        # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima
-        # vez se vuelve a intentar con voces naturales
-        archivo(motor).parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(temporal), archivo(motor))
-    return entregar(motor)
+    motor = _producir(
+        f"podcast::{archivo(preferido).name}",
+        lambda temporal: generar_podcast(respuesta.contenido_adaptado, temporal),
+        archivo, asincrono=asincrono, que="podcast", prefijo="kairos-podcast-", extension=".mp3",
+    )
+    return motor if isinstance(motor, JSONResponse) else entregar(motor)
 
 
 def _leer_registro(objeto_id: str) -> tuple[RegistroAdaptacion | None, str]:
@@ -569,6 +620,13 @@ def _leer_registro(objeto_id: str) -> tuple[RegistroAdaptacion | None, str]:
             objeto_id=objeto_id,
             status_upload="completado" if storage.disponible_oci() else "fallido_local",
         )
+    if not registro.almacenamiento_oci.tipo_origen:
+        # guardado antes de registrar el tipo de documento: lo dicen las estadísticas de uso
+        tipo = estadisticas.origen_de(objeto_id)
+        if not tipo and registro.almacenamiento_oci.objeto_archivo_original:
+            tipo = Path(registro.almacenamiento_oci.objeto_archivo_original).suffix.lstrip(".").lower()
+        if tipo:
+            registro.almacenamiento_oci = registro.almacenamiento_oci.model_copy(update={"tipo_origen": tipo})
     if not registro.almacenamiento_oci.objeto_documento_original:
         # guardado antes de registrar el original: está en originals/<doc_id>.txt
         partes = objeto_id.split("/")
