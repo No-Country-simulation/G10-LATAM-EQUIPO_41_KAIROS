@@ -27,7 +27,7 @@ from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 5  # 5: escalado a 960x540 en ffmpeg para aligerar x264
+VERSION = 6  # 6: factor de escala global para el tamaño del texto
 
 ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
 ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
@@ -37,6 +37,11 @@ DURACION_PORTADA_SEG = 4
 DURACION_CIERRE_SEG = 3
 PAUSA_FINAL_SEG = 0.9  # respiro tras la narración de cada diapositiva
 FUNDIDO_SEG = 0.35
+
+# CAMBIO 6: factor de escala global del texto que pasa por _texto_ajustado().
+# 1.0 = como estaba antes; 0.85 = 15% más pequeño. Ajusta este número para
+# agrandar o reducir títulos y cuerpo sin tocar cada lista de tamaños.
+ESCALA_TEXTO = 0.85
 
 # Paleta de la interfaz web (ver web/styles.css).
 FONDO = (255, 248, 241)
@@ -154,6 +159,9 @@ def _envolver(dibujo: ImageDraw.ImageDraw, texto: str, fuente, ancho_max: int) -
 
 def _texto_ajustado(dibujo, texto: str, ancho: int, alto: int, tamanos, negrita=False):
     """Elige el mayor tamaño de letra con el que el texto cabe en la caja."""
+    # CAMBIO 6: aplicar el factor de escala global a los tamaños candidatos.
+    tamanos = [max(10, round(t * ESCALA_TEXTO)) for t in tamanos]
+
     # CAMBIO 2: variables inicializadas antes del bucle.
     fuente = _fuente(tamanos[-1], negrita)
     lineas = _envolver(dibujo, texto, fuente, ancho)
@@ -235,11 +243,7 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
     filtro_audio = "loudnorm=I=-16:TP=-1.5:LRA=11,apad" if audio is not None else "anull"
     _ejecutar([
         ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
-        # CAMBIO 5: el fundido se aplica sobre la imagen de dibujo y luego se escala
-        # a la resolución de salida. Así x264 sólo codifica 960x540 (menos RAM en su
-        # buffer interno y menos CPU por segmento), pero Pillow sigue dibujando a
-        # 1280x720: la composición visual no cambia, el texto queda igual de nítido
-        # y no hay que recalibrar márgenes ni tamaños de fuente.
+        # CAMBIO 5: fundido sobre la imagen de dibujo y luego escalado a la salida.
         "-vf", f"{fundidos},scale={ANCHO_SALIDA}:{ALTO_SALIDA}",
         "-af", filtro_audio,
         # CAMBIO 3: preset ultrafast + lookahead mínimo.
