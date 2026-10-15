@@ -238,6 +238,7 @@ html { scroll-behavior: smooth; }
 .historial-lista button:hover { background: var(--primario-suave); }
 .historial-lista span { overflow-wrap: anywhere; }
 .historial-lista small { color: var(--texto-suave); font-weight: 600; }
+.historial-lista .historial-documento { color: var(--primario); overflow-wrap: anywhere; }
 
 /* "Crear" resalta un momento el formulario al que lleva */
 .panel.resaltado { animation: resaltar 1.1s ease-out; }

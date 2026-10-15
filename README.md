@@ -1,5 +1,7 @@
 # NuevaMente 🎓 — Kairos G10
 
+**Versión 1.4** (Sprint 4). La versión sigue el sprint: 1.N = Sprint N; se define en `src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
+
 Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
 **Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
 Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**.
