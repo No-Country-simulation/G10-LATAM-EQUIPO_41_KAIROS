@@ -20,9 +20,12 @@ transforma en contenido educativo personalizado según:
 
 - **Perfil del destinatario:** Principiante, Desarrollador Junior/Semi Senior,
   Líder Técnico/Arquitecto, Gestor/Ejecutivo.
-- **Formato pedagógico:** Flashcards, Quiz, Tutorial, Resumen Ejecutivo, Guion
-  de Clase, Podcast (solo en audio).
+- **Formato pedagógico:** Guía Práctica Paso a Paso (Tutorial), Flashcards de Memorización,
+  Quiz Interactivo con Justificaciones, Resumen Ejecutivo (TL;DR), Guion de Clase / Video y
+  Podcast (solo en audio). La API acepta tanto el nombre corto ("Tutorial") como el del enunciado.
 - **Nicho/sector:** General, Fintech, Salud, E-commerce, Tecnología.
+- **Nivel de detalle:** Conciso, Didáctico o Profundo.
+- **Idioma de salida** (`idioma_salida`, por API): el material se redacta en el idioma pedido.
 
 Cualquier resultado se puede descargar como **documento Word (.docx)**, **PDF didáctico**
 o **presentación PowerPoint (.pptx)**, además de Markdown y CSV para Anki (botones
@@ -34,7 +37,8 @@ la narración en las **notas del orador**.
 
 El **Guion de Clase** además se puede convertir en un **video MP4 narrado**: una
 diapositiva por escena con la narración en voz en off (botón "Generar video" en
-la interfaz, o `GET /api/v1/contenidos/{objeto_id}/video`).
+la interfaz, o `GET /api/v1/contenidos/{objeto_id}/video`). El video y el podcast se generan en
+segundo plano (ver sección 11).
 
 El **Podcast** es una conversación entre dos locutores: Ana conduce y pregunta,
 y Leo explica lo que dice el documento. Se entrega **solo como audio MP3**, con
@@ -54,6 +58,10 @@ califica de 1 a 5 estrellas y puede dejar un comentario. El panel
 sectores y tipos de archivo más usados, las descargas, la fidelidad media, la calificación
 media y los últimos comentarios. Los eventos se guardan en `data/estadisticas/eventos.jsonl`
 (`ESTADISTICAS_DIR`), sin el texto de ningún documento.
+
+**Historial:** el menú "🕘 Historial" guarda en el navegador los últimos 8 materiales, con el
+**documento de origen y su extensión** (📕 PDF · informe.pdf, 📘 Word · …, ✍️ Texto pegado) y un
+buscador. La pestaña **Guardado** de cada material permite descargar el documento original.
 
 Cada afirmación generada se **verifica contra el documento fuente** y se le
 asigna un score de anclaje. Esto vale para los 6 formatos: en Resumen Ejecutivo
@@ -76,8 +84,8 @@ Documento (PDF/DOCX/MD/TXT)
         │
         ▼
 [Orquestación]  grafo de LangGraph (StateGraph): Planificador → Investigador
-                (por sección) → Redactor (role prompting + few-shot) →
-                Crítico con verificación de fidelidad (con reintento)
+                (por sección) → caché de material aprobado → Redactor (role
+                prompting + few-shot) → Crítico (TF-IDF + juez de IA, con reintento)
         │
         ▼
 [Persistencia]  OCI Object Storage (o fallback local en data/fallback/)
@@ -94,8 +102,10 @@ Es un `StateGraph` de LangGraph ([agents/graph.py](src/nuevamente/agents/graph.p
 flowchart LR
     I[indexar<br/>chunking + embeddings] --> A[planificar]
     A --> B[investigar<br/>RAG por sección]
-    B --> C[redactar<br/>LLM + few-shot]
-    C --> E{criticar<br/>fidelidad}
+    B --> K{consultar_cache}
+    K -- ya aprobado antes --> Z[respuesta desde caché]
+    K -- no está --> C[redactar<br/>LLM + few-shot]
+    C --> E{criticar<br/>TF-IDF + juez de IA}
     E -- score < umbral y quedan reintentos --> C
     E -- aprobado / sin mejora --> F[finalizar<br/>metadatos + OCI]
 ```
@@ -120,7 +130,7 @@ flowchart LR
 | `ingest/`, `rag/` | Gaspar Martinez Paiva | Data Engineer |
 | `agents/graph.py` | Bryan Infante | AI Engineer |
 | `llm/`, `fidelity/` | Adrian Gil | ML Engineer |
-| `schemas/`, `api/` | Ethan Espinoza Acosta | Backend Developer |
+| `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
 | `web/`, `ui/`, `exports/` | Dario Higuera Moreno | No Code Developer |
 | `tests/` | Diana Dure | QA Tester |
 
@@ -137,7 +147,8 @@ local cuando la externa no está configurada o falla.
 | LLM generador | `TemplateLLM` (extractivo, determinista), también respaldo si el LLM falla (`LLM_RESPALDO_LOCAL`) | `GeminiLLM` (`LLM_PROVIDER=gemini`, con modelos de respaldo) o `ClaudeLLM` (`LLM_PROVIDER=claude`) — misma interfaz `LLMClient` |
 | Juez de fidelidad | Similitud TF-IDF contra el chunk citado | TF-IDF + juez de IA con citas textuales verificadas y coherencia didáctica (`JUEZ_IA=auto`) |
 | Orquestación | `StateGraph` de LangGraph con reintento (igual en ambos casos) | — |
-| OCI Object Storage | Fallback a `data/fallback/` si no hay credenciales | Cliente real vía `oci` SDK (ya integrado, solo requiere `.env`) |
+| OCI Object Storage | Fallback a `data/fallback/` si no hay credenciales o OCI rechaza la subida | Cliente real vía `oci` SDK (requiere `~/.oci/config` y la llave de API registrada en la consola) |
+| Caché de contenido | Desactivado por defecto (`CACHE_CONTENIDO_ACTIVADO=false`) | Material ya aprobado se devuelve sin llamar al LLM (`cache/contenido.py`) |
 
 **Importante:** esto no es una simulación con datos falsos. El pipeline corre
 de principio a fin sobre el documento real que se le da, indexa contenido
@@ -160,7 +171,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (253 pruebas, deben pasar todas; ver sección 13)           |
+| `make test`    | Corre los tests (263 pruebas, deben pasar todas; ver sección 13)           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -190,10 +201,17 @@ streamlit run ui/app.py
 python scripts/run_demo.py
 ```
 
-Extras opcionales de `pyproject.toml`: `claude` (Anthropic) y `oci` (OCI Object Storage),
-por ejemplo `pip install -e ".[claude,oci]"`.
+Extras opcionales de `pyproject.toml`: `claude` (Anthropic), `oci` (OCI Object Storage) y
+`chroma` (ChromaDB), por ejemplo `pip install -e ".[claude,oci]"`.
 
-> Las rutas de datos (`data/vectorstore`, `data/fallback`, `data/videos`) son relativas al
+Con Docker (la misma imagen que se usa para desplegar, ver [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)):
+
+```bash
+docker build -t kairos .
+docker run -p 8000:8000 -e GEMINI_API_KEY=... kairos   # http://localhost:8000/
+```
+
+> Las rutas de datos (`data/vectorstore`, `data/fallback`, `data/videos`, `data/estadisticas`) son relativas al
 > directorio desde donde se ejecuta el comando: correr todo desde la raíz del repo.
 
 ### Variables de entorno (`.env`, ver `.env.example`)
@@ -202,23 +220,31 @@ Copia `.env.example` a `.env`. Se carga al importar `nuevamente.config`: primero
 `.env` del directorio actual y luego el de la raíz del repo. Las variables ya
 exportadas en la terminal tienen prioridad sobre las del archivo.
 
+Las más usadas (la lista completa y comentada está en `.env.example`):
+
 ```env
-# "template" (sin red) | "gemini" | "groq" | "cerebras" | "openrouter" | "auto" (cadena)
-LLM_PROVIDER=template
-LLM_PROVIDER=template            # "gemini" (pip install -e ".[gemini]") o "claude" (pip install -e ".[claude]")
-LLM_MODEL=gemini-3.8-flash
-LLM_MODELOS_RESPALDO=gemini-3.5-flash,gemini-flash-latest
+# "template" (sin red) | "gemini" | "claude" | "groq" | "cerebras" | "openrouter" | "auto" (cadena)
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-3.7-flash
+LLM_MODELOS_RESPALDO=gemini-3.5-flash,gemini-3.6-flash,gemini-3-flash-preview,gemini-flash-latest
 GEMINI_API_KEY=                  # https://aistudio.google.com/apikey
 GROQ_API_KEY=                    # https://console.groq.com/keys
 CEREBRAS_API_KEY=                # https://cloud.cerebras.ai
 OPENROUTER_API_KEY=              # https://openrouter.ai/keys
 ANTHROPIC_API_KEY=               # https://platform.claude.com/settings/keys (con LLM_PROVIDER=claude)
 CLAUDE_MODEL=claude-opus-5
-EMBEDDINGS_PROVIDER=local
+EMBEDDINGS_PROVIDER=auto        # Gemini si hay API key, con TF-IDF local de respaldo | local
+VECTOR_STORE=local               # local | chroma
+JUEZ_IA=auto                     # juez de fidelidad con IA | off (solo TF-IDF)
+OCR=auto                         # OCR de PDF escaneados con Gemini | off
 FIDELITY_MIN_GENERAL=0.85
 FIDELITY_MIN_SALUD=0.90          # umbral reforzado para el nicho Salud
 OCI_CONFIG_FILE=~/.oci/config
 OCI_BUCKET=nuevamente-contenidos-educativos
+OCI_SSL_VERIFY=true              # false solo tras un proxy/antivirus que intercepte HTTPS (solo afecta a OCI)
+VIDEO_VOCES=gemini               # gemini (voz natural) | sistema
+VIDEO_HILOS=1                    # hilos de ffmpeg: 1 = menos memoria
+CACHE_CONTENIDO_ACTIVADO=false   # caché de material aprobado (ahorra cuota del LLM)
 ```
 
 #### Rotación de modelos y de APIs
@@ -240,18 +266,17 @@ LLM_CADENA=gemini,groq,cerebras,openrouter
 ```
 
 Solo hay que poner las claves de las APIs que quieras usar: un proveedor sin `*_API_KEY`
-en el `.env` se salta solo, sin romper la cadena. Los cuatro proveedores gratuitos en los que
-recai hoy la generación gratuitita:
+en el `.env` se salta solo, sin romper la cadena. Los cuatro proveedores con plan gratuito:
 
 | Proveedor | Modelos gratuitos por defecto | Dónde sacar la key |
 |---|---|---|
-| Gemini | `gemini-3.8-flash` + 2 de respaldo | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Gemini | `gemini-3.7-flash` + los de `LLM_MODELOS_RESPALDO` (cada uno con su cuota diaria) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | Groq | `openai/gpt-oss-120b`, `openai/gpt-oss-20b` | [console.groq.com/keys](https://console.groq.com/keys) |
 | Cerebras | `gpt-oss-120b`, `qwen-3.8-27b` | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
 | OpenRouter | `openrouter/free` (elige entre los `:free` que soportan salidas estructuradas) | [openrouter.ai/keys](https://openrouter.ai/keys) |
 
 Los proveedores de la tabla se hablan con un único cliente (`llm/openai_compat_llm.py`),
-porque los tres exponen la misma API `chat/completions`. No hace falta instalar nada
+porque las tres exponen la misma API `chat/completions`. No hace falta instalar nada
 extra: usa el SDK `openai` si está presente y, si no, habla HTTP con `httpx`, que ya es
 dependencia del proyecto. Solo Gemini necesita su SDK (`pip install -e ".[gemini]"`).
 
@@ -260,7 +285,8 @@ por proveedor sin tocar código con `LLM_MODELOS_GROQ`, `LLM_MODELOS_CEREBRAS` y
 `LLM_MODELOS_OPENROUTER`.
 
 Ver también `docs/SETUP_OCI.md` para crear la cuenta OCI Always Free, el
-bucket privado y las claves API paso a paso.
+bucket privado y las claves API paso a paso, y `python scripts/test_oci_conexion.py` para
+comprobar una subida real al bucket.
 
 ## 6. Ejemplo de uso de la API
 
@@ -275,6 +301,12 @@ curl -X POST http://localhost:8000/api/v1/adaptar \
     "nicho_sector": "Salud"
   }'
 ```
+
+Otros endpoints útiles: `POST /api/v1/adaptar/archivo` (multipart, con el archivo),
+`GET /api/v1/opciones` (perfiles, formatos, sectores, niveles, voces, extensiones y versión),
+`GET /api/v1/contenidos/{objeto_id}` (recuperar un material), `.../exportar?formato=docx|pdf|pptx|markdown|anki_csv`,
+`.../original` (documento original), `GET /health` y `GET /api/v1/estadisticas`.
+La documentación interactiva completa está en `/docs`.
 
 ## 7. Los 3 escenarios de demo (Salud, casos de uso B2B)
 
@@ -315,13 +347,15 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 - [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
 - [x] Salida JSON estructurada, interfaz web propia + API REST operativa
 - [x] Orquestación con LLM real: Google Gemini (`GeminiLLM`), con Claude como alternativa
-- [ ] Integración con OCI Object Storage **verificada**: el cliente, el SDK y `~/.oci/config`
-      están listos, pero falta la llave privada de la API (`~/.oci/oci_api_key.pem`), así que
-      todo cae al respaldo local (`status_upload: "fallido_local"`); ver `docs/SETUP_OCI.md`
+- [ ] Integración con OCI Object Storage **verificada**: cliente, SDK, `~/.oci/config` y la llave
+      de API (`~/.oci/oci_api_key.pem`) están listos, pero OCI responde `401 NotAuthenticated`
+      hasta registrar la llave pública en la consola (*My profile → API keys*); mientras tanto
+      todo cae al respaldo local (`status_upload: "fallido_local"`). Ver `docs/SETUP_OCI.md`
 - [x] Verificación de fidelidad con score y afirmaciones no sustentadas
 - [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
 - [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
-- [x] Tests automatizados (253), incluida seguridad ante inyección de instrucciones
+- [x] Caché de material aprobado (opcional) para ahorrar cuota del LLM
+- [x] Tests automatizados (263), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
       [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
 - [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
@@ -332,30 +366,41 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 ```
 nuevamente/
 ├── src/nuevamente/
+│   ├── __init__.py        # versión de la app (1.N = Sprint N)
 │   ├── config.py
+│   ├── estadisticas.py    # estadísticas de uso y calificaciones
 │   ├── schemas/        # enums, request, response, formatos (Ethan)
 │   ├── ingest/          # lectores + chunking (Gaspar)
 │   ├── rag/             # embeddings + vector store (Gaspar)
 │   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Adrian)
 │   ├── agents/           # orquestación (Bryan)
-│   ├── fidelity/         # verificación de fidelidad (Adrian)
+│   ├── fidelity/         # verificación de fidelidad y juez de IA (Adrian)
+│   ├── cache/            # caché de material aprobado (Ethan)
 │   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)
-│   ├── exports/          # Markdown, CSV Anki, PowerPoint, video MP4 y narración (Dario)
+│   ├── exports/          # Markdown, Anki, Word, PDF, PowerPoint, video MP4, podcast y narración (Dario)
 │   ├── api/              # FastAPI (Ethan)
-│   └── web/              # Interfaz web: index.html, styles.css, app.js (Dario)
+│   └── web/              # Interfaz web y panel de estadísticas (Dario)
 ├── ui/app.py              # Interfaz Streamlit anterior (opcional)
 ├── scripts/
 │   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
+│   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
+│   ├── generar_requirements.py
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 253 pruebas (Diana)
+├── tests/                  # 263 pruebas (Diana)
+├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
 ├── docs/
-│   ├── SETUP_OCI.md
+│   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
+│   ├── DEPLOY_OCI.md      # despliegue en una VM Always Free de OCI
+│   ├── DEPLOY_RENDER.md   # despliegue con Docker en Render (u otro servidor)
+│   ├── entregables/       # informes e historias de usuario (v2.0)
 │   └── demo/
 │       ├── protocolo_bioseguridad_salud.md
 │       └── resultados/
 ├── pyproject.toml         # paquete instalable (pip install -e .)
 ├── requirements.txt       # dependencias fijadas
 ├── Makefile               # install / test / run-api / run-ui / demo
+├── Dockerfile             # imagen para Render, Railway, Fly.io o cualquier VM
+├── render.yaml            # blueprint de Render (plan gratuito)
 ├── .env.example
 └── README.md
 ```
@@ -400,7 +445,12 @@ nuevamente/
   Sistema → Accesibilidad → Contenido leído → Voz del sistema → Gestionar voces*.
   Kairos la prefiere automáticamente sobre la versión básica.
 - El video se genera la primera vez que se pide y queda en caché en `data/videos/`.
-  Un guion de 8 escenas tarda unos 30 segundos en generarse.
+  Un guion de 12 escenas tarda entre 1,5 y 3 minutos (según la voz).
+- **En segundo plano y con poca memoria**, para servidores pequeños: con `?asincrono=1`
+  (lo usa la interfaz) el video y el podcast responden `202` mientras se generan y la interfaz
+  vuelve a pedirlos cada 3 s, sin dejar una conexión abierta minutos. Se genera un archivo
+  pesado a la vez y ffmpeg usa un hilo (`VIDEO_HILOS=1`): el pico de un video de 12 escenas
+  es de unos 280 MB, dentro de los 512 MB del plan gratuito de Render.
 
 ## 12. Limitaciones conocidas
 
@@ -412,9 +462,16 @@ nuevamente/
   puede dar por sustentada una afirmación si devuelve citas que **existen textualmente** en esos
   fragmentos (se comprueba en código). Con el generador local queda solo el TF-IDF.
 
+### Cuotas gratuitas de Gemini
+
+- El plan gratuito limita las solicitudes por día y por modelo (texto, embeddings y TTS por
+  separado). La app rota entre modelos y, si se agotan todos, usa el respaldo local (TF-IDF,
+  generador local o voces del sistema) y lo indica; muchas pruebas seguidas agotan la cuota.
+
 ### Generador local (`TemplateLLM`)
 
-- Es extractivo: no traduce, así que `idioma_salida` se acepta pero hoy no cambia la salida.
+- Es extractivo: no traduce. `idioma_salida` funciona con un LLM real (Gemini); con el
+  generador local el material sale en el idioma del documento.
 - Es determinista: ignora la retroalimentación del Crítico, por eso el flujo corta
   los reintentos cuando el resultado sale idéntico al intento anterior.
 - En el Quiz, los distractores son oraciones reales de *otras* secciones del
@@ -422,7 +479,7 @@ nuevamente/
 
 ## 13. Pruebas
 
-El proyecto tiene **253 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+El proyecto tiene **263 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
@@ -435,18 +492,18 @@ pytest tests/test_api.py -q        # un archivo
 pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
 ```
 
-Resultado esperado: `253 passed`.
+Resultado esperado: `263 passed`.
 
 ### Qué cubre cada archivo
 
 | Archivo | Pruebas | Qué verifica |
 |---|---:|---|
-| `tests/test_api.py` | 57 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion y podcast MP3 |
+| `tests/test_api.py` | 67 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion (también en segundo plano), podcast MP3, nombres de formato del enunciado, archivo original, versión, namespace de OCI y tipo de documento de origen |
 | `tests/test_llm_rotacion.py` | 41 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
 | `tests/test_llm_salud.py` | 28 | Enrutado por salud de los proveedores: circuit breaker, orden por latencia y carrera entre proveedores |
 | `tests/test_generacion.py` | 15 | Flujo completo de agentes: fidelidad de los formatos de síntesis, reintento del Crítico, nivel de detalle, agrupación por sección, la portada no llega al Redactor y la evidencia cubre todo el documento |
-| `tests/test_estadisticas.py` | 9 | Estadísticas de uso: generar, descargar y calificar se reflejan en el resumen, recalificar reemplaza la calificación anterior, tipo de archivo subido, validación de estrellas (422), material inexistente (404), la página `/estadisticas` tolerancia a una línea dañada e importación del historial |
-| `tests/test_ingest.py` | 26 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, Word (.docx) con títulos y tablas, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, y extracción de **conceptos clave** de un texto sin títulos |
+| `tests/test_estadisticas.py` | 9 | Estadísticas de uso: generar, descargar y calificar se reflejan en el resumen, recalificar reemplaza la calificación anterior, tipo de archivo subido, validación de estrellas (422), material inexistente (404), la página `/estadisticas`, tolerancia a una línea dañada e importación del historial |
+| `tests/test_ingest.py` | 26 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, Word (.docx) con títulos y tablas, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, títulos en dos líneas, siglas y nombres propios, OCR de PDF escaneados y extracción de **conceptos clave** de un texto sin títulos |
 | `tests/test_schemas.py` | 7 | Esquemas Pydantic de cada formato y limpieza de referencias internas (los `chunk_id` no aparecen en el texto que ve el estudiante) |
 | `tests/test_prompts.py` | 14 | Role prompting y ejemplos few-shot: cada ejemplo cumple el esquema de su formato y enseña a citar la fuente |
 | `tests/test_embeddings.py` | 5 | Embeddings: si Gemini falla al indexar o en una consulta, la colección entera pasa a TF-IDF (sin mezclar vectores) |
@@ -454,12 +511,12 @@ Resultado esperado: `253 passed`.
 | `tests/test_cache_contenido.py` | 7 | Caché de contenido aprobado (Ethan): acierto en la segunda generación, alcance Resumen Ejecutivo + Salud, la clave cambia con la evidencia y las opciones, y el endpoint de estadísticas |
 | `tests/test_juez.py` | 5 | Juez de IA: solo aprueba con citas que existen en el documento, una síntesis necesita que todas sus citas existan, y la coherencia didáctica |
 | `tests/test_fidelity.py` | 5 | Verificador de fidelidad: afirmaciones sustentadas, parciales e inventadas |
-| `tests/test_narracion.py` | 12 | Narración del video del Guion de Clase |
+| `tests/test_narracion.py` | 12 | Narración: lectura natural, voz de Gemini con respaldo del sistema sin mezclar voces, cortes por pausa y rotación de modelos TTS |
 | `tests/test_depuracion.py` | 4 | Eliminación de partes duplicadas en el material generado |
 | `tests/test_disponibilidad.py` | 4 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
-| `tests/test_vectorstore.py` | 5 | Indexación y búsqueda por similitud en el vector store |
+| `tests/test_vectorstore.py` | 5 | Indexación y búsqueda por similitud en el vector store, y ChromaDB con los mismos resultados |
 | `tests/test_resumen.py` | 2 | Partes del Resumen Ejecutivo (idea central, puntos clave, riesgos y recomendaciones) para exportarlo |
-| `tests/test_security.py` | 3 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real, y que el módulo de OCI no desactive la verificación TLS del proceso|
+| `tests/test_security.py` | 3 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real, y que el módulo de OCI no desactive la verificación TLS del proceso |
 
 ### Prueba manual con la solicitud del enunciado
 
