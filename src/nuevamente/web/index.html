@@ -38,12 +38,12 @@
           <li><button type="button" id="btn-cancelar" class="btn-cancelar" aria-keyshortcuts="Escape" data-titulo="Detener la creación del material en curso (Esc)" disabled title="No hay ninguna creación en curso"><span aria-hidden="true">⛔</span> Cancelar</button></li>
           <li><button type="button" id="btn-material" data-seccion="material" aria-keyshortcuts="M" data-titulo="Ver el material abierto (M)" disabled title="Aún no has creado ningún material"><span aria-hidden="true">📖</span> <span class="menu-etiqueta">Mi material<small id="material-actual" class="menu-sub" hidden></small></span></button></li>
           <li class="menu-desplegable">
-            <button type="button" id="btn-historial" aria-haspopup="true" aria-expanded="false" aria-controls="historial-menu" aria-keyshortcuts="H" data-titulo="Materiales generados recientemente (H)" disabled title="Aún no hay materiales en el historial">
+            <button type="button" id="btn-historial" aria-haspopup="true" aria-expanded="false" aria-controls="historial-menu" aria-keyshortcuts="H" data-titulo="Historial de materiales (H)" disabled title="Aún no hay materiales en el historial">
               <span aria-hidden="true">🕘</span> Historial <span id="contador-historial" class="insignia" hidden></span><span class="flecha" aria-hidden="true">▾</span>
             </button>
             <div id="historial-menu" class="desplegable" hidden>
-              <p class="desplegable-titulo">Generados recientemente</p>
-              <input id="buscar-historial" type="search" class="buscador" placeholder="Buscar por título, formato o perfil…" aria-label="Buscar en el historial" autocomplete="off">
+              <p class="desplegable-titulo">Historial</p>
+              <input id="buscar-historial" type="search" class="buscador" placeholder="Buscar por título, documento, formato o perfil…" aria-label="Buscar en el historial" autocomplete="off">
               <ul id="historial-lista-menu" class="historial-lista"></ul>
               <p id="historial-sin-resultados" class="sin-resultados" hidden>Ningún material coincide con la búsqueda.</p>
               <button type="button" id="btn-borrar-historial" class="enlace">🗑️ Borrar historial</button>
@@ -262,13 +262,13 @@
       </div>
 
       <aside id="historial-caja" class="historial" hidden>
-        <h3>🕘 Generados recientemente</h3>
+        <h3>🕘 Historial</h3>
         <ul id="historial" class="historial-lista"></ul>
       </aside>
     </section>
   </main>
 
-  <footer class="pie">Kairos · Equipo Kairos G10 · Hackathon ONE G10</footer>
+  <footer class="pie"><span title="Versión de la aplicación (1.N = Sprint N)">Versión {{version}}</span> · Equipo Kairos G10 · Hackathon ONE G10</footer>
 
   <script type="module" src="/static/app.js"></script>
 </body>

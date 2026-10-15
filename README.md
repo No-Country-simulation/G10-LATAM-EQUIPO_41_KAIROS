@@ -1,5 +1,7 @@
 # NuevaMente 🎓 — Kairos G10
 
+**Versión 1.4** (Sprint 4). La versión sigue el sprint: 1.N = Sprint N; se define en `src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
+
 Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
 **Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
 Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**.
@@ -322,6 +324,8 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 - [x] Tests automatizados (253), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
       [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
+- [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
+      `Dockerfile`, `render.yaml` y guía en [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)
 
 ## 9. Estructura del repositorio
 

@@ -21,6 +21,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from nuevamente.config import settings
 from nuevamente.exports.narracion import narrar
 from nuevamente.schemas.formatos import GuionDeClaseContenido
 
@@ -231,7 +232,9 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
     _ejecutar([
         ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
         "-vf", fundidos, "-af", filtro_audio,
-        "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p", "-r", str(FPS),
+        # un hilo y poco lookahead: diapositivas fijas no lo necesitan y la memoria cae a la mitad
+        "-c:v", "libx264", "-tune", "stillimage", "-preset", "veryfast", "-threads", str(settings.video_hilos),
+        "-x264-params", "rc-lookahead=5", "-pix_fmt", "yuv420p", "-r", str(FPS),
         "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
         "-t", f"{total:.2f}", str(destino),
     ])

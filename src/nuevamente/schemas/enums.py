@@ -55,6 +55,31 @@ class FormatoSalida(_OpcionFlexible):
     GUION_DE_CLASE = "Guion de Clase"
     PODCAST = "Podcast"
 
+    @classmethod
+    def _missing_(cls, valor):
+        """También acepta los nombres largos del enunciado ("Resumen Ejecutivo (TL;DR)",
+        "Guía Práctica Paso a Paso", "Quiz Interactivo con Justificaciones"…). La respuesta
+        usa siempre el valor corto."""
+        opcion = super()._missing_(valor)
+        if opcion is None and isinstance(valor, str):
+            opcion = _ALIAS_FORMATO.get(_clave(valor))
+            opcion = cls(opcion) if opcion else None
+        return opcion
+
+
+# Nombres del enunciado (sección "Formato Pedagógico de Salida") -> valor del contrato
+_ALIAS_FORMATO = {
+    _clave(nombre): canonico
+    for canonico, nombres in {
+        "Tutorial": ["Guía Práctica Paso a Paso", "Guía Práctica Paso a Paso (Tutorial)", "Guía Paso a Paso", "Tutorial Paso a Paso"],
+        "Flashcards": ["Flashcards de Memorización", "Tarjetas de Memorización"],
+        "Quiz": ["Quiz Interactivo", "Quiz Interactivo con Justificaciones"],
+        "Resumen Ejecutivo": ["Resumen Ejecutivo (TL;DR)", "TL;DR", "TLDR"],
+        "Guion de Clase": ["Guion de Clase / Video", "Guión de Clase", "Guion de Clase (Video)"],
+    }.items()
+    for nombre in nombres
+}
+
 
 class NichoSector(_OpcionFlexible):
     GENERAL = "General"

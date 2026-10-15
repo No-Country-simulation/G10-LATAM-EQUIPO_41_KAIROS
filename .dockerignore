@@ -1,0 +1,16 @@
+# nada de secretos ni datos locales dentro de la imagen
+.env
+.env.*
+!.env.example
+.git
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+data
+docs/entregables
+deploy
+tests
+ui
+*.pem
