@@ -106,6 +106,15 @@ def importar_historial() -> int:
     return nuevos
 
 
+def origen_de(objeto_id: str) -> str:
+    """Tipo de documento con que se creó un material ("texto", "pdf", "docx"…), según el
+    evento de generación; "" si no quedó registrado."""
+    for evento in leer_eventos():
+        if evento["tipo"] == "generacion" and evento.get("objeto_id") == objeto_id and not evento.get("historico"):
+            return evento.get("origen") or ""
+    return ""
+
+
 def _promedio(valores: list[float], decimales: int = 2) -> float | None:
     return round(sum(valores) / len(valores), decimales) if valores else None
 

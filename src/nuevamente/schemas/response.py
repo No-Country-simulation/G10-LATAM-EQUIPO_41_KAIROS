@@ -57,6 +57,7 @@ class AlmacenamientoOCI(BaseModel):
     objeto_documento_original: str = ""
     documento_nombre: str = ""  # nombre del archivo subido, o el título del texto pegado
     objeto_archivo_original: str = ""  # el archivo subido tal cual (PDF, Word…), si se subió uno
+    tipo_origen: str = ""  # "texto" (pegado) o la extensión del archivo subido: "pdf", "docx"…
     status_upload: str  # "completado" | "fallido_local"
 
 
