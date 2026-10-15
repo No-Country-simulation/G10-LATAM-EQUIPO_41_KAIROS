@@ -27,9 +27,10 @@ from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 4  # 4: ajustes para entornos con poca RAM (Render 512 MB)
+VERSION = 5  # 5: escalado a 960x540 en ffmpeg para aligerar x264
 
-ANCHO, ALTO = 1280, 720
+ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
+ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
 MARGEN = 80
 FPS = 25
 DURACION_PORTADA_SEG = 4
@@ -118,8 +119,6 @@ def _texto_hablado(indice: int, total: int, narracion: str) -> str:
 # ---------- Diapositivas ----------
 
 # CAMBIO 1: lru_cache de fuentes 32 -> 8.
-# Antes podía acumular hasta 32 FreeTypeFont en RAM (~30-90 MB).
-# Con 8 sobra: cada diapositiva usa 2-4 tamaños distintos y se reutilizan.
 @functools.lru_cache(maxsize=8)
 def _fuente(tamano: int, negrita: bool = False) -> ImageFont.FreeTypeFont:
     for ruta in _FUENTES_NEGRITA if negrita else _FUENTES_NORMAL:
@@ -155,8 +154,7 @@ def _envolver(dibujo: ImageDraw.ImageDraw, texto: str, fuente, ancho_max: int) -
 
 def _texto_ajustado(dibujo, texto: str, ancho: int, alto: int, tamanos, negrita=False):
     """Elige el mayor tamaño de letra con el que el texto cabe en la caja."""
-    # CAMBIO 2: inicializar variables antes del bucle. No ahorra memoria, pero
-    # evita depender del último valor del for si ningún tamaño cabe.
+    # CAMBIO 2: variables inicializadas antes del bucle.
     fuente = _fuente(tamanos[-1], negrita)
     lineas = _envolver(dibujo, texto, fuente, ancho)
     interlineado = round(tamanos[-1] * 1.4)
@@ -166,7 +164,6 @@ def _texto_ajustado(dibujo, texto: str, ancho: int, alto: int, tamanos, negrita=
         interlineado = round(tamano * 1.4)
         if len(lineas) * interlineado <= alto:
             return fuente, lineas, interlineado
-    # ni con la letra más chica cabe: se recorta con puntos suspensivos
     maximo = max(1, alto // interlineado)
     lineas = lineas[:maximo]
     lineas[-1] = lineas[-1].rstrip(".,;: ") + "…"
@@ -220,7 +217,6 @@ def _diapositiva(indice: int, total: int, titulo: str, narracion: str, destino: 
         dibujo.text((MARGEN, y), linea, font=fuente, fill=TEXTO)
         y += inter
 
-    # barra de avance y pie
     base = ALTO - 70
     dibujo.rounded_rectangle((MARGEN, base, ANCHO - MARGEN, base + 10), radius=5, fill=(240, 226, 211))
     avance = MARGEN + round((ANCHO - 2 * MARGEN) * indice / total)
@@ -236,14 +232,17 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
     total = _duracion(ffmpeg, audio) + PAUSA_FINAL_SEG if audio is not None else float(duracion_seg)
     fundidos = f"fade=t=in:st=0:d={FUNDIDO_SEG},fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
     entrada_audio = ["-i", str(audio)] if audio is not None else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-    # loudnorm: todas las escenas al mismo volumen; apad: el silencio del respiro final
     filtro_audio = "loudnorm=I=-16:TP=-1.5:LRA=11,apad" if audio is not None else "anull"
     _ejecutar([
         ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
-        "-vf", fundidos, "-af", filtro_audio,
-        # CAMBIO 3: preset ultrafast + lookahead mínimo para reducir el pico de RAM
-        # de x264 (~50-100 MB menos por segmento). Son diapositivas estáticas,
-        # así que no se pierde calidad visible.
+        # CAMBIO 5: el fundido se aplica sobre la imagen de dibujo y luego se escala
+        # a la resolución de salida. Así x264 sólo codifica 960x540 (menos RAM en su
+        # buffer interno y menos CPU por segmento), pero Pillow sigue dibujando a
+        # 1280x720: la composición visual no cambia, el texto queda igual de nítido
+        # y no hay que recalibrar márgenes ni tamaños de fuente.
+        "-vf", f"{fundidos},scale={ANCHO_SALIDA}:{ALTO_SALIDA}",
+        "-af", filtro_audio,
+        # CAMBIO 3: preset ultrafast + lookahead mínimo.
         "-c:v", "libx264", "-tune", "stillimage", "-preset", "ultrafast",
         "-threads", str(settings.video_hilos),
         "-x264-params", "rc-lookahead=2:sync-lookahead=0",
@@ -255,7 +254,7 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
 
 def _titulo_escena(apoyo_visual: str, indice: int) -> str:
     titulo = re.sub(r"^\s*diapositiva\s*:\s*", "", apoyo_visual, flags=re.IGNORECASE).strip()
-    if not titulo or titulo == "Documento completo":  # documento sin encabezados
+    if not titulo or titulo == "Documento completo":
         return f"Parte {indice}"
     return titulo
 
@@ -300,10 +299,8 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
             DURACION_CIERRE_SEG,
         )
 
-        # CAMBIO 4-B: narrar TODO de una vez (respeta la estrategia de narracion.py
-        # para no agotar la cuota gratuita de Gemini: una sola petición agrupada),
-        # pero dibujar y segmentar escena por escena. Así el pico de RAM de Pillow
-        # y de x264 es el de una sola escena, no el del guion completo.
+        # CAMBIO 4-B: narrar TODO de una vez (respeta la cuota gratuita de Gemini),
+        # pero dibujar y segmentar escena por escena.
         audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
 
         segmentos: list[Path] = []
@@ -313,7 +310,6 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
             segmento = carpeta / f"{nombre}.mp4"
             _segmento(ffmpeg, imagen, audio, duracion_seg, segmento)
             segmentos.append(segmento)
-            # liberar la imagen antes de la siguiente (Pillow no la suelta hasta el GC)
             del imagen
 
         lista = carpeta / "segmentos.txt"
