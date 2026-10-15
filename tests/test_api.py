@@ -556,3 +556,70 @@ def test_texto_pegado_descarga_su_texto_como_original(api_client, documento_salu
     r = api_client.get(f"/api/v1/contenidos/{objeto_id}/original")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
     assert "Lavado de manos" in r.text
+
+
+def test_la_version_se_informa_en_la_api_y_en_la_interfaz(api_client):
+    """Versión 1.N = Sprint N: una sola fuente (nuevamente.__version__), igual a pyproject.toml."""
+    import tomllib
+    from pathlib import Path
+
+    from nuevamente import VERSION_VISIBLE, __version__
+
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["project"]["version"] == __version__
+    assert api_client.get("/health").json()["version"] == __version__
+    assert api_client.get("/api/v1/opciones").json()["version"] == VERSION_VISIBLE
+    for pagina in ("/", "/estadisticas"):
+        html = api_client.get(pagina).text
+        assert f"Versión {VERSION_VISIBLE}" in html and "{{version}}" not in html
+
+
+@pytest.mark.parametrize("nombre, canonico", [
+    ("Guía Práctica Paso a Paso (Tutorial)", "Tutorial"),
+    ("Flashcards de Memorización", "Flashcards"),
+    ("Quiz Interactivo con Justificaciones", "Quiz"),
+    ("Resumen Ejecutivo (TL;DR)", "Resumen Ejecutivo"),
+    ("TL;DR", "Resumen Ejecutivo"),
+    ("Guion de Clase / Video", "Guion de Clase"),
+])
+def test_acepta_los_nombres_de_formato_del_enunciado(api_client, documento_salud, nombre, canonico):
+    """El enunciado nombra los formatos así; la respuesta usa siempre el valor corto."""
+    body = {"documento_titulo": "Protocolo", "documento_contenido": documento_salud,
+            "perfil_destinatario": "Principiante", "formato_salida": nombre}
+    r = api_client.post("/api/v1/adaptar", json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["metadatos"]["formato_generado"] == canonico
+
+
+def test_un_formato_inexistente_sigue_dando_422(api_client, documento_salud):
+    body = {"documento_titulo": "Protocolo", "documento_contenido": documento_salud,
+            "perfil_destinatario": "Principiante", "formato_salida": "Crucigrama"}
+    assert api_client.post("/api/v1/adaptar", json=body).status_code == 422
+
+
+def test_el_registro_guarda_el_tipo_de_documento_de_origen(api_client, documento_salud):
+    """Para el historial: "texto" si se pegó, o la extensión del archivo subido."""
+    pegado = _crear(api_client, documento_salud, "Quiz")
+    assert api_client.get(f"/api/v1/contenidos/{pegado}/detalle").json()["almacenamiento_oci"]["tipo_origen"] == "texto"
+    files = {"archivo": ("guia.md", documento_salud.encode("utf-8"), "text/markdown")}
+    data = {"perfil_destinatario": "Principiante", "formato_salida": "Quiz"}
+    subido = api_client.post("/api/v1/adaptar/archivo", files=files, data=data).json()["almacenamiento_oci"]["objeto_id"]
+    al = api_client.get(f"/api/v1/contenidos/{subido}/detalle").json()["almacenamiento_oci"]
+    assert al["tipo_origen"] == "md" and al["documento_nombre"] == "guia.md"
+
+
+def test_video_en_segundo_plano_responde_202_y_luego_el_archivo(api_client, documento_salud):
+    """Para servidores pequeños: con asincrono=1 no se deja la conexión abierta minutos."""
+    import time
+
+    objeto_id = _crear(api_client, documento_salud, "Guion de Clase")
+    url = f"/api/v1/contenidos/{objeto_id}/video"
+    r = api_client.get(url, params={"titulo": "Asincrono", "asincrono": 1})
+    assert r.status_code == 202 and r.json()["estado"] == "generando"
+    for _ in range(120):
+        r = api_client.get(url, params={"titulo": "Asincrono", "asincrono": 1})
+        if r.status_code != 202:
+            break
+        time.sleep(0.5)
+    assert r.status_code == 200 and r.headers["content-type"] == "video/mp4"
+    assert r.content[4:8] == b"ftyp"  # un MP4 de verdad

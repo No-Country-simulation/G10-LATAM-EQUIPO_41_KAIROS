@@ -207,6 +207,8 @@ class Settings:
     video_voz_femenina: str = os.getenv("VIDEO_VOZ_FEMENINA", "Sulafat")
     video_voz_masculina: str = os.getenv("VIDEO_VOZ_MASCULINA", "Charon")
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
+    # hilos de ffmpeg al codificar el video: 1 usa mucha menos memoria (servidores de 512 MB)
+    video_hilos: int = _env_int("VIDEO_HILOS", 1)
 
     # --- Estadísticas de uso y calificaciones (ver estadisticas.py) ---
     estadisticas_dir: str = os.getenv("ESTADISTICAS_DIR", "data/estadisticas")
