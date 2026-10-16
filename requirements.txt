@@ -1,6 +1,8 @@
 # Generado por scripts/generar_requirements.py; no editar a mano.
-# Extras incluidos: dev, oci, gemini, claude, ui. Python 3.14.
+# Extras incluidos: dev, oci, gemini, claude, ui, openai. Python 3.14.
 # Instalar con: pip install -r requirements.txt
+# Proveedores de IA: Gemini (google-genai), Claude (anthropic) y, con el SDK openai,
+# OpenAI, OpenRouter, Cohere, Groq y Cerebras (API compatible con OpenAI).
 
 # El propio proyecto (paquete nuevamente), instalado desde la raíz del repo
 -e .
@@ -63,6 +65,7 @@ multidict==6.9.1
 narwhals==2.26.0
 numpy==2.5.3
 oci==2.187.2
+openai==3.31.0
 opentelemetry-api==1.45.1
 orjson==3.13.0
 ormsgpack==1.12.2
