@@ -23,3 +23,5 @@ CONTEXTO_PROYECTO.txt
 # historial local del benchmark de latencia (cambia en cada corrida)
 docs/benchmark_api_ultima.json
 REPORTE_ARQUITECTURA_LLM.txt
+# Archivos temporales de bloqueo de Word/Excel/PowerPoint
+~$*
