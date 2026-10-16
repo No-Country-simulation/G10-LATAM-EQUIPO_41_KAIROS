@@ -753,3 +753,49 @@ def test_gemini_diagnostico_incluye_codigo_mensaje_y_headers():
     assert "retry-after" in mensaje or "x-goog-ratelimit-reset" in mensaje
 
 
+
+
+# --- Cohere -------------------------------------------------------------------
+
+
+def test_cohere_esta_registrado_en_la_fabrica_y_en_la_cadena():
+    from nuevamente.llm.cadena_llm import PROVEEDORES_CADENA
+    from nuevamente.llm.factory import _FACTORIES
+
+    assert "cohere" in _FACTORIES
+    assert "cohere" in PROVEEDORES_CADENA
+
+
+def test_cohere_sin_api_key_se_salta_en_la_cadena(monkeypatch):
+    import dataclasses
+
+    from nuevamente.llm import openai_compat_llm
+
+    sin_clave = dataclasses.replace(openai_compat_llm.settings, cohere_api_key="")
+    monkeypatch.setattr(openai_compat_llm, "settings", sin_clave)
+    with pytest.raises(LLMError, match="Cohere"):
+        openai_compat_llm.crear_cohere()
+
+
+def test_cohere_usa_su_endpoint_de_compatibilidad_y_sus_modelos(monkeypatch):
+    from nuevamente.llm.openai_compat_llm import crear_cohere
+
+    monkeypatch.delenv("LLM_MODELOS_COHERE", raising=False)
+    cliente = crear_cohere(api_key="clave-de-prueba")
+    assert cliente.clave_proveedor == "cohere"
+    assert cliente.nombre_modelo == "command-a-plus-05-2026"
+    assert "api.cohere.ai/compatibility/v1" in str(
+        getattr(cliente._client, "base_url", "") or cliente._httpx.base_url
+    )
+
+
+def test_openai_esta_registrado_y_usa_modelos_mini(monkeypatch):
+    from nuevamente.llm.cadena_llm import PROVEEDORES_CADENA
+    from nuevamente.llm.factory import _FACTORIES
+    from nuevamente.llm.openai_compat_llm import crear_openai
+
+    assert "openai" in _FACTORIES and "openai" in PROVEEDORES_CADENA
+    monkeypatch.delenv("LLM_MODELOS_OPENAI", raising=False)
+    cliente = crear_openai(api_key="clave-de-prueba")
+    assert cliente.clave_proveedor == "openai"
+    assert cliente.nombre_modelo == "gpt-4.1-mini"

@@ -177,7 +177,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (263 pruebas, deben pasar todas; ver sección 13)           |
+| `make test`    | Corre los tests (267 pruebas, deben pasar todas; ver sección 13)           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -229,7 +229,7 @@ exportadas en la terminal tienen prioridad sobre las del archivo.
 Las más usadas (la lista completa y comentada está en `.env.example`):
 
 ```env
-# "template" (sin red) | "gemini" | "claude" | "groq" | "cerebras" | "openrouter" | "auto" (cadena)
+# "template" (sin red) | "gemini" | "claude" | "groq" | "cerebras" | "openrouter" | "cohere" | "openai" | "auto" (cadena)
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-3.7-flash
 LLM_MODELOS_RESPALDO=gemini-3.5-flash,gemini-3.6-flash,gemini-3-flash-preview,gemini-flash-latest
@@ -237,6 +237,8 @@ GEMINI_API_KEY=                  # https://aistudio.google.com/apikey
 GROQ_API_KEY=                    # https://console.groq.com/keys
 CEREBRAS_API_KEY=                # https://cloud.cerebras.ai
 OPENROUTER_API_KEY=              # https://openrouter.ai/keys
+COHERE_API_KEY=                  # https://dashboard.cohere.com/api-keys
+OPENAI_API_KEY=                  # https://platform.openai.com/api-keys (de pago)
 ANTHROPIC_API_KEY=               # https://platform.claude.com/settings/keys (con LLM_PROVIDER=claude)
 CLAUDE_MODEL=claude-opus-5
 EMBEDDINGS_PROVIDER=auto        # Gemini si hay API key, con TF-IDF local de respaldo | local
@@ -272,7 +274,7 @@ LLM_CADENA=gemini,groq,cerebras,openrouter
 ```
 
 Solo hay que poner las claves de las APIs que quieras usar: un proveedor sin `*_API_KEY`
-en el `.env` se salta solo, sin romper la cadena. Los cuatro proveedores con plan gratuito:
+en el `.env` se salta solo, sin romper la cadena. Los proveedores con plan gratuito:
 
 | Proveedor | Modelos gratuitos por defecto | Dónde sacar la key |
 |---|---|---|
@@ -280,15 +282,19 @@ en el `.env` se salta solo, sin romper la cadena. Los cuatro proveedores con pla
 | Groq | `openai/gpt-oss-120b`, `openai/gpt-oss-20b` | [console.groq.com/keys](https://console.groq.com/keys) |
 | Cerebras | `gpt-oss-120b`, `qwen-3.8-27b` | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
 | OpenRouter | `openrouter/free` (elige entre los `:free` que soportan salidas estructuradas) | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| Cohere | `command-a-plus-05-2026`, `command-a-03-2025`, `command-r-plus-08-2024` (clave de prueba gratuita) | [dashboard.cohere.com/api-keys](https://dashboard.cohere.com/api-keys) |
+
+OpenAI también está disponible (`OPENAI_API_KEY`, modelos `gpt-4.1-mini` y `gpt-4o-mini`), pero
+es **de pago**: conviene ponerlo al final de `LLM_CADENA`, como último respaldo.
 
 Los proveedores de la tabla se hablan con un único cliente (`llm/openai_compat_llm.py`),
-porque las tres exponen la misma API `chat/completions`. No hace falta instalar nada
+porque todos exponen la misma API `chat/completions` (Cohere, a través de su endpoint de compatibilidad). No hace falta instalar nada
 extra: usa el SDK `openai` si está presente y, si no, habla HTTP con `httpx`, que ya es
 dependencia del proyecto. Solo Gemini necesita su SDK (`pip install -e ".[gemini]"`).
 
 Los límites de los planes gratuitos cambian con frecuencia; se pueden cambiar los modelos
-por proveedor sin tocar código con `LLM_MODELOS_GROQ`, `LLM_MODELOS_CEREBRAS` y
-`LLM_MODELOS_OPENROUTER`.
+por proveedor sin tocar código con `LLM_MODELOS_GROQ`, `LLM_MODELOS_CEREBRAS`,
+`LLM_MODELOS_OPENROUTER`, `LLM_MODELOS_COHERE` y `LLM_MODELOS_OPENAI`.
 
 Ver también `docs/SETUP_OCI.md` para crear la cuenta OCI Always Free, el
 bucket privado y las claves API paso a paso, y `python scripts/test_oci_conexion.py` para
@@ -361,7 +367,7 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 - [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
 - [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
 - [x] Caché de material aprobado (opcional) para ahorrar cuota del LLM
-- [x] Tests automatizados (263), incluida seguridad ante inyección de instrucciones
+- [x] Tests automatizados (267), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
       [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
 - [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
@@ -392,7 +398,7 @@ nuevamente/
 │   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
 │   ├── generar_requirements.py
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 263 pruebas (Diana)
+├── tests/                  # 267 pruebas (Diana)
 ├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
 ├── docs/
 │   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
@@ -485,7 +491,7 @@ nuevamente/
 
 ## 13. Pruebas
 
-El proyecto tiene **263 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+El proyecto tiene **267 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
@@ -498,7 +504,7 @@ pytest tests/test_api.py -q        # un archivo
 pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
 ```
 
-Resultado esperado: `263 passed`.
+Resultado esperado: `267 passed`.
 
 ### Qué cubre cada archivo
 

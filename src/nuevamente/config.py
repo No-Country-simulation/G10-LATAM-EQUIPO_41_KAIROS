@@ -145,6 +145,8 @@ class Settings:
     groq_api_key: str = field(default=os.getenv("GROQ_API_KEY", ""), repr=False)
     cerebras_api_key: str = field(default=os.getenv("CEREBRAS_API_KEY", ""), repr=False)
     openrouter_api_key: str = field(default=os.getenv("OPENROUTER_API_KEY", ""), repr=False)
+    cohere_api_key: str = field(default=os.getenv("COHERE_API_KEY", ""), repr=False)
+    openai_api_key: str = field(default=os.getenv("OPENAI_API_KEY", ""), repr=False)
 
     # --- Control de tasa (RPM / TPM) y optimización Gemini ---
     # Pausa prudente mínima en segundos entre llamadas consecutivas a la API

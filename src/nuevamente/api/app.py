@@ -132,6 +132,8 @@ def opciones():
                     ("groq", settings.groq_api_key),
                     ("cerebras", settings.cerebras_api_key),
                     ("openrouter", settings.openrouter_api_key),
+                    ("cohere", settings.cohere_api_key),
+                    ("openai", settings.openai_api_key),
                 )
                 if clave
             ],
