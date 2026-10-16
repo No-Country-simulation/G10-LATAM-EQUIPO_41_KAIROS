@@ -11,9 +11,10 @@ const ctx = lienzo.getContext("2d");
 const movimientoReducido = matchMedia("(prefers-reduced-motion: reduce)");
 const DISTANCIA = 150;          // distancia máxima para unir dos nodos (px)
 const DISTANCIA_PUNTERO = 190;  // radio en que el puntero atrae conexiones
+const MS_POR_CUADRO = 1000 / 30; // 30 cuadros por segundo: fluido y con la mitad de trabajo
 
 let ancho = 0, alto = 0, nodos = [], pulsos = [], colores = {};
-let puntero = null, animacion = null;
+let puntero = null, animacion = null, ultimoCuadro = 0;
 
 function leerColores() {
   const css = getComputedStyle(document.documentElement);
@@ -31,12 +32,12 @@ function conAlfa(hex, alfa) {
 }
 
 function crearNodos() {
-  const cantidad = Math.min(110, Math.round((ancho * alto) / 15000));
+  const cantidad = Math.min(70, Math.round((ancho * alto) / 22000));
   nodos = Array.from({ length: cantidad }, () => ({
     x: Math.random() * ancho,
     y: Math.random() * alto,
-    vx: (Math.random() - 0.5) * 0.35,
-    vy: (Math.random() - 0.5) * 0.35,
+    vx: (Math.random() - 0.5) * 0.7,
+    vy: (Math.random() - 0.5) * 0.7,
     r: 1.2 + Math.random() * 1.8,
   }));
   pulsos = [];
@@ -103,12 +104,13 @@ function dibujar() {
   for (const p of pulsos) {
     const x = p.a.x + (p.b.x - p.a.x) * p.t;
     const y = p.a.y + (p.b.y - p.a.y) * p.t;
-    const brillo = ctx.createRadialGradient(x, y, 0, x, y, 7);
-    brillo.addColorStop(0, conAlfa(colores.menta, 0.9 * intensidad));
-    brillo.addColorStop(1, conAlfa(colores.menta, 0));
-    ctx.fillStyle = brillo;
+    ctx.fillStyle = conAlfa(colores.menta, 0.18 * intensidad);
     ctx.beginPath();
-    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = conAlfa(colores.menta, 0.9 * intensidad);
+    ctx.beginPath();
+    ctx.arc(x, y, 2.2, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -120,15 +122,17 @@ function avanzar() {
     if (n.x < 0 || n.x > ancho) n.vx *= -1;
     if (n.y < 0 || n.y > alto) n.vy *= -1;
   }
-  for (const p of pulsos) p.t += 0.012;
+  for (const p of pulsos) p.t += 0.024;
   pulsos = pulsos.filter((p) => p.t < 1 && Math.hypot(p.a.x - p.b.x, p.a.y - p.b.y) < DISTANCIA * 1.2);
-  if (pulsos.length < 14 && Math.random() < 0.08) lanzarPulso();
+  if (pulsos.length < 10 && Math.random() < 0.12) lanzarPulso();
 }
 
-function cuadro() {
+function cuadro(ahora) {
+  animacion = requestAnimationFrame(cuadro);
+  if (ahora - ultimoCuadro < MS_POR_CUADRO) return;
+  ultimoCuadro = ahora;
   avanzar();
   dibujar();
-  animacion = requestAnimationFrame(cuadro);
 }
 
 function iniciar() {
