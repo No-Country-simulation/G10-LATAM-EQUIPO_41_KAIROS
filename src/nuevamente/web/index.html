@@ -76,6 +76,22 @@
       <button class="dialogo-cerrar" aria-label="Cerrar">✕</button>
     </form>
     <h2 id="como-titulo">💡 Cómo funciona Kairos</h2>
+    <p class="como-intro">Kairos convierte un documento técnico en material de estudio hecho a tu medida, usando solo lo que dice ese documento.</p>
+
+    <h3 class="como-subtitulo">Qué puedes hacer</h3>
+    <ul class="como-funciones">
+      <li><strong>📎 Usar tu propio documento</strong><span>Pega el texto o sube un PDF (también escaneado), un Word (.docx), un Markdown o un archivo de texto.</span></li>
+      <li><strong>👤 Elegir para quién es</strong><span>Principiante, Desarrollador Junior/Semi Senior, Líder Técnico/Arquitecto o Gestor/Ejecutivo.</span></li>
+      <li><strong>📚 Elegir cómo aprender</strong><span>Guía paso a paso, flashcards, quiz con justificaciones, resumen ejecutivo, guion de clase o podcast.</span></li>
+      <li><strong>🎯 Ajustar sector y detalle</strong><span>General, Fintech, Salud, E-commerce o Tecnología, con un nivel conciso, didáctico o profundo.</span></li>
+      <li><strong>⬇️ Descargar el material</strong><span>En Word, PDF o PowerPoint, además de Markdown y CSV para importar las flashcards en Anki.</span></li>
+      <li><strong>🎬 Ver la clase en video</strong><span>El guion de clase se convierte en un video MP4 narrado, con una diapositiva por escena.</span></li>
+      <li><strong>🎧 Escuchar un podcast</strong><span>Ana pregunta y Leo explica el documento en una conversación en audio MP3 con dos voces.</span></li>
+      <li><strong>🕘 Volver a tus materiales</strong><span>El historial guarda tus últimos 8 materiales en este navegador, con el documento de origen y un buscador.</span></li>
+      <li><strong>⭐ Dar tu opinión</strong><span>Califica cada material de 1 a 5 estrellas y deja un comentario; el panel de estadísticas muestra el uso de la aplicación.</span></li>
+    </ul>
+
+    <h3 class="como-subtitulo">Qué pasa por dentro</h3>
     <ol class="como-pasos">
       <li><strong>📥 Lee tu documento</strong><span>Lo divide en fragmentos por sección, conservando de dónde sale cada uno.</span></li>
       <li><strong>🔎 Busca evidencia</strong><span>Recupera los fragmentos más relevantes de cada sección, no solo de una búsqueda global.</span></li>
@@ -123,7 +139,7 @@
     <form id="form" class="panel" novalidate>
       <div class="alerta-idioma" role="note">
         <span class="alerta-icono" aria-hidden="true">⚠️</span>
-        <p><strong>Importante: solo se acepta texto en castellano.</strong>
+        <p><strong>Importante: solo se acepta texto en español.</strong>
           Pega o sube documentos escritos en español; otros idiomas no se procesan correctamente.</p>
       </div>
 
@@ -270,6 +286,7 @@
 
   <footer class="pie"><span title="Versión de la aplicación (1.N = Sprint N)">Versión {{version}}</span> · Equipo Kairos G10 · Hackathon ONE G10</footer>
 
+  <script type="module" src="/static/fondo.js"></script>
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>
