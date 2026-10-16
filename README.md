@@ -72,6 +72,10 @@ interfaz web (HTML/CSS/JS, servida por la misma API en `http://localhost:8000/`)
 
 ## 2. Arquitectura
 
+![Arquitectura de Kairos](docs/entregables/Arquitectura_Kairos.jpg)
+
+En texto:
+
 ```
 Documento (PDF/DOCX/MD/TXT)
         │
@@ -97,6 +101,8 @@ Documento (PDF/DOCX/MD/TXT)
 ### Diagrama de flujo de agentes
 
 Es un `StateGraph` de LangGraph ([agents/graph.py](src/nuevamente/agents/graph.py)), un nodo por agente:
+
+![Flujo de agentes de Kairos](docs/entregables/Flujo_Agentes_Kairos.jpg)
 
 ```mermaid
 flowchart LR
