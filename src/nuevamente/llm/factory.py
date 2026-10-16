@@ -95,6 +95,18 @@ def _crear_openrouter() -> LLMClient:
     return crear_openrouter()
 
 
+def _crear_cohere() -> LLMClient:
+    from nuevamente.llm.openai_compat_llm import crear_cohere
+
+    return crear_cohere()
+
+
+def _crear_openai() -> LLMClient:
+    from nuevamente.llm.openai_compat_llm import crear_openai
+
+    return crear_openai()
+
+
 def _crear_cadena() -> LLMClient:
     from nuevamente.llm.cadena_llm import crear_cadena
 
@@ -109,6 +121,8 @@ _FACTORIES: dict[str, Callable[[], LLMClient]] = {
     "groq": _crear_groq,
     "cerebras": _crear_cerebras,
     "openrouter": _crear_openrouter,
+    "cohere": _crear_cohere,
+    "openai": _crear_openai,
     "auto": _crear_cadena,
 }
 

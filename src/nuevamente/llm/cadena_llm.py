@@ -41,7 +41,7 @@ from nuevamente.llm.salud import RouterSalud, registrar
 logger = logging.getLogger(__name__)
 
 # Proveedores que se pueden encadenar, en el orden de factories de llm/factory.py.
-PROVEEDORES_CADENA = ("gemini", "groq", "cerebras", "openrouter", "template")
+PROVEEDORES_CADENA = ("gemini", "groq", "cerebras", "openrouter", "cohere", "openai", "template")
 
 
 class CadenaLLM:

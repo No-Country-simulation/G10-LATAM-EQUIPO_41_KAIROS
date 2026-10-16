@@ -303,6 +303,32 @@ def crear_openrouter(api_key: str | None = None, modelo: str | None = None) -> O
     )
 
 
+def crear_cohere(api_key: str | None = None, modelo: str | None = None) -> OpenAICompatLLM:
+    return _crear(
+        # Endpoint de compatibilidad con la API de OpenAI (chat/completions y json_schema).
+        base_url="https://api.cohere.ai/compatibility/v1",
+        api_key=api_key or settings.cohere_api_key,
+        modelo=modelo,
+        modelos_defecto=_modelos_de(
+            "LLM_MODELOS_COHERE",
+            ("command-a-plus-05-2026", "command-a-03-2025", "command-r-plus-08-2024"),
+        ),
+        etiqueta="Cohere",
+    )
+
+
+def crear_openai(api_key: str | None = None, modelo: str | None = None) -> OpenAICompatLLM:
+    return _crear(
+        base_url="https://api.openai.com/v1",
+        api_key=api_key or settings.openai_api_key,
+        modelo=modelo,
+        # De pago, sin plan gratuito: modelos "mini" (baratos) que aceptan temperature,
+        # max_tokens y json_schema. La familia GPT-5 rechaza temperature distinta de 1.
+        modelos_defecto=_modelos_de("LLM_MODELOS_OPENAI", ("gpt-4.1-mini", "gpt-4o-mini")),
+        etiqueta="OpenAI",
+    )
+
+
 def _crear(
     base_url: str,
     api_key: str,
