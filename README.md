@@ -190,7 +190,7 @@ Equivalentes sin `make`:
 pip install -e ".[dev,ui,gemini]"
 # (o versiones fijadas: pip install -r requirements.txt)
 # Tras cambiar dependencias en pyproject.toml, regenerar las versiones fijadas:
-#   pip install -e ".[dev,oci,gemini,claude,ui]" && python scripts/generar_requirements.py
+#   pip install -e ".[dev,oci,gemini,claude,ui,openai]" && python scripts/generar_requirements.py
 
 # 2. Correr los tests
 pytest tests/ -v
@@ -461,8 +461,12 @@ nuevamente/
 - **En segundo plano y con poca memoria**, para servidores pequeños: con `?asincrono=1`
   (lo usa la interfaz) el video y el podcast responden `202` mientras se generan y la interfaz
   vuelve a pedirlos cada 3 s, sin dejar una conexión abierta minutos. Se genera un archivo
-  pesado a la vez y ffmpeg usa un hilo (`VIDEO_HILOS=1`): el pico de un video de 12 escenas
-  es de unos 280 MB, dentro de los 512 MB del plan gratuito de Render.
+  pesado a la vez y ffmpeg usa un hilo (`VIDEO_HILOS=1`), dentro de los 512 MB del plan
+  gratuito de Render.
+- **Poca CPU** (Render free da 0,1 CPU): el video sale a 10 cuadros por segundo, cada
+  diapositiva se decodifica una sola vez, x264 usa `ultrafast` y el audio va en mono a 96 kbps
+  con `dynaudnorm`. En un guion de 12 escenas, ffmpeg pasó de 78 s de CPU a 16 s y su pico
+  de memoria de 219 MB a 41 MB, sin cambiar cómo se ve ni cómo suena.
 
 ## 12. Limitaciones conocidas
 

@@ -141,6 +141,8 @@ def generar(extras: list[str]) -> str:
         "# Generado por scripts/generar_requirements.py; no editar a mano.",
         f"# Extras incluidos: {', '.join(extras) or 'ninguno'}. Python {sys.version_info.major}.{sys.version_info.minor}.",
         "# Instalar con: pip install -r requirements.txt",
+        "# Proveedores de IA: Gemini (google-genai), Claude (anthropic) y, con el SDK openai,",
+        "# OpenAI, OpenRouter, Cohere, Groq y Cerebras (API compatible con OpenAI).",
         "",
         "# El propio proyecto (paquete nuevamente), instalado desde la raíz del repo",
         "-e .",

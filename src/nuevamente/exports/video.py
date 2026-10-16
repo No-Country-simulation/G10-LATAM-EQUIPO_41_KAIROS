@@ -27,12 +27,14 @@ from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 6  # 6: factor de escala global para el tamaño del texto
+VERSION = 7  # 7: 10 fps, imagen decodificada una vez y audio mono con dynaudnorm
 
 ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
 ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
 MARGEN = 80
-FPS = 25
+# Diapositivas fijas: 10 cuadros por segundo bastan para los fundidos y la codificación
+# cuesta menos de la mitad que a 25 (importa en servidores con 0,1 CPU, como Render free).
+FPS = 10
 DURACION_PORTADA_SEG = 4
 DURACION_CIERRE_SEG = 3
 PAUSA_FINAL_SEG = 0.9  # respiro tras la narración de cada diapositiva
@@ -238,20 +240,28 @@ def _diapositiva(indice: int, total: int, titulo: str, narracion: str, destino: 
 def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float, destino: Path) -> None:
     """Una diapositiva con su narración (o silencio), con fundido de entrada y salida."""
     total = _duracion(ffmpeg, audio) + PAUSA_FINAL_SEG if audio is not None else float(duracion_seg)
-    fundidos = f"fade=t=in:st=0:d={FUNDIDO_SEG},fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
-    entrada_audio = ["-i", str(audio)] if audio is not None else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-    filtro_audio = "loudnorm=I=-16:TP=-1.5:LRA=11,apad" if audio is not None else "anull"
+    # scale + format + loop: la imagen se reduce a la resolución de salida y se pasa a YUV
+    # una sola vez, y el filtro loop la repite (con "-loop 1" ffmpeg volvía a decodificar
+    # y escalar el PNG en cada cuadro).
+    filtro_video = (
+        f"scale={ANCHO_SALIDA}:{ALTO_SALIDA},format=yuv420p,loop=-1:1:0,"
+        f"fade=t=in:st=0:d={FUNDIDO_SEG},fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
+    )
+    entrada_audio = ["-i", str(audio)] if audio is not None else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono"]
+    # dynaudnorm: todas las escenas a un volumen parejo, con un tercio de la CPU de loudnorm
+    # (que remuestrea a 192 kHz); apad: el silencio del respiro final
+    filtro_audio = "dynaudnorm=f=150:g=15,apad" if audio is not None else "anull"
     _ejecutar([
-        ffmpeg, "-y", "-loop", "1", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
-        # CAMBIO 5: fundido sobre la imagen de dibujo y luego escalado a la salida.
-        "-vf", f"{fundidos},scale={ANCHO_SALIDA}:{ALTO_SALIDA}",
-        "-af", filtro_audio,
-        # CAMBIO 3: preset ultrafast + lookahead mínimo.
+        ffmpeg, "-y", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
+        "-vf", filtro_video, "-af", filtro_audio,
+        # un hilo, preset ultrafast y lookahead mínimo: con diapositivas fijas la calidad
+        # es la misma y la CPU por escena baja mucho (importa con 0,1 CPU, como Render free)
         "-c:v", "libx264", "-tune", "stillimage", "-preset", "ultrafast",
         "-threads", str(settings.video_hilos),
         "-x264-params", "rc-lookahead=2:sync-lookahead=0",
         "-pix_fmt", "yuv420p", "-r", str(FPS),
-        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "160k",
+        # la narración es una sola voz: mono a 96 kbps suena igual y cuesta menos codificarla
+        "-c:a", "aac", "-ar", "44100", "-ac", "1", "-b:a", "96k",
         "-t", f"{total:.2f}", str(destino),
     ])
 

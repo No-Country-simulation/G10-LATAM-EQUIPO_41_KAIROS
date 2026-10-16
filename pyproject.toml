@@ -22,6 +22,9 @@ dependencies = [
     "python-docx",
     "langgraph>=1.0",
     "fpdf2",
+    # Cliente HTTP de los proveedores con API compatible con OpenAI: Groq, Cerebras,
+    # OpenRouter, Cohere y OpenAI (llm/openai_compat_llm.py). No necesitan SDK propio.
+    "httpx",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +32,9 @@ dev = ["pytest", "httpx"]
 oci = ["oci"]
 gemini = ["google-genai>=1.30"]
 claude = ["anthropic>=1"]
+# SDK oficial de OpenAI. Lo usa el cliente compartido (llm/openai_compat_llm.py) para
+# OpenAI, OpenRouter, Cohere, Groq y Cerebras; sin él, ese cliente habla HTTP con httpx.
+openai = ["openai>=1"]
 ui = ["streamlit"]
 # ChromaDB como vector store (VECTOR_STORE=chroma). En Python 3.14 aún no hay onnxruntime:
 # ahí instalar con `pip install --no-deps chromadb` y sus dependencias (ver README).
