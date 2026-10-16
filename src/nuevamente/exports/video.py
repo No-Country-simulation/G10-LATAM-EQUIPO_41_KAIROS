@@ -27,9 +27,10 @@ from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 3  # 3: narración con voces naturales de Gemini TTS
+VERSION = 7  # 7: 10 fps, imagen decodificada una vez y audio mono con dynaudnorm
 
-ANCHO, ALTO = 1280, 720
+ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
+ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
 MARGEN = 80
 # Diapositivas fijas: 10 cuadros por segundo bastan para los fundidos y la codificación
 # cuesta menos de la mitad que a 25 (importa en servidores con 0,1 CPU, como Render free).
@@ -38,6 +39,11 @@ DURACION_PORTADA_SEG = 4
 DURACION_CIERRE_SEG = 3
 PAUSA_FINAL_SEG = 0.9  # respiro tras la narración de cada diapositiva
 FUNDIDO_SEG = 0.35
+
+# CAMBIO 6: factor de escala global del texto que pasa por _texto_ajustado().
+# 1.0 = como estaba antes; 0.85 = 15% más pequeño. Ajusta este número para
+# agrandar o reducir títulos y cuerpo sin tocar cada lista de tamaños.
+ESCALA_TEXTO = 0.85
 
 # Paleta de la interfaz web (ver web/styles.css).
 FONDO = (255, 248, 241)
@@ -58,6 +64,7 @@ _FUENTES_NORMAL = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
 ]
+
 
 class VideoError(Exception):
     """No se pudo generar el video (ffmpeg ausente o falló)."""
@@ -118,7 +125,8 @@ def _texto_hablado(indice: int, total: int, narracion: str) -> str:
 
 # ---------- Diapositivas ----------
 
-@functools.lru_cache(maxsize=32)
+# CAMBIO 1: lru_cache de fuentes 32 -> 8.
+@functools.lru_cache(maxsize=8)
 def _fuente(tamano: int, negrita: bool = False) -> ImageFont.FreeTypeFont:
     for ruta in _FUENTES_NEGRITA if negrita else _FUENTES_NORMAL:
         if Path(ruta).exists():
@@ -153,13 +161,19 @@ def _envolver(dibujo: ImageDraw.ImageDraw, texto: str, fuente, ancho_max: int) -
 
 def _texto_ajustado(dibujo, texto: str, ancho: int, alto: int, tamanos, negrita=False):
     """Elige el mayor tamaño de letra con el que el texto cabe en la caja."""
+    # CAMBIO 6: aplicar el factor de escala global a los tamaños candidatos.
+    tamanos = [max(10, round(t * ESCALA_TEXTO)) for t in tamanos]
+
+    # CAMBIO 2: variables inicializadas antes del bucle.
+    fuente = _fuente(tamanos[-1], negrita)
+    lineas = _envolver(dibujo, texto, fuente, ancho)
+    interlineado = round(tamanos[-1] * 1.4)
     for tamano in tamanos:
         fuente = _fuente(tamano, negrita)
         lineas = _envolver(dibujo, texto, fuente, ancho)
         interlineado = round(tamano * 1.4)
         if len(lineas) * interlineado <= alto:
             return fuente, lineas, interlineado
-    # ni con la letra más chica cabe: se recorta con puntos suspensivos
     maximo = max(1, alto // interlineado)
     lineas = lineas[:maximo]
     lineas[-1] = lineas[-1].rstrip(".,;: ") + "…"
@@ -213,7 +227,6 @@ def _diapositiva(indice: int, total: int, titulo: str, narracion: str, destino: 
         dibujo.text((MARGEN, y), linea, font=fuente, fill=TEXTO)
         y += inter
 
-    # barra de avance y pie
     base = ALTO - 70
     dibujo.rounded_rectangle((MARGEN, base, ANCHO - MARGEN, base + 10), radius=5, fill=(240, 226, 211))
     avance = MARGEN + round((ANCHO - 2 * MARGEN) * indice / total)
@@ -227,11 +240,12 @@ def _diapositiva(indice: int, total: int, titulo: str, narracion: str, destino: 
 def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float, destino: Path) -> None:
     """Una diapositiva con su narración (o silencio), con fundido de entrada y salida."""
     total = _duracion(ffmpeg, audio) + PAUSA_FINAL_SEG if audio is not None else float(duracion_seg)
-    # format + loop: la imagen se decodifica y se pasa a YUV una sola vez y el filtro la
-    # repite (con "-loop 1" ffmpeg volvía a decodificar el PNG en cada cuadro).
+    # scale + format + loop: la imagen se reduce a la resolución de salida y se pasa a YUV
+    # una sola vez, y el filtro loop la repite (con "-loop 1" ffmpeg volvía a decodificar
+    # y escalar el PNG en cada cuadro).
     filtro_video = (
-        f"format=yuv420p,loop=-1:1:0,fade=t=in:st=0:d={FUNDIDO_SEG},"
-        f"fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
+        f"scale={ANCHO_SALIDA}:{ALTO_SALIDA},format=yuv420p,loop=-1:1:0,"
+        f"fade=t=in:st=0:d={FUNDIDO_SEG},fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
     )
     entrada_audio = ["-i", str(audio)] if audio is not None else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono"]
     # dynaudnorm: todas las escenas a un volumen parejo, con un tercio de la CPU de loudnorm
@@ -240,10 +254,12 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
     _ejecutar([
         ffmpeg, "-y", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
         "-vf", filtro_video, "-af", filtro_audio,
-        # un hilo, poco lookahead y ultrafast: con diapositivas fijas la calidad es la misma
-        # y la CPU por escena baja unas 10 veces frente a veryfast a 25 fps con "-loop 1"
-        "-c:v", "libx264", "-tune", "stillimage", "-preset", "ultrafast", "-threads", str(settings.video_hilos),
-        "-x264-params", "rc-lookahead=5", "-pix_fmt", "yuv420p", "-r", str(FPS),
+        # un hilo, preset ultrafast y lookahead mínimo: con diapositivas fijas la calidad
+        # es la misma y la CPU por escena baja mucho (importa con 0,1 CPU, como Render free)
+        "-c:v", "libx264", "-tune", "stillimage", "-preset", "ultrafast",
+        "-threads", str(settings.video_hilos),
+        "-x264-params", "rc-lookahead=2:sync-lookahead=0",
+        "-pix_fmt", "yuv420p", "-r", str(FPS),
         # la narración es una sola voz: mono a 96 kbps suena igual y cuesta menos codificarla
         "-c:a", "aac", "-ar", "44100", "-ac", "1", "-b:a", "96k",
         "-t", f"{total:.2f}", str(destino),
@@ -252,7 +268,7 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
 
 def _titulo_escena(apoyo_visual: str, indice: int) -> str:
     titulo = re.sub(r"^\s*diapositiva\s*:\s*", "", apoyo_visual, flags=re.IGNORECASE).strip()
-    if not titulo or titulo == "Documento completo":  # documento sin encabezados
+    if not titulo or titulo == "Documento completo":
         return f"Parte {indice}"
     return titulo
 
@@ -297,14 +313,18 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
             DURACION_CIERRE_SEG,
         )
 
-        # toda la narración de una vez: con Gemini se piden varios fragmentos a la vez
+        # CAMBIO 4-B: narrar TODO de una vez (respeta la cuota gratuita de Gemini),
+        # pero dibujar y segmentar escena por escena.
         audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
+
         segmentos: list[Path] = []
         for (nombre, dibujar, _, duracion_seg), audio in zip(partes, audios):
             imagen = carpeta / f"{nombre}.png"
             dibujar(imagen)
-            segmentos.append(carpeta / f"{nombre}.mp4")
-            _segmento(ffmpeg, imagen, audio, duracion_seg, segmentos[-1])
+            segmento = carpeta / f"{nombre}.mp4"
+            _segmento(ffmpeg, imagen, audio, duracion_seg, segmento)
+            segmentos.append(segmento)
+            del imagen
 
         lista = carpeta / "segmentos.txt"
         lista.write_text("".join(f"file '{s.name}'\n" for s in segmentos), encoding="utf-8")
