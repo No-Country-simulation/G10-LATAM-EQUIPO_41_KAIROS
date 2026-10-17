@@ -46,10 +46,13 @@ def con_gemini(monkeypatch):
     """Narración activada, con Gemini TTS elegido y una API key de prueba (sin red)."""
     monkeypatch.setattr(narracion, "settings", dataclasses.replace(
         narracion.settings, video_tts="auto", video_voces="gemini", gemini_api_key="clave-de-prueba", gemini_api_keys=(),
+        openai_api_key="",
     ))
     disponibilidad.reanudar(narracion.SERVICIO_TTS)
+    disponibilidad.reanudar(narracion.SERVICIO_TTS_OPENAI)
     yield
     disponibilidad.reanudar(narracion.SERVICIO_TTS)
+    disponibilidad.reanudar(narracion.SERVICIO_TTS_OPENAI)
 
 
 def _sistema(texto, tipo, destino):
@@ -77,9 +80,48 @@ def test_si_un_fragmento_falla_todo_se_narra_con_el_sistema(con_gemini, monkeypa
     assert narracion.motor_voz() == "sistema"
 
 
+@pytest.fixture
+def con_openai(con_gemini, monkeypatch):
+    """Además de Gemini, OpenAI TTS configurado con una clave de prueba (sin red)."""
+    monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, openai_api_key="clave-de-prueba"))
+
+
+def _falla(textos, tipo):
+    raise RuntimeError("503 UNAVAILABLE")
+
+
+def test_si_gemini_falla_la_voz_natural_de_openai_toma_la_narracion(con_openai, monkeypatch, tmp_path):
+    """Con Gemini saturado no se cae a la voz robótica del sistema si hay OpenAI TTS."""
+    monkeypatch.setattr(narracion, "_narrar_gemini", _falla)
+    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo: [Path(f"{d}.openai") for _, d in textos])
+    monkeypatch.setattr(narracion, "sintetizar", lambda *a: pytest.fail("no debe usar la voz del sistema"))
+    audios, motor = narracion.narrar([("Hola.", tmp_path / "a"), ("Adiós.", tmp_path / "b")], "masculina")
+    assert motor == "openai" and all(a.suffix == ".openai" for a in audios)
+    # Gemini queda en pausa: la siguiente narración va directo a OpenAI, con su voz masculina
+    assert narracion.motor_voz() == "openai"
+    assert narracion.nombre_voz("masculina") == "Ash (voz natural de OpenAI)"
+
+
+def test_si_openai_tambien_falla_se_narra_con_el_sistema(con_openai, monkeypatch, tmp_path):
+    monkeypatch.setattr(narracion, "_narrar_gemini", _falla)
+    monkeypatch.setattr(narracion, "_narrar_openai", _falla)
+    monkeypatch.setattr(narracion, "sintetizar", _sistema)
+    audios, motor = narracion.narrar([("Hola.", tmp_path / "a")], "masculina")
+    assert motor == "sistema" and audios[0].suffix == ".sistema"
+
+
+def test_con_voces_openai_no_se_llama_a_gemini(con_openai, monkeypatch, tmp_path):
+    monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, video_voces="openai"))
+    monkeypatch.setattr(narracion, "_narrar_gemini", lambda *a, **k: pytest.fail("no debe usar Gemini"))
+    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo: [Path(f"{d}.openai") for _, d in textos])
+    _, motor = narracion.narrar([("Hola.", tmp_path / "a")], "masculina")
+    assert motor == "openai"
+
+
 def test_con_voces_del_sistema_no_se_llama_a_gemini(monkeypatch, tmp_path):
     monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, video_tts="auto", video_voces="sistema"))
     monkeypatch.setattr(narracion, "_narrar_gemini", lambda *a, **k: pytest.fail("no debe usar Gemini"))
+    monkeypatch.setattr(narracion, "_narrar_openai", lambda *a, **k: pytest.fail("no debe usar OpenAI"))
     monkeypatch.setattr(narracion, "sintetizar", _sistema)
     _, motor = narracion.narrar([("Hola.", tmp_path / "a")], "femenina")
     assert motor == "sistema"
