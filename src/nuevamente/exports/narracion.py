@@ -2,12 +2,15 @@
 
 Responsable en el equipo Kairos G10: Dario Higuera Moreno (No Code Developer).
 
-Dos motores de voz, igual que el podcast:
+Tres motores de voz, en este orden:
   - "gemini" (por defecto): voces naturales de Gemini TTS (VIDEO_VOZ_FEMENINA y
     VIDEO_VOZ_MASCULINA). Cada fragmento es una petición; se piden varios a la vez.
-  - "sistema": `say` en macOS o `espeak-ng` en Linux. Es el respaldo si Gemini no está
-    disponible (sin API key, sin cuota o sin red), o el motor fijo con VIDEO_VOCES=sistema.
-    Si un fragmento falla con Gemini, TODA la narración se rehace con el sistema: un
+  - "openai": voces naturales de OpenAI TTS (VIDEO_VOZ_OPENAI_FEMENINA y
+    VIDEO_VOZ_OPENAI_MASCULINA), si hay OPENAI_API_KEY. Es el respaldo cuando Gemini está
+    saturado o sin cuota, para no caer a una voz robótica; con VIDEO_VOCES=openai va primero.
+  - "sistema": `say` en macOS o `espeak-ng` en Linux. Es el último respaldo, o el motor
+    fijo con VIDEO_VOCES=sistema.
+    Si un fragmento falla con un motor, TODA la narración se rehace con el siguiente: un
     video nunca mezcla dos voces.
 
 Tres piezas:
@@ -100,26 +103,47 @@ def _voz_gemini(tipo: str) -> str:
     return settings.video_voz_femenina if tipo == "femenina" else settings.video_voz_masculina
 
 
+def _voz_openai(tipo: str) -> str:
+    return settings.video_voz_openai_femenina if tipo == "femenina" else settings.video_voz_openai_masculina
+
+
 def gemini_configurado() -> bool:
     """Gemini TTS está elegido y hay API key (aunque ahora pueda estar en pausa)."""
     return settings.video_voces == "gemini" and bool(settings.gemini_api_key or settings.gemini_api_keys)
 
 
-def motor_voz() -> str:
-    """Motor que se intentará usar ahora: "gemini" si está configurado y no falló hace poco."""
+def openai_configurado() -> bool:
+    """OpenAI TTS está permitido (VIDEO_VOCES gemini u openai) y hay API key."""
+    return settings.video_voces in ("gemini", "openai") and bool(settings.openai_api_key)
+
+
+def motores_disponibles() -> list[str]:
+    """Motores de voz en orden de preferencia, sin los que fallaron hace poco. Siempre
+    termina en "sistema", el respaldo que no depende de la red."""
     from nuevamente.llm import disponibilidad
 
+    motores = []
     if gemini_configurado() and not disponibilidad.en_pausa(SERVICIO_TTS):
-        return "gemini"
-    return "sistema"
+        motores.append("gemini")
+    if openai_configurado() and not disponibilidad.en_pausa(SERVICIO_TTS_OPENAI):
+        motores.append("openai")
+    return [*motores, "sistema"]
+
+
+def motor_voz() -> str:
+    """Motor que se intentará usar ahora: el primero configurado que no falló hace poco."""
+    return motores_disponibles()[0]
 
 
 def nombre_voz(tipo: str, motor: str | None = None) -> str | None:
     """Nombre legible de la voz que se usará para `tipo`, o None si no hay ninguna."""
     if settings.video_tts == "off" or tipo not in TIPOS_VOZ:
         return None
-    if (motor or motor_voz()) == "gemini":
+    motor = motor or motor_voz()
+    if motor == "gemini":
         return f"{_voz_gemini(tipo)} (voz natural)"
+    if motor == "openai":
+        return f"{_voz_openai(tipo).capitalize()} (voz natural de OpenAI)"
     if voz := _voz_macos(tipo):
         nombre, locale = voz
         base = nombre.split(" (")[0]
@@ -213,6 +237,14 @@ def _con_pausas_say(texto: str) -> str:
 # confundirlo con la pausa normal entre dos oraciones.
 
 SERVICIO_TTS = "tts:gemini"  # el mismo que pausa el podcast: si falla uno, el otro no lo espera
+SERVICIO_TTS_OPENAI = "tts:openai"
+# Indicación de estilo para OpenAI TTS (gpt-4o-mini-tts la sigue): voz de docente, no de locutor.
+_INDICACION_OPENAI = (
+    "Habla en español latinoamericano neutro, como un docente cercano que explica una clase "
+    "a sus estudiantes: voz humana y natural, tono cálido, ritmo pausado, entonación expresiva "
+    "y pausas breves entre ideas. Nada de tono de locutor ni de lectura robótica."
+)
+_HILOS_OPENAI = 4  # fragmentos que se piden a la vez
 _GEMINI_HZ = 24000  # Gemini TTS devuelve PCM lineal de 16 bits, mono, a 24 kHz
 _MAX_CARACTERES_POR_PETICION = 4000  # más largo, se divide en bloques de fragmentos completos
 _ESPERA_MAXIMA_SEG = 45  # si Gemini pide esperar (límite por minuto) hasta esto, se espera
@@ -383,25 +415,59 @@ def _narrar_gemini(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
     return audios
 
 
+def _audio_openai(texto: str, tipo: str, destino: Path) -> Path:
+    """Un fragmento narrado con OpenAI TTS, guardado como WAV."""
+    import httpx
+
+    respuesta = httpx.post(
+        "https://api.openai.com/v1/audio/speech",
+        headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+        json={
+            "model": settings.openai_tts_model,
+            "voice": _voz_openai(tipo),
+            "input": texto,
+            "instructions": _INDICACION_OPENAI,
+            "response_format": "wav",
+        },
+        timeout=settings.llm_timeout_s * 3,
+    )
+    if respuesta.status_code != 200:
+        raise RuntimeError(f"OpenAI TTS respondió {respuesta.status_code}: {respuesta.text[:200]}")
+    audio = Path(destino).with_suffix(".wav")
+    audio.write_bytes(respuesta.content)
+    return audio
+
+
+def _narrar_openai(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
+    """Narra cada fragmento con OpenAI TTS (una petición por fragmento, varias a la vez)."""
+    preparados = [(preparar_texto(texto), Path(destino)) for texto, destino in textos]
+    with ThreadPoolExecutor(max_workers=_HILOS_OPENAI) as hilos:
+        return list(hilos.map(lambda par: _audio_openai(par[0], tipo, par[1]), preparados))
+
+
+_NARRADORES = {"gemini": ("_narrar_gemini", SERVICIO_TTS), "openai": ("_narrar_openai", SERVICIO_TTS_OPENAI)}
+
+
 def narrar(textos: list[tuple[str, Path]], tipo: str) -> tuple[list[Path | None], str]:
     """Narra varios fragmentos (texto, destino sin extensión) con una sola voz.
 
-    Devuelve los audios (None donde no hay voz) y el motor que de verdad se usó. Si
-    Gemini falla, se pausa el servicio y se narran todos con la voz del sistema, para
-    que no se mezclen dos voces.
+    Devuelve los audios (None donde no hay voz) y el motor que de verdad se usó. Prueba
+    los motores en orden (Gemini, OpenAI, sistema): si uno falla, se pausa ese servicio y
+    TODA la narración se rehace con el siguiente, para que no se mezclen dos voces.
     """
     from nuevamente.llm import disponibilidad
 
     if settings.video_tts == "off" or not textos:
         return [None] * len(textos), "sistema"
-    if motor_voz() == "gemini":
+    for motor in motores_disponibles()[:-1]:
+        funcion, servicio = _NARRADORES[motor]
         try:
-            audios = _narrar_gemini(textos, tipo)
-            disponibilidad.reanudar(SERVICIO_TTS)
-            return audios, "gemini"
+            audios = globals()[funcion](textos, tipo)
+            disponibilidad.reanudar(servicio)
+            return audios, motor
         except Exception as exc:  # cuota, red, modelo o pausas irreconocibles: sale igual, con otra voz
-            logger.warning("Gemini TTS no disponible, se narra con la voz del sistema: %s", exc)
-            disponibilidad.pausar(SERVICIO_TTS, str(exc))
+            logger.warning("%s TTS no disponible, se prueba la siguiente voz: %s", motor.capitalize(), exc)
+            disponibilidad.pausar(servicio, str(exc))
     return [sintetizar(texto, tipo, destino) for texto, destino in textos], "sistema"
 
 

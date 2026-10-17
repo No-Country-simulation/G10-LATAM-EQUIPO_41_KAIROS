@@ -437,11 +437,15 @@ nuevamente/
   Gemini TTS** (`VIDEO_VOZ_FEMENINA=Sulafat`, `VIDEO_VOZ_MASCULINA=Charon`; otras voces
   masculinas: *Orus*, *Iapetus*, *Algieba*). Toda la narración va en **una sola solicitud**
   y el audio se corta en las pausas entre escenas, porque el plan gratuito admite pocas
-  solicitudes por minuto. Si Gemini no está disponible, se narra con una voz del sistema
+  solicitudes por minuto. Si Gemini no está disponible y hay `OPENAI_API_KEY`, se narra con
+  las **voces naturales de OpenAI TTS** (`gpt-4o-mini-tts`; `VIDEO_VOZ_OPENAI_MASCULINA=ash`,
+  `VIDEO_VOZ_OPENAI_FEMENINA=coral`), con indicación de tono de docente; es de pago (unos
+  0,015 USD por minuto de audio). Con `VIDEO_VOCES=openai` se usa OpenAI sin esperar a Gemini.
+  Si tampoco está disponible, se narra con una voz del sistema
   (`say` en macOS o `espeak-ng` en Linux, `sudo apt install espeak-ng`), siempre el video
   completo con la misma voz. Con `VIDEO_VOCES=sistema` se usa solo la del sistema; sin
   voz disponible, o con `VIDEO_TTS=off`, cada escena se muestra en silencio. La cabecera
-  `X-Video-Voces` indica con qué se narró ("gemini" o "sistema").
+  `X-Video-Voces` indica con qué se narró ("gemini", "openai" o "sistema").
 - **Cuota de Gemini TTS:** el plan gratuito da **10 solicitudes por día y por modelo**. Si
   un modelo se queda sin cuota se pasa al siguiente (`PODCAST_TTS_MODEL` y luego
   `TTS_MODELOS_RESPALDO`, por defecto `gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts,

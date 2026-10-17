@@ -204,10 +204,15 @@ class Settings:
 
     # --- Video del Guion de Clase ---
     video_tts: str = os.getenv("VIDEO_TTS", "auto")  # auto (con narración) | off (sin narración)
-    # gemini: voces naturales de Gemini TTS, con las del sistema de respaldo | sistema: solo las del sistema
+    # gemini: Gemini TTS, luego OpenAI TTS y luego las del sistema | openai: OpenAI TTS y luego las
+    # del sistema (útil si Gemini está saturado) | sistema: solo las del sistema
     video_voces: str = os.getenv("VIDEO_VOCES", "gemini").strip().lower()
     video_voz_femenina: str = os.getenv("VIDEO_VOZ_FEMENINA", "Sulafat")
     video_voz_masculina: str = os.getenv("VIDEO_VOZ_MASCULINA", "Charon")
+    # Voces naturales de OpenAI TTS (requiere OPENAI_API_KEY; de pago, unos 0,015 USD por minuto)
+    openai_tts_model: str = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+    video_voz_openai_femenina: str = os.getenv("VIDEO_VOZ_OPENAI_FEMENINA", "coral")
+    video_voz_openai_masculina: str = os.getenv("VIDEO_VOZ_OPENAI_MASCULINA", "ash")
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
     # hilos de ffmpeg al codificar el video: 1 usa mucha menos memoria (servidores de 512 MB)
     video_hilos: int = _env_int("VIDEO_HILOS", 1)
