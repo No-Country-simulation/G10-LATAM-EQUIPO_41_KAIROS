@@ -1,0 +1,57 @@
+# =============================================================================
+# compose.yaml — Kairos (API + UI web) en local con Docker Compose
+# -----------------------------------------------------------------------------
+# Uso:
+#   docker compose up -d --build        # construir y levantar
+#   docker compose logs -f              # ver logs en vivo
+#   docker compose ps                   # ver estado/salud
+#   docker compose down                 # detener y borrar contenedor (datos se conservan)
+#
+# Requisitos previos:
+#   - .env en esta misma carpeta (API keys, OCI_CONFIG_FILE, etc.)
+#   - oci_config en la carpeta PADRE de este repo (ver volumen más abajo)
+# =============================================================================
+
+services:
+  kairos:
+    # Construye la imagen usando el Dockerfile de esta misma carpeta.
+    build: .
+    # Nombre fijo de la imagen; permite reutilizarla sin reconstruir si no cambió.
+    image: kairos:latest
+    # Nombre del contenedor; útil para `docker exec`, `docker logs`, `docker cp`.
+    container_name: kairos_app
+    # Reinicia automáticamente si el proceso falla o si el host reinicia.
+    restart: unless-stopped
+
+    # Puerto host:contenedor. Solo para acceso local en HTTP.
+    # Cuando pongas Nginx + HTTPS delante, comenta esta línea y expón 80/443.
+    ports:
+      - "8000:8000"
+
+    # Carga variables de entorno desde .env (API keys, OCI_CONFIG_FILE, etc.).
+    # Nota: env_file NO acepta rutas con "../". Si el .env estuviera fuera,
+    # habría que usar ruta absoluta o `docker compose --env-file ../.env up -d`.
+    env_file:
+      - .env
+
+    # Valores por defecto seguros; el .env puede sobrescribirlos.
+    environment:
+      PORT: "8000"
+
+    volumes:
+      # Volumen nombrado: persiste /app/data (videos, respaldos, vectorstore,
+      # estadísticas). Sin esto, cada `up --build` borra los datos generados.
+      - kairos_data:/app/data
+
+      # Bind mount del archivo de credenciales OCI.
+      #   Izquierda (host):   ../oci_config  → un nivel arriba de esta carpeta
+      #   Derecha (contend.): /etc/secrets/oci_config → ruta que espera el .env
+      #   :ro = solo lectura; la app no debe modificar sus credenciales.
+      # Verificar con:
+      #   docker exec kairos_app test -f /etc/secrets/oci_config && echo existe
+      - ../oci_config:/etc/secrets/oci_config:ro
+      - ../clave_oci.pem:/etc/secrets/clave_oci.pem:ro
+# Declaración del volumen nombrado. Docker lo crea si no existe.
+# Inspeccionar con: docker volume inspect <nombre_del_volumen>
+volumes:
+  kairos_data:
