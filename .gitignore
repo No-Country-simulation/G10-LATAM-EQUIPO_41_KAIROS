@@ -25,3 +25,26 @@ docs/benchmark_api_ultima.json
 REPORTE_ARQUITECTURA_LLM.txt
 # Archivos temporales de bloqueo de Word/Excel/PowerPoint
 ~$*
+
+#####
+
+# Secretos — NUNCA subir
+.env
+oci_config
+clave_oci.pem
+secrets/
+
+# Certificados locales
+nginx/certs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Datos generados
+data/
+*.log
+
