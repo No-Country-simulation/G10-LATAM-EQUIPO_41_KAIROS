@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="488" viewBox="0 0 900 488" role="img" aria-labelledby="t d">
+<title id="t">Prueba de fidelidad con IA real</title><desc id="d">9 de 10 materiales aprobados con Gemini.</desc>
+<style>
+.sf{fill:#fcfcfb}.t1{fill:#0b0b0b}.t2{fill:#52514e}.tm{fill:#898781}.gr{stroke:#e1e0d9}.bl{stroke:#c3c2b7}.ring{stroke:#fcfcfb}
+.crit{stroke:#d03b3b}.critf{fill:#d03b3b}.s1{fill:#2a78d6}.umb{stroke:#0b0b0b}
+@media (prefers-color-scheme: dark){.sf{fill:#1a1a19}.t1{fill:#f0efec}.t2{fill:#c3c2b7}.gr{stroke:#2c2c2a}.bl{stroke:#383835}.ring{stroke:#1a1a19}.s1{fill:#3987e5}.umb{stroke:#f0efec}}
+text{font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+</style>
+<rect class="sf" width="900" height="488" rx="8"/>
+<text class="t1" x="24" y="34" font-size="18" font-weight="600">Prueba de fidelidad con IA real (Gemini)</text>
+<text class="t2" x="24" y="58" font-size="13">9 de 10 aprobados · perfil Principiante · nivel Didáctico · juez TF-IDF + juez de IA</text>
+<text class="tm" x="24" y="76" font-size="11">Modelos usados (con rotación por cuota): gemini-3-flash-preview, gemini-3.5-flash, gemini-3.7-flash</text>
+<line x1="24" y1="88" x2="24" y2="102" class="umb" stroke-width="2"/><text class="t2" x="32" y="99" font-size="12">Umbral exigido (0,85; Salud 0,90)</text>
+<rect x="250" y="87" width="22" height="14" rx="3" fill="none" class="crit" stroke-width="2"/><text class="critf" x="256" y="98" font-size="11" font-weight="700">✗</text><text class="t2" x="278" y="99" font-size="12">No alcanza el umbral</text>
+<line class="bl" x1="360.0" y1="118" x2="360.0" y2="438" stroke-width="1"/>
+<text class="tm" x="360.0" y="454" font-size="11" text-anchor="middle">0,00</text>
+<line class="gr" x1="477.5" y1="118" x2="477.5" y2="438" stroke-width="1"/>
+<text class="tm" x="477.5" y="454" font-size="11" text-anchor="middle">0,25</text>
+<line class="gr" x1="595.0" y1="118" x2="595.0" y2="438" stroke-width="1"/>
+<text class="tm" x="595.0" y="454" font-size="11" text-anchor="middle">0,50</text>
+<line class="gr" x1="712.5" y1="118" x2="712.5" y2="438" stroke-width="1"/>
+<text class="tm" x="712.5" y="454" font-size="11" text-anchor="middle">0,75</text>
+<line class="gr" x1="830.0" y1="118" x2="830.0" y2="438" stroke-width="1"/>
+<text class="tm" x="830.0" y="454" font-size="11" text-anchor="middle">1,00</text>
+<text class="t2" x="350" y="136" font-size="12" text-anchor="end">Quiz · DD_IA_01.pdf</text>
+<path class="s1" d="M360,124 H826.0 Q830.0,124 830.0,128 V134 Q830.0,138 826.0,138 H360 Z"><title>DD_IA_01.pdf · Quiz: 1.00 (7 de 7 sustentadas) · gemini:gemini-3.7-flash · 136 s</title></path>
+<line x1="759.5" y1="120" x2="759.5" y2="142" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="136" font-size="12">1,00</text>
+<text class="t2" x="350" y="166" font-size="12" text-anchor="end">Quiz · E-Commers.pdf</text>
+<path class="s1" d="M360,154 H826.0 Q830.0,154 830.0,158 V164 Q830.0,168 826.0,168 H360 Z"><title>E-Commers.pdf · Quiz: 1.00 (7 de 7 sustentadas) · gemini:gemini-3.7-flash · 108 s</title></path>
+<line x1="759.5" y1="150" x2="759.5" y2="172" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="166" font-size="12">1,00</text>
+<text class="t2" x="350" y="196" font-size="12" text-anchor="end">Quiz · Normas de Conducta y Convivenc….pdf</text>
+<path class="s1" d="M360,184 H826.0 Q830.0,184 830.0,188 V194 Q830.0,198 826.0,198 H360 Z"><title>Normas de Conducta y Convivencia.pdf · Quiz: 1.00 (6 de 6 sustentadas) · gemini:gemini-3.5-flash · 59 s</title></path>
+<line x1="783.0" y1="180" x2="783.0" y2="202" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="196" font-size="12">1,00</text>
+<text class="t2" x="350" y="226" font-size="12" text-anchor="end">Quiz · evidencia_scrum_21_a_24.md</text>
+<path class="s1" d="M360,214 H826.0 Q830.0,214 830.0,218 V224 Q830.0,228 826.0,228 H360 Z"><title>evidencia_scrum_21_a_24.md · Quiz: 1.00 (6 de 6 sustentadas) · gemini:gemini-3-flash-preview · 63 s</title></path>
+<line x1="759.5" y1="210" x2="759.5" y2="232" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="226" font-size="12">1,00</text>
+<text class="t2" x="350" y="256" font-size="12" text-anchor="end">Quiz · guia-prompting-alcaraz-cricc.pdf</text>
+<path class="s1" d="M360,244 H826.0 Q830.0,244 830.0,248 V254 Q830.0,258 826.0,258 H360 Z"><title>guia-prompting-alcaraz-cricc.pdf · Quiz: 1.00 (7 de 7 sustentadas) · gemini:gemini-3-flash-preview · 28 s</title></path>
+<line x1="759.5" y1="240" x2="759.5" y2="262" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="256" font-size="12">1,00</text>
+<text class="t2" x="350" y="286" font-size="12" text-anchor="end">Resumen Ejecutivo · evidencia_scrum_21_a_24.md</text>
+<path class="s1" d="M360,274 H826.0 Q830.0,274 830.0,278 V284 Q830.0,288 826.0,288 H360 Z"><title>evidencia_scrum_21_a_24.md · Resumen Ejecutivo: 1.00 (6 de 6 sustentadas) · gemini:gemini-3.5-flash · 66 s</title></path>
+<line x1="759.5" y1="270" x2="759.5" y2="292" class="umb" stroke-width="2"/>
+<text class="t1" x="838.0" y="286" font-size="12">1,00</text>
+<text class="t2" x="350" y="316" font-size="12" text-anchor="end">Resumen Ejecutivo · DD_IA_01.pdf</text>
+<path class="s1" d="M360,304 H786.8489999999999 Q790.8489999999999,304 790.8489999999999,308 V314 Q790.8489999999999,318 786.8489999999999,318 H360 Z"><title>DD_IA_01.pdf · Resumen Ejecutivo: 0.92 (5 de 6 sustentadas) · gemini:gemini-3.7-flash · 392 s</title></path>
+<line x1="759.5" y1="300" x2="759.5" y2="322" class="umb" stroke-width="2"/>
+<text class="t1" x="798.8" y="316" font-size="12">0,92</text>
+<text class="t2" x="350" y="346" font-size="12" text-anchor="end">Resumen Ejecutivo · E-Commers.pdf</text>
+<path class="s1" d="M360,334 H786.8489999999999 Q790.8489999999999,334 790.8489999999999,338 V344 Q790.8489999999999,348 786.8489999999999,348 H360 Z"><title>E-Commers.pdf · Resumen Ejecutivo: 0.92 (5 de 6 sustentadas) · gemini:gemini-3.7-flash · 75 s</title></path>
+<line x1="759.5" y1="330" x2="759.5" y2="352" class="umb" stroke-width="2"/>
+<text class="t1" x="798.8" y="346" font-size="12">0,92</text>
+<text class="t2" x="350" y="376" font-size="12" text-anchor="end">Resumen Ejecutivo · guia-prompting-alcaraz-cricc.pdf</text>
+<path class="s1" d="M360,364 H786.8489999999999 Q790.8489999999999,364 790.8489999999999,368 V374 Q790.8489999999999,378 786.8489999999999,378 H360 Z"><title>guia-prompting-alcaraz-cricc.pdf · Resumen Ejecutivo: 0.92 (5 de 6 sustentadas) · gemini:gemini-3-flash-preview · 403 s</title></path>
+<line x1="759.5" y1="360" x2="759.5" y2="382" class="umb" stroke-width="2"/>
+<text class="t1" x="798.8" y="376" font-size="12">0,92</text>
+<text class="t2" x="350" y="406" font-size="12" text-anchor="end">Resumen Ejecutivo · Normas de Conducta y Convivenc….pdf</text>
+<path class="s1" d="M360,394 H767.25 Q771.25,394 771.25,398 V404 Q771.25,408 767.25,408 H360 Z"><title>Normas de Conducta y Convivencia.pdf · Resumen Ejecutivo: 0.88 (3 de 4 sustentadas) · gemini:gemini-3.5-flash · 452 s</title></path>
+<line x1="783.0" y1="390" x2="783.0" y2="412" class="umb" stroke-width="2"/>
+<text class="critf" x="779.2" y="406" font-size="12" font-weight="700">✗ 0,88</text>
+<text class="tm" x="24" y="476" font-size="11">El juez de IA revisa cada afirmación con cita textual del documento. Tiempo por material: de 30 s a 8 min (con la cuota gratuita de Gemini).</text>
+</svg>

@@ -1,6 +1,6 @@
 # NuevaMente 🎓 — Kairos G10
 
-**Versión 1.4** (Sprint 4). La versión sigue el sprint: 1.N = Sprint N; se define en `src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
+**Versión 1.5** (Sprint 5). La versión sigue el sprint: 1.N = Sprint N; se define en `src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
 
 Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
 **Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
@@ -9,6 +9,12 @@ Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**.
 > ⚕️ El contenido que genera esta aplicación es material de apoyo educativo
 > basado en la documentación que el usuario proporciona. **No reemplaza el
 > criterio de un profesional de salud ni las indicaciones oficiales vigentes.**
+
+**Material de la presentación (Sprint 4):** [Video](#141-video-sin-introducción-de-prueba-de-voz) ·
+[Viñetas y guiones](#142-viñetas-y-guiones-títulos-subtítulos-y-texto-en-markdown-y-pdf) ·
+[Evidencias de pruebas](#143-evidencias-de-pruebas) · [Repositorios de pruebas](#144-repositorios-de-pruebas) ·
+[Jira](#145-jira) · [Proceso por perfil](#146-proceso-de-generación-de-contenido-por-perfil) ·
+[Pantallas del aplicativo](#147-pantallas-del-aplicativo) (sección 14).
 
 ---
 
@@ -177,7 +183,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (267 pruebas, deben pasar todas; ver sección 13)           |
+| `make test`    | Corre los tests (295 pruebas, deben pasar todas; ver sección 13)           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -367,7 +373,7 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 - [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
 - [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
 - [x] Caché de material aprobado (opcional) para ahorrar cuota del LLM
-- [x] Tests automatizados (267), incluida seguridad ante inyección de instrucciones
+- [x] Tests automatizados (295), incluida seguridad ante inyección de instrucciones
 - [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
       [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
 - [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
@@ -398,13 +404,16 @@ nuevamente/
 │   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
 │   ├── generar_requirements.py
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 267 pruebas (Diana)
+├── tests/                  # 295 pruebas (Diana)
 ├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
 ├── docs/
 │   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
 │   ├── DEPLOY_OCI.md      # despliegue en una VM Always Free de OCI
 │   ├── DEPLOY_RENDER.md   # despliegue con Docker en Render (u otro servidor)
 │   ├── entregables/       # informes e historias de usuario (v2.0)
+│   ├── pruebas/
+│   │   ├── documentos/    # documentos de prueba (PDF, Markdown, Word) del sprint
+│   │   └── evidencias/    # capturas y gráficos de las pruebas realizadas (sección 14)
 │   └── demo/
 │       ├── protocolo_bioseguridad_salud.md
 │       └── resultados/
@@ -450,11 +459,14 @@ nuevamente/
   un modelo se queda sin cuota se pasa al siguiente (`PODCAST_TTS_MODEL` y luego
   `TTS_MODELOS_RESPALDO`, por defecto `gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts,
   gemini-3.8-flash-lite-tts`), tanto para el video como para el podcast.
+- **Solo datos del documento:** el video tiene una portada en silencio con el título del
+  documento y, en cada diapositiva, la sección de la que sale la escena y su narración. No se
+  agregan saludos, transiciones ni despedidas, y las indicaciones de apoyo visual del guion
+  no se muestran ni se leen.
 - **Lectura natural** (`exports/narracion.py`): antes de leer, el texto se adapta
   para la voz (fechas en palabras, abreviaturas expandidas, siglas deletreadas, sin
   restos de tablas ni Markdown); el ritmo es algo más pausado, con silencios entre
-  oraciones; la clase abre con un saludo, enlaza escenas con transiciones y cierra
-  con una despedida; el volumen se normaliza y las diapositivas entran y salen con
+  oraciones; el volumen se normaliza y las diapositivas entran y salen con
   un fundido.
 - Para una voz todavía más natural en macOS, descarga una versión **mejorada** o
   **premium** (por ejemplo "Paulina (mejorada)" o "Juan (mejorada)") en *Ajustes del
@@ -499,7 +511,7 @@ nuevamente/
 
 ## 13. Pruebas
 
-El proyecto tiene **267 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+El proyecto tiene **295 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
@@ -512,26 +524,29 @@ pytest tests/test_api.py -q        # un archivo
 pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
 ```
 
-Resultado esperado: `267 passed`.
+Resultado esperado: `295 passed`.
+
+![Pruebas automatizadas por archivo: 295 de 295 aprobadas](docs/pruebas/evidencias/graficos/grafico_pruebas_por_archivo.svg)
 
 ### Qué cubre cada archivo
 
 | Archivo | Pruebas | Qué verifica |
 |---|---:|---|
-| `tests/test_api.py` | 67 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion (también en segundo plano), podcast MP3, nombres de formato del enunciado, archivo original, versión, namespace de OCI y tipo de documento de origen |
-| `tests/test_llm_rotacion.py` | 41 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
+| `tests/test_api.py` | 69 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion (también en segundo plano), podcast MP3, nombres de formato del enunciado, archivo original, versión, namespace de OCI y tipo de documento de origen |
+| `tests/test_llm_rotacion.py` | 45 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
 | `tests/test_llm_salud.py` | 28 | Enrutado por salud de los proveedores: circuit breaker, orden por latencia y carrera entre proveedores |
 | `tests/test_generacion.py` | 15 | Flujo completo de agentes: fidelidad de los formatos de síntesis, reintento del Crítico, nivel de detalle, agrupación por sección, la portada no llega al Redactor y la evidencia cubre todo el documento |
 | `tests/test_estadisticas.py` | 9 | Estadísticas de uso: generar, descargar y calificar se reflejan en el resumen, recalificar reemplaza la calificación anterior, tipo de archivo subido, validación de estrellas (422), material inexistente (404), la página `/estadisticas`, tolerancia a una línea dañada e importación del historial |
 | `tests/test_ingest.py` | 26 | Lectura y chunking: secciones por títulos, PDF con títulos fuera de orden, Word (.docx) con títulos y tablas, texto pegado sin saltos de línea, limpieza de índices, avisos legales, contactos y encabezados/pies de PDF, títulos en dos líneas, siglas y nombres propios, OCR de PDF escaneados y extracción de **conceptos clave** de un texto sin títulos |
 | `tests/test_schemas.py` | 7 | Esquemas Pydantic de cada formato y limpieza de referencias internas (los `chunk_id` no aparecen en el texto que ve el estudiante) |
-| `tests/test_prompts.py` | 14 | Role prompting y ejemplos few-shot: cada ejemplo cumple el esquema de su formato y enseña a citar la fuente |
+| `tests/test_prompts.py` | 21 | Role prompting y ejemplos few-shot: cada ejemplo cumple el esquema de su formato y enseña a citar la fuente |
 | `tests/test_embeddings.py` | 5 | Embeddings: si Gemini falla al indexar o en una consulta, la colección entera pasa a TF-IDF (sin mezclar vectores) |
 | `tests/test_grafo.py` | 4 | Grafo de LangGraph: un nodo por agente y el ciclo Crítico → Redactor con retroalimentación |
 | `tests/test_cache_contenido.py` | 7 | Caché de contenido aprobado (Ethan): acierto en la segunda generación, alcance Resumen Ejecutivo + Salud, la clave cambia con la evidencia y las opciones, y el endpoint de estadísticas |
 | `tests/test_juez.py` | 5 | Juez de IA: solo aprueba con citas que existen en el documento, una síntesis necesita que todas sus citas existan, y la coherencia didáctica |
 | `tests/test_fidelity.py` | 5 | Verificador de fidelidad: afirmaciones sustentadas, parciales e inventadas |
-| `tests/test_narracion.py` | 12 | Narración: lectura natural, voz de Gemini con respaldo del sistema sin mezclar voces, cortes por pausa y rotación de modelos TTS |
+| `tests/test_narracion.py` | 16 | Narración: lectura natural, voz de Gemini con respaldo del sistema sin mezclar voces, cortes por pausa, rotación de modelos TTS y **video sin introducción hablada** (la voz solo lee las escenas) |
+| `tests/test_titulos.py` | 15 | **Títulos, subtítulos y texto en Markdown y PDF**: niveles `#` a `######`, títulos subrayados, comentarios dentro de bloques de código; en PDF, títulos por tamaño de letra, negrita, marcadores y títulos en dos renglones; y los documentos reales de `docs/pruebas/documentos/` |
 | `tests/test_depuracion.py` | 4 | Eliminación de partes duplicadas en el material generado |
 | `tests/test_disponibilidad.py` | 4 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
 | `tests/test_vectorstore.py` | 5 | Indexación y búsqueda por similitud en el vector store, y ChromaDB con los mismos resultados |
@@ -590,3 +605,280 @@ varía según el modelo que las genere):
 `status_upload` es `"completado"` cuando OCI Object Storage está configurado y
 `"fallido_local"` cuando el material se guardó en el respaldo local (`data/fallback/`).
 Esta misma solicitud está automatizada en `test_solicitud_exacta_del_enunciado`.
+
+## 14. Material de la presentación (Sprint 4)
+
+Cada entrega del sprint se presenta con la misma estructura: **qué cambió**, **cómo se
+comprueba** y **dónde está la evidencia**.
+
+### 14.1 Video sin introducción de prueba de voz
+
+**Qué cambió.** El video del Guion de Clase ya no abre con el saludo hablado («Hola, te doy
+la bienvenida…»), que sonaba como una prueba de voz, ni agrega transiciones («Sigamos.») o
+despedida. Ahora contiene solo datos del documento:
+
+| Parte del video | Imagen | Voz |
+|---|---|---|
+| Portada (3 s) | Título del documento | En silencio |
+| Una diapositiva por escena | Sección del documento de la que sale la escena + su texto | Solo la narración de la escena |
+
+La muestra del botón **🔊 Escuchar** sigue disponible en la interfaz para elegir la voz,
+pero no forma parte del video. Los videos guardados con la versión anterior se regeneran
+solos (`VERSION = 8` en `exports/video.py`).
+
+**Cómo se comprueba.** `pytest tests/test_narracion.py -k introduccion` verifica que la voz
+recibe únicamente el texto de las escenas. Evidencia: capturas 04 y 05 (sección 14.3).
+
+### 14.2 Viñetas y guiones: títulos, subtítulos y texto en Markdown y PDF
+
+**Qué cambió.** El material (pasos del tutorial, viñetas, flashcards, escenas del guion y
+diapositivas) se arma por secciones del documento, así que reconocer bien sus títulos es lo
+que hace que cada viñeta quede bajo el título correcto.
+
+| Formato | Cómo se reconoce un título | Cómo se reconoce el texto |
+|---|---|---|
+| **Markdown (.md)** | `#` a `######`, títulos subrayados con `===` (nivel 1) o `---` (nivel 2); se quitan `**negrita**`, `` `código` `` y enlaces del título | Todo lo demás. Un `#` dentro de un bloque de código (```` ``` ````) es un comentario, no un título; un ```` ``` ```` sin cerrar no anula los títulos siguientes |
+| **PDF** | 1) **Marcadores** del PDF (el índice lateral que crea Word), aunque el título no esté como texto; 2) **letra más grande** que el texto corrido (el nivel sale del tamaño: el más grande es 1); 3) renglón entero en **negrita** del tamaño del texto (si no es un rótulo como «Ejemplos:»); 4) si no hay nada de lo anterior, títulos **numerados** («2.3 Modos») o en **MAYÚSCULAS** | Lo demás. No pasan por título: encabezados y pies que se repiten, entradas del índice («… Pag 21.»), líneas que siguen en minúscula, cabeceras de tabla ni comentarios de código (`# …`) |
+| PDF escaneado o sin espacios entre palabras | Se lee con OCR de Gemini, que marca títulos (`##`) y subtítulos (`###`) | Se omiten encabezados, pies y números de página |
+| Word (.docx) | Estilos «Título 1…3» / «Heading 1…3» (sin cambios) | Párrafos y tablas |
+
+El código está en `src/nuevamente/ingest/readers.py` (PDF) y `src/nuevamente/ingest/chunking.py`
+(Markdown y reglas de texto).
+
+**Documentos de prueba** (`docs/pruebas/documentos/`) y secciones reconocidas antes y
+después del cambio:
+
+| Documento | Tipo de estructura | Antes | Después |
+|---|---|---:|---:|
+| `evidencia_scrum_21_a_24.md` | Markdown con `#`, `##`, negritas y separadores `---` | 4 | 4 |
+| `DD_IA_01.pdf` | Glosario: cada término en negrita | 0 | 31 |
+| `evidencia_scrum_21_a_24.pdf` | Es el mismo archivo que `DD_IA_01.pdf` (no es el PDF del .md) | 0 | 31 |
+| `guia-prompting-alcaraz-cricc.pdf` | Títulos solo en los marcadores del PDF | 4 | 33 |
+| `IoT-Guia-Basica.pdf` | Títulos en letra grande, diagramas con texto en mayúsculas | 5 | 21 |
+| `E-Commers.pdf` | Títulos y subtítulos en dos tamaños | 12 | 13 |
+| `Manual Forms 6i.pdf` / `Libro guía del usuario.pdf` | Numerados («5.2-BLOQUES DE DATOS:»), índice y código | 44 (con ~15 líneas de código tomadas por título) | 36 / 35 |
+| `Memoria en generador de video_v6 - DeepSeek.pdf` | Conversación con código (`# comentario`) | 92 | 95 |
+| `Normas de Conducta y Convivencia.pdf` | Títulos en letra algo mayor | 9 | 9 |
+| `Manual como hacer clic.pdf` | Texto corto | 3 | 3 |
+| `original6.pdf` | Artículo con el texto guardado sin espacios | 0 | 0 sin OCR; con `GEMINI_API_KEY` se lee por OCR |
+| `.docx` de Fintech, Políticas y Resumen E-commerce | Estilos de título de Word | 30 / 12 / 7 | 30 / 12 / 7 |
+
+**Cómo se comprueba.** `pytest tests/test_titulos.py -v` (15 pruebas, incluidas las de los
+documentos reales; se omiten si la carpeta no está en el equipo). Evidencia: capturas 01, 02 y 03.
+
+### 14.3 Evidencias de pruebas
+
+#### Resumen gráfico de las pruebas realizadas
+
+```mermaid
+flowchart LR
+    A["Pruebas realizadas<br/>Sprint 4"] --> B["Automatizadas (pytest)<br/>295 de 295 ✅"]
+    A --> C["Documentos de prueba<br/>15 archivos: 11 PDF, 1 MD, 3 DOCX ✅"]
+    A --> D["De punta a punta por la API ✅"]
+    A --> E["Video del guion ✅"]
+    A --> F["Interfaz web ✅"]
+    A --> G["Fidelidad ✅"]
+    G --> G1["Generador local<br/>86 de 90"]
+    G --> G2["IA real (Gemini)<br/>9 de 10"]
+    F --> F2["24 materiales:<br/>4 perfiles × 6 formatos"]
+    F --> F3["18 pantallas"]
+    B --> B1["Títulos en Markdown y PDF<br/>15 nuevas"]
+    B --> B2["Video sin introducción hablada<br/>1 nueva"]
+    B --> B3["Resto de la suite<br/>279"]
+    C --> C1["Secciones reconocidas<br/>antes y después"]
+    D --> D1["Tutorial desde el .md<br/>4 pasos = 4 títulos"]
+    D --> D2["Guion desde E-Commers.pdf<br/>8 escenas"]
+    D --> D3["Flashcards desde<br/>Normas de Conducta.pdf"]
+    E --> E1["Portada en silencio,<br/>sin saludo"]
+    E --> E2["Cada diapositiva lleva<br/>la sección del documento"]
+    F --> F1["App en marcha<br/>(make run-api)"]
+```
+
+| Prueba | Cómo se hizo | Resultado |
+|---|---|---|
+| Suite automatizada completa | `pytest -q` | ✅ 295 de 295 |
+| Títulos, subtítulos y texto en Markdown y PDF | `pytest tests/test_titulos.py -v` (15 pruebas) | ✅ 15 de 15 |
+| Video sin introducción hablada | `pytest tests/test_narracion.py -k introduccion` | ✅ 1 de 1 |
+| Secciones en los 15 documentos de prueba | Lectura y chunking de cada archivo, antes y después del cambio | ✅ 12 mejoran o se mantienen; 2 pierden títulos falsos; `original6.pdf` necesita OCR |
+| Material desde Markdown | API: Tutorial desde `evidencia_scrum_21_a_24.md` | ✅ un paso por cada título |
+| Material desde PDF | API: Guion de Clase desde `E-Commers.pdf` y Flashcards desde `Normas…pdf` | ✅ conceptos y tarjetas con los títulos del PDF |
+| Video MP4 | API: video del guion de `E-Commers.pdf` | ✅ portada sin saludo y escenas con su sección |
+| Interfaz web | Recorrido automático con Chrome: 4 perfiles × 6 formatos y 18 pantallas (secciones 14.6 y 14.7) | ✅ 24 materiales generados |
+| Fidelidad, generador local | 15 documentos × 6 formatos | ✅ 86 de 90 (los 4 restantes: frases cortas, ver hallazgos) |
+| Fidelidad, IA real | Gemini: 5 documentos × Resumen Ejecutivo y Quiz | ✅ 9 de 10 (1 bajo el umbral de Salud) |
+
+![Pruebas automatizadas por archivo: 295 de 295 aprobadas](docs/pruebas/evidencias/graficos/grafico_pruebas_por_archivo.svg)
+
+![Títulos y subtítulos reconocidos por documento, antes y después](docs/pruebas/evidencias/graficos/grafico_titulos_antes_despues.svg)
+
+#### Prueba de fidelidad
+
+Cada material se verifica contra el documento: cada afirmación se compara con el fragmento
+que dice citar, y el puntaje es `(sustentadas + 0,5 × parciales) / total`. Se aprueba con
+**0,85** o más (**0,90** en el sector Salud). Se hicieron dos rondas con los documentos de
+`docs/pruebas/documentos/`:
+
+| Ronda | Materiales | Aprobados | Qué mide |
+|---|---:|---:|---|
+| Generador local (sin red) | 90 = 15 documentos × 6 formatos | **86** (96 %) | Que toda la cadena (lectura, secciones, verificación) funcione con cada documento y formato |
+| IA real (Gemini, juez TF-IDF + juez de IA) | 10 = 5 documentos × Resumen Ejecutivo y Quiz | **9** (90 %) | La fidelidad de un modelo que redacta con sus palabras, en los dos formatos más exigentes |
+
+![Prueba de fidelidad por documento y formato, generador local](docs/pruebas/evidencias/graficos/grafico_fidelidad_matriz.svg)
+
+![Prueba de fidelidad con IA real](docs/pruebas/evidencias/graficos/grafico_fidelidad_ia.svg)
+
+**Hallazgos.**
+- Los 4 materiales sin aprobar de la ronda local (E-Commers: Flashcards 0,83 y Quiz 0,80;
+  Manual como hacer clic: Quiz 0,83; Memoria: Flashcards 0,79) no tienen texto inventado:
+  las afirmaciones marcadas son frases copiadas tal cual del documento pero muy cortas
+  («Transacciones entre empresas.», «No hay paralelismo.»). El verificador TF-IDF compara
+  palabras en común con un fragmento largo y subestima las frases cortas. Mejora posible:
+  dar por sustentada una afirmación que aparece literal en su fragmento.
+- Con IA real, el único que no aprueba es el Resumen Ejecutivo de *Normas de Conducta*
+  (0,88), por el umbral más estricto de Salud (0,90): 3 de 4 afirmaciones sustentadas. La
+  interfaz lo muestra como «⚠️ Revisar».
+- Con la cuota gratuita de Gemini, cada material tardó entre 30 s y 8 min, por las esperas
+  y la rotación de modelos cuando uno se queda sin cuota.
+
+#### Capturas
+
+Capturas en [`docs/pruebas/evidencias/`](docs/pruebas/evidencias/), tomadas el 20/10/2026 en la
+rama `SPRINT04.4` con el generador local (`LLM_PROVIDER=template`, sin red):
+
+| # | Captura | Qué documenta |
+|---|---|---|
+| 01 | [Pruebas automatizadas](docs/pruebas/evidencias/01_pruebas_automatizadas.png) | `pytest -v` de las pruebas nuevas (16 PASSED) y la suite completa (295 passed) |
+| 02 | [Títulos antes y después](docs/pruebas/evidencias/02_titulos_reconocidos_antes_despues.png) | Secciones reconocidas en cada documento de prueba, antes (commit `715d90a`) y después |
+| 03 | [Material generado](docs/pruebas/evidencias/03_material_generado_desde_md_y_pdf.png) | Tutorial desde el `.md` (un paso por título), guion desde `E-Commers.pdf` y flashcards desde `Normas…pdf` |
+| 04 | [Portada del video](docs/pruebas/evidencias/04_video_portada_sin_saludo.png) | Portada con el título del documento, en silencio y sin saludo |
+| 05 | [Primera escena del video](docs/pruebas/evidencias/05_video_primera_escena.png) | La diapositiva lleva la sección del documento («Introducción») y solo su narración |
+| 06 | [Interfaz web](docs/pruebas/evidencias/06_interfaz_web.png) | La aplicación en marcha (`make run-api`) |
+
+| 01 · Pruebas automatizadas | 02 · Títulos antes y después |
+|---|---|
+| ![Pruebas automatizadas](docs/pruebas/evidencias/01_pruebas_automatizadas.png) | ![Títulos reconocidos antes y después](docs/pruebas/evidencias/02_titulos_reconocidos_antes_despues.png) |
+| **03 · Material generado desde .md y PDF** | **06 · Interfaz web** |
+| ![Material generado desde Markdown y PDF](docs/pruebas/evidencias/03_material_generado_desde_md_y_pdf.png) | ![Interfaz web](docs/pruebas/evidencias/06_interfaz_web.png) |
+| **04 · Portada del video, sin saludo** | **05 · Primera escena del video** |
+| ![Portada del video sin saludo](docs/pruebas/evidencias/04_video_portada_sin_saludo.png) | ![Primera escena del video](docs/pruebas/evidencias/05_video_primera_escena.png) |
+
+### 14.4 Repositorios de pruebas
+
+| Recurso | Enlace |
+|---|---|
+| Repositorio del proyecto (GitHub) | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS |
+| Rama de este sprint | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/tree/SPRINT05 |
+| Pruebas automatizadas | [`tests/`](tests/) (ver sección 13) |
+| Pruebas de títulos en Markdown y PDF | [`tests/test_titulos.py`](tests/test_titulos.py) |
+| Documentos de prueba | [`docs/pruebas/documentos/`](docs/pruebas/documentos/) |
+| Evidencias (capturas) | [`docs/pruebas/evidencias/`](docs/pruebas/evidencias/) |
+| Gráficos de las pruebas | [`docs/pruebas/evidencias/graficos/`](docs/pruebas/evidencias/graficos/) |
+| Capturas por perfil (24 materiales) | [`docs/pruebas/evidencias/perfiles/`](docs/pruebas/evidencias/perfiles/) |
+| Capturas de las pantallas | [`docs/pruebas/evidencias/pantallas/`](docs/pruebas/evidencias/pantallas/) |
+| Resultados de los escenarios de demo | [`docs/demo/resultados/`](docs/demo/resultados/) |
+
+### 14.5 Jira
+
+Seguimiento de las actividades del sprint (proyecto con clave `SCRUM`, p. ej. SCRUM-21 a SCRUM-24):
+
+- **Tablero del sprint:** _pendiente: pegar aquí el enlace del tablero de Jira_
+  (`https://<espacio>.atlassian.net/jira/software/projects/SCRUM/boards/<id>`)
+
+### 14.6 Proceso de generación de contenido por perfil
+
+Capturas de la interfaz tomadas el 20/10/2026 con el documento de prueba `E-Commers.pdf`,
+sector **General** y nivel de detalle **Didáctico**, para los 4 perfiles y los 6 formatos
+(24 materiales). Se generaron con el generador local (`LLM_PROVIDER=template`, sin red), así
+que el texto es extractivo y cambia poco entre perfiles; con Gemini u otro modelo, el
+lenguaje se adapta a cada perfil. Clic en una imagen para verla en tamaño completo.
+
+```mermaid
+flowchart LR
+    A["1 · Documento<br/>(subir o pegar)"] --> B["2 · Perfil<br/>🌱 💻 🏗️ 📈"] --> C["3 · Formato<br/>🧭 🃏 ❓ 📊 🎬 🎙️"] --> D["4 · Sector y nivel<br/>General · Didáctico"] --> E["5 · Aceptar aviso<br/>y crear"] --> F["6 · Agentes<br/>lee, busca, redacta, verifica"] --> G["7 · Material<br/>+ fidelidad + descargas"]
+```
+
+<details open>
+<summary><b>🌱 Inicial/Básico (Principiante-Junior)</b></summary>
+
+<table>
+<tr>
+<td align="center" width="50%"><b>1 · Elegir documento, perfil y formato</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_1_opciones.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_1_opciones.jpg" width="260" alt="Opciones · 🌱 Inicial/Básico (Principiante-Junior)"></a></td>
+<td align="center" width="50%"><b>2 · Creación en curso (agentes trabajando)</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_2_progreso.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_2_progreso.jpg" width="420" alt="Progreso · 🌱 Inicial/Básico (Principiante-Junior)"></a></td>
+</tr>
+</table>
+
+**3 · Material generado, un formato por captura:**
+
+<table>
+<tr><td align="center" width="33%"><b>🧭 Tutorial</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_tutorial.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_tutorial.jpg" width="300" alt="🧭 Tutorial · 🌱 Inicial/Básico (Principiante-Junior)"></a></td><td align="center" width="33%"><b>🃏 Flashcards</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_flashcards.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_flashcards.jpg" width="300" alt="🃏 Flashcards · 🌱 Inicial/Básico (Principiante-Junior)"></a></td><td align="center" width="33%"><b>❓ Quiz</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_quiz.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_quiz.jpg" width="300" alt="❓ Quiz · 🌱 Inicial/Básico (Principiante-Junior)"></a></td></tr><tr><td align="center" width="33%"><b>📊 Resumen Ejecutivo</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_resumen.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_resumen.jpg" width="300" alt="📊 Resumen Ejecutivo · 🌱 Inicial/Básico (Principiante-Junior)"></a></td><td align="center" width="33%"><b>🎬 Guion de Clase</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_guion.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_guion.jpg" width="300" alt="🎬 Guion de Clase · 🌱 Inicial/Básico (Principiante-Junior)"></a></td><td align="center" width="33%"><b>🎙️ Podcast</b><br><a href="docs/pruebas/evidencias/perfiles/inicial_3_podcast.jpg"><img src="docs/pruebas/evidencias/perfiles/inicial_3_podcast.jpg" width="300" alt="🎙️ Podcast · 🌱 Inicial/Básico (Principiante-Junior)"></a></td></tr>
+</table>
+
+</details>
+<details>
+<summary><b>💻 Intermedio (semisénior)</b></summary>
+
+<table>
+<tr>
+<td align="center" width="50%"><b>1 · Elegir documento, perfil y formato</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_1_opciones.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_1_opciones.jpg" width="260" alt="Opciones · 💻 Intermedio (semisénior)"></a></td>
+<td align="center" width="50%"><b>2 · Creación en curso (agentes trabajando)</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_2_progreso.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_2_progreso.jpg" width="420" alt="Progreso · 💻 Intermedio (semisénior)"></a></td>
+</tr>
+</table>
+
+**3 · Material generado, un formato por captura:**
+
+<table>
+<tr><td align="center" width="33%"><b>🧭 Tutorial</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_tutorial.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_tutorial.jpg" width="300" alt="🧭 Tutorial · 💻 Intermedio (semisénior)"></a></td><td align="center" width="33%"><b>🃏 Flashcards</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_flashcards.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_flashcards.jpg" width="300" alt="🃏 Flashcards · 💻 Intermedio (semisénior)"></a></td><td align="center" width="33%"><b>❓ Quiz</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_quiz.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_quiz.jpg" width="300" alt="❓ Quiz · 💻 Intermedio (semisénior)"></a></td></tr><tr><td align="center" width="33%"><b>📊 Resumen Ejecutivo</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_resumen.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_resumen.jpg" width="300" alt="📊 Resumen Ejecutivo · 💻 Intermedio (semisénior)"></a></td><td align="center" width="33%"><b>🎬 Guion de Clase</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_guion.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_guion.jpg" width="300" alt="🎬 Guion de Clase · 💻 Intermedio (semisénior)"></a></td><td align="center" width="33%"><b>🎙️ Podcast</b><br><a href="docs/pruebas/evidencias/perfiles/intermedio_3_podcast.jpg"><img src="docs/pruebas/evidencias/perfiles/intermedio_3_podcast.jpg" width="300" alt="🎙️ Podcast · 💻 Intermedio (semisénior)"></a></td></tr>
+</table>
+
+</details>
+<details>
+<summary><b>🏗️ Avanzado (Senior-Arquitecto-Técnico)</b></summary>
+
+<table>
+<tr>
+<td align="center" width="50%"><b>1 · Elegir documento, perfil y formato</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_1_opciones.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_1_opciones.jpg" width="260" alt="Opciones · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td>
+<td align="center" width="50%"><b>2 · Creación en curso (agentes trabajando)</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_2_progreso.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_2_progreso.jpg" width="420" alt="Progreso · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td>
+</tr>
+</table>
+
+**3 · Material generado, un formato por captura:**
+
+<table>
+<tr><td align="center" width="33%"><b>🧭 Tutorial</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_tutorial.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_tutorial.jpg" width="300" alt="🧭 Tutorial · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td><td align="center" width="33%"><b>🃏 Flashcards</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_flashcards.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_flashcards.jpg" width="300" alt="🃏 Flashcards · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td><td align="center" width="33%"><b>❓ Quiz</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_quiz.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_quiz.jpg" width="300" alt="❓ Quiz · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td></tr><tr><td align="center" width="33%"><b>📊 Resumen Ejecutivo</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_resumen.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_resumen.jpg" width="300" alt="📊 Resumen Ejecutivo · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td><td align="center" width="33%"><b>🎬 Guion de Clase</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_guion.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_guion.jpg" width="300" alt="🎬 Guion de Clase · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td><td align="center" width="33%"><b>🎙️ Podcast</b><br><a href="docs/pruebas/evidencias/perfiles/avanzado_3_podcast.jpg"><img src="docs/pruebas/evidencias/perfiles/avanzado_3_podcast.jpg" width="300" alt="🎙️ Podcast · 🏗️ Avanzado (Senior-Arquitecto-Técnico)"></a></td></tr>
+</table>
+
+</details>
+<details>
+<summary><b>📈 Experto / Directivo (Lead, Ejecutivo, Gestor)</b></summary>
+
+<table>
+<tr>
+<td align="center" width="50%"><b>1 · Elegir documento, perfil y formato</b><br><a href="docs/pruebas/evidencias/perfiles/experto_1_opciones.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_1_opciones.jpg" width="260" alt="Opciones · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td>
+<td align="center" width="50%"><b>2 · Creación en curso (agentes trabajando)</b><br><a href="docs/pruebas/evidencias/perfiles/experto_2_progreso.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_2_progreso.jpg" width="420" alt="Progreso · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td>
+</tr>
+</table>
+
+**3 · Material generado, un formato por captura:**
+
+<table>
+<tr><td align="center" width="33%"><b>🧭 Tutorial</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_tutorial.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_tutorial.jpg" width="300" alt="🧭 Tutorial · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td><td align="center" width="33%"><b>🃏 Flashcards</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_flashcards.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_flashcards.jpg" width="300" alt="🃏 Flashcards · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td><td align="center" width="33%"><b>❓ Quiz</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_quiz.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_quiz.jpg" width="300" alt="❓ Quiz · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td></tr><tr><td align="center" width="33%"><b>📊 Resumen Ejecutivo</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_resumen.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_resumen.jpg" width="300" alt="📊 Resumen Ejecutivo · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td><td align="center" width="33%"><b>🎬 Guion de Clase</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_guion.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_guion.jpg" width="300" alt="🎬 Guion de Clase · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td><td align="center" width="33%"><b>🎙️ Podcast</b><br><a href="docs/pruebas/evidencias/perfiles/experto_3_podcast.jpg"><img src="docs/pruebas/evidencias/perfiles/experto_3_podcast.jpg" width="300" alt="🎙️ Podcast · 📈 Experto / Directivo (Lead, Ejecutivo, Gestor)"></a></td></tr>
+</table>
+
+</details>
+
+### 14.7 Pantallas del aplicativo
+
+Todas las pantallas y estados de la interfaz web (`make run-api` → http://localhost:8000/).
+Clic en una imagen para verla en tamaño completo.
+
+<table>
+<tr><td align="center" width="50%"><b>01 · Inicio: formulario y espacio para el material</b><br><a href="docs/pruebas/evidencias/pantallas/p01_inicio.jpg"><img src="docs/pruebas/evidencias/pantallas/p01_inicio.jpg" width="420" alt="Inicio: formulario y espacio para el material"></a></td><td align="center" width="50%"><b>02 · 💡 Cómo funciona (ayuda)</b><br><a href="docs/pruebas/evidencias/pantallas/p02_como_funciona.jpg"><img src="docs/pruebas/evidencias/pantallas/p02_como_funciona.jpg" width="420" alt="💡 Cómo funciona (ayuda)"></a></td></tr>
+<tr><td align="center" width="50%"><b>03 · ⚖️ Aviso legal y ético (debe leerse completo para aceptarlo)</b><br><a href="docs/pruebas/evidencias/pantallas/p03_aviso_legal.jpg"><img src="docs/pruebas/evidencias/pantallas/p03_aviso_legal.jpg" width="420" alt="⚖️ Aviso legal y ético (debe leerse completo para aceptarlo)"></a></td><td align="center" width="50%"><b>04 · 📎 Subir archivo: perfiles, formatos, sector y nivel</b><br><a href="docs/pruebas/evidencias/pantallas/p04_subir_archivo.jpg"><img src="docs/pruebas/evidencias/pantallas/p04_subir_archivo.jpg" width="420" alt="📎 Subir archivo: perfiles, formatos, sector y nivel"></a></td></tr>
+<tr><td align="center" width="50%"><b>05 · Archivo no compatible (.xlsx): aviso y opción de cargar otro</b><br><a href="docs/pruebas/evidencias/pantallas/p05_archivo_no_compatible.jpg"><img src="docs/pruebas/evidencias/pantallas/p05_archivo_no_compatible.jpg" width="420" alt="Archivo no compatible (.xlsx): aviso y opción de cargar otro"></a></td><td align="center" width="50%"><b>06 · Archivo cargado (E-Commers.pdf)</b><br><a href="docs/pruebas/evidencias/pantallas/p06_archivo_cargado.jpg"><img src="docs/pruebas/evidencias/pantallas/p06_archivo_cargado.jpg" width="420" alt="Archivo cargado (E-Commers.pdf)"></a></td></tr>
+<tr><td align="center" width="50%"><b>07 · Sector Salud: aviso de material de apoyo educativo</b><br><a href="docs/pruebas/evidencias/pantallas/p07_opciones_y_aviso_salud.jpg"><img src="docs/pruebas/evidencias/pantallas/p07_opciones_y_aviso_salud.jpg" width="420" alt="Sector Salud: aviso de material de apoyo educativo"></a></td><td align="center" width="50%"><b>08 · Pestaña 🔍 Fidelidad: afirmaciones verificadas contra el documento</b><br><a href="docs/pruebas/evidencias/pantallas/p10_pestana_calidad.jpg"><img src="docs/pruebas/evidencias/pantallas/p10_pestana_calidad.jpg" width="420" alt="Pestaña 🔍 Fidelidad: afirmaciones verificadas contra el documento"></a></td></tr>
+<tr><td align="center" width="50%"><b>09 · Pestaña ☁️ Guardado: bucket, objeto y documento original</b><br><a href="docs/pruebas/evidencias/pantallas/p11_pestana_almacenamiento.jpg"><img src="docs/pruebas/evidencias/pantallas/p11_pestana_almacenamiento.jpg" width="420" alt="Pestaña ☁️ Guardado: bucket, objeto y documento original"></a></td><td align="center" width="50%"><b>10 · Pestaña 🧾 JSON: respuesta completa de la API</b><br><a href="docs/pruebas/evidencias/pantallas/p12_pestana_json.jpg"><img src="docs/pruebas/evidencias/pantallas/p12_pestana_json.jpg" width="420" alt="Pestaña 🧾 JSON: respuesta completa de la API"></a></td></tr>
+<tr><td align="center" width="50%"><b>11 · Calificación de 1 a 5 estrellas y comentario</b><br><a href="docs/pruebas/evidencias/pantallas/p13_calificacion.jpg"><img src="docs/pruebas/evidencias/pantallas/p13_calificacion.jpg" width="420" alt="Calificación de 1 a 5 estrellas y comentario"></a></td><td align="center" width="50%"><b>12 · 🎬 Video del Guion de Clase con elección de voz</b><br><a href="docs/pruebas/evidencias/pantallas/p14_video_guion.jpg"><img src="docs/pruebas/evidencias/pantallas/p14_video_guion.jpg" width="420" alt="🎬 Video del Guion de Clase con elección de voz"></a></td></tr>
+<tr><td align="center" width="50%"><b>13 · 🎙️ Podcast: episodio en audio con Ana y Leo</b><br><a href="docs/pruebas/evidencias/pantallas/p15_podcast.jpg"><img src="docs/pruebas/evidencias/pantallas/p15_podcast.jpg" width="420" alt="🎙️ Podcast: episodio en audio con Ana y Leo"></a></td><td align="center" width="50%"><b>14 · 🕘 Historial con buscador</b><br><a href="docs/pruebas/evidencias/pantallas/p16_historial.jpg"><img src="docs/pruebas/evidencias/pantallas/p16_historial.jpg" width="420" alt="🕘 Historial con buscador"></a></td></tr>
+<tr><td align="center" width="50%"><b>15 · Estado de guardado (OCI o respaldo local) y su motivo</b><br><a href="docs/pruebas/evidencias/pantallas/p17_guardado_oci.jpg"><img src="docs/pruebas/evidencias/pantallas/p17_guardado_oci.jpg" width="420" alt="Estado de guardado (OCI o respaldo local) y su motivo"></a></td><td align="center" width="50%"><b>16 · 🌙 Modo oscuro</b><br><a href="docs/pruebas/evidencias/pantallas/p18_modo_oscuro.jpg"><img src="docs/pruebas/evidencias/pantallas/p18_modo_oscuro.jpg" width="420" alt="🌙 Modo oscuro"></a></td></tr>
+<tr><td align="center" width="50%"><b>17 · 📊 Panel de estadísticas de uso</b><br><a href="docs/pruebas/evidencias/pantallas/p19_estadisticas.jpg"><img src="docs/pruebas/evidencias/pantallas/p19_estadisticas.jpg" width="420" alt="📊 Panel de estadísticas de uso"></a></td><td align="center" width="50%"><b>18 · Documentación de la API (/docs)</b><br><a href="docs/pruebas/evidencias/pantallas/p20_api_docs.jpg"><img src="docs/pruebas/evidencias/pantallas/p20_api_docs.jpg" width="420" alt="Documentación de la API (/docs)"></a></td></tr>
+</table>

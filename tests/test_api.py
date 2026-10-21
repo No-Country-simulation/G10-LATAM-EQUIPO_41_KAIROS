@@ -530,6 +530,56 @@ def test_el_namespace_de_oci_se_consulta_una_sola_vez(tmp_path):
     assert len(consultas) == 1
 
 
+def test_oci_disponible_solo_si_acepta_las_credenciales(api_client):
+    """HU-64: con una llave de API no registrada (401) no se muestra «Guardando en OCI»,
+    aunque exista el config, y /health explica el motivo."""
+    from nuevamente.storage import oci_client
+
+    class _Error401(Exception):
+        status = 401
+
+    consultas = []
+
+    class _Cliente:
+        def get_namespace(self):
+            consultas.append(1)
+            raise _Error401("NotAuthenticated")
+
+    storage = oci_client.get_storage_service()
+    cliente_antes = storage._cliente_oci
+    try:
+        storage._cliente_oci, storage._namespace_oci, storage._error_hasta = _Cliente(), None, 0.0
+        salud = api_client.get("/health").json()
+        assert salud["oci_disponible"] is False
+        assert "401" in salud["oci_motivo"]
+        # el fallo se recuerda: la siguiente carga de la página no vuelve a consultar a OCI
+        api_client.get("/health")
+        assert len(consultas) == 1
+        assert storage.subir_texto("prueba/x.txt", "hola").status_upload == "fallido_local"
+    finally:
+        storage._cliente_oci, storage._namespace_oci, storage._error_hasta = cliente_antes, None, 0.0
+        storage._motivo_oci = ""
+
+
+def test_una_subida_correcta_limpia_el_fallo_anterior():
+    from types import SimpleNamespace
+
+    from nuevamente.storage.oci_client import StorageService
+
+    class _Cliente:
+        def get_namespace(self):
+            return SimpleNamespace(data="mi-namespace")
+
+        def put_object(self, *args, **kwargs):
+            return None
+
+    storage = StorageService()
+    storage._cliente_oci = _Cliente()
+    storage._motivo_oci, storage._error_hasta = "fallo viejo", 10**12
+    assert storage.subir_texto("prueba/x.txt", "hola").status_upload == "completado"
+    assert storage.disponible_oci() and storage.motivo_oci() == ""
+
+
 def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path):
     """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario."""
     from docx import Document

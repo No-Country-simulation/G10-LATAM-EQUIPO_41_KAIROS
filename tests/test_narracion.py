@@ -182,3 +182,27 @@ def test_modelo_que_exige_locutor_por_parte_se_reintenta_con_ese_formato(monkeyp
 
     pcm = narracion.generar_audio_tts(SimpleNamespace(models=_Modelos()), "Ana: Hola.", None, por_locutor=["partes"])
     assert pcm == b"\x01" and recibidos == ["Ana: Hola.", ["partes"]]
+
+
+def test_video_sin_introduccion_hablada(monkeypatch, tmp_path):
+    """El video no abre con un saludo ni una prueba de voz: la voz solo lee la narración
+    de cada escena, y la portada (título del documento) va en silencio."""
+    from nuevamente.exports import video
+    from nuevamente.schemas.formatos import GuionDeClaseContenido
+
+    narrados: list[str] = []
+
+    def narrar_falso(textos, voz):
+        narrados.extend(texto for texto, _ in textos)
+        return [None] * len(textos), "sistema"
+
+    monkeypatch.setattr(video, "narrar", narrar_falso)
+    guion = GuionDeClaseContenido(duracion_total_min=1, escenas=[
+        {"orden": 1, "narracion": "El lavado de manos elimina microorganismos.", "apoyo_visual": "Diagrama",
+         "duracion_seg": 5, "seccion": "Lavado de manos"},
+        {"orden": 2, "narracion": "Los guantes se cambian entre pacientes.", "apoyo_visual": "Foto",
+         "duracion_seg": 5, "seccion": "Uso de guantes"},
+    ])
+    video.generar_video(guion, "Bioseguridad", tmp_path / "clase.mp4", "femenina")
+    assert narrados == ["El lavado de manos elimina microorganismos.", "Los guantes se cambian entre pacientes."]
+    assert (tmp_path / "clase.mp4").stat().st_size > 0

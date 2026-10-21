@@ -177,10 +177,12 @@ async function cargarEstado() {
         "Cada material se guarda en OCI Object Storage, en la nube de Oracle. Puedes volver a abrirlo desde el Historial.";
     } else {
       poner("aviso", "Guardado local");
+      // el motivo real que da el servidor (credenciales rechazadas, sin config…)
       $("#estado-detalle").replaceChildren(
-        "OCI Object Storage no está configurado, así que cada material se guarda en este equipo (",
+        salud.oci_motivo || "OCI Object Storage no está configurado.",
+        " Cada material se guarda en este equipo (",
         h("code", {}, "data/fallback/"),
-        "). Sigue disponible en el Historial. Para guardarlo en la nube, configura las credenciales de OCI (ver ",
+        ") y sigue disponible en el Historial. Para guardarlo en la nube, revisa las credenciales de OCI (ver ",
         h("code", {}, "docs/SETUP_OCI.md"),
         ").",
       );

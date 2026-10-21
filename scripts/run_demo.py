@@ -68,7 +68,10 @@ def main() -> int:
     resumen_general = []
     salidas: list[tuple[Path, str | bytes]] = []  # se escriben al final, si la demo es válida
     storage = get_storage_service()
-    print(f"OCI Object Storage: {'conectado' if storage.disponible_oci() else 'NO disponible (se usa el respaldo local)'}")
+    if storage.disponible_oci():
+        print("OCI Object Storage: conectado")
+    else:
+        print(f"OCI Object Storage: NO disponible, se usa el respaldo local. {storage.motivo_oci()}")
 
     for escenario in ESCENARIOS:
         print(f"\n=== Escenario: {escenario['caso_de_uso']} ===")
