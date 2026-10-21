@@ -127,11 +127,11 @@ flowchart LR
 | Persona | Rol |
 |---|---|
 | Juan Pablo Calla | Project Manager |
-| Gaspar Martinez Paiva | Data Engineer |
-| Bryan Infante | AI Engineer |
-| Adrian Gil | ML Engineer |
-| Ethan Espinoza Acosta | Backend Developer |
-| Dario Higuera Moreno | No Code Developer |
+| Gaspar Martínez Paiva | Data Engineer · **Ingeniero de IA** (asume el rol de Adrian Gil) |
+| Bryan Infante | AI Engineer (orquestación de agentes; rol asumido por Ethan Espinoza Acosta) |
+| Adrian Gil | ML Engineer (rol asumido por Gaspar Martínez Paiva y Darío Higuera Moreno como Ingenieros de IA) |
+| Ethan Espinoza Acosta | Backend Developer · **Orquestación de agentes** (asume el rol de Bryan Infante) |
+| Darío Higuera Moreno | No Code Developer · **Ingeniero de IA** (asume el rol de Adrian Gil) |
 | Diana Dure | QA Tester |
 
 ### Quién construyó qué
@@ -139,11 +139,11 @@ flowchart LR
 | Módulo | Responsable | Rol |
 |---|---|---|
 | `config.py`, arquitectura general, `docs/demo/` | Juan Pablo Calla | Project Manager |
-| `ingest/`, `rag/` | Gaspar Martinez Paiva | Data Engineer |
-| `agents/graph.py` | Bryan Infante | AI Engineer |
-| `llm/`, `fidelity/` | Adrian Gil | ML Engineer |
+| `ingest/`, `rag/` | Gaspar Martínez Paiva | Data Engineer |
+| `agents/graph.py` (orquestación de agentes) | Bryan Infante → Ethan Espinoza Acosta | AI Engineer → Orquestación de agentes |
+| `llm/`, `fidelity/` | Adrian Gil → Gaspar Martínez Paiva y Darío Higuera Moreno | ML Engineer → Ingenieros de IA |
 | `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
-| `web/`, `ui/`, `exports/` | Dario Higuera Moreno | No Code Developer |
+| `web/`, `ui/`, `exports/` | Darío Higuera Moreno | No Code Developer |
 | `tests/` | Diana Dure | QA Tester |
 
 ## 4. Decisiones de diseño importantes (léelo antes de evaluar el código)
@@ -390,9 +390,9 @@ nuevamente/
 │   ├── schemas/        # enums, request, response, formatos (Ethan)
 │   ├── ingest/          # lectores + chunking (Gaspar)
 │   ├── rag/             # embeddings + vector store (Gaspar)
-│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Adrian)
-│   ├── agents/           # orquestación (Bryan)
-│   ├── fidelity/         # verificación de fidelidad y juez de IA (Adrian)
+│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Adrian → Gaspar y Darío)
+│   ├── agents/           # orquestación de agentes (Bryan → Ethan)
+│   ├── fidelity/         # verificación de fidelidad y juez de IA (Adrian → Gaspar y Darío)
 │   ├── cache/            # caché de material aprobado (Ethan)
 │   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)
 │   ├── exports/          # Markdown, Anki, Word, PDF, PowerPoint, video MP4, podcast y narración (Dario)
