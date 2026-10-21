@@ -767,7 +767,7 @@ rama `SPRINT04.4` con el generador local (`LLM_PROVIDER=template`, sin red):
 | Recurso | Enlace |
 |---|---|
 | Repositorio del proyecto (GitHub) | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS |
-| Rama de este sprint | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/tree/SPRINT04.4 |
+| Rama de este sprint | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/tree/SPRINT05 |
 | Pruebas automatizadas | [`tests/`](tests/) (ver sección 13) |
 | Pruebas de títulos en Markdown y PDF | [`tests/test_titulos.py`](tests/test_titulos.py) |
 | Documentos de prueba | [`docs/pruebas/documentos/`](docs/pruebas/documentos/) |
