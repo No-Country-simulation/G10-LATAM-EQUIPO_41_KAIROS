@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="662" viewBox="0 0 900 662" role="img" aria-labelledby="t d">
+<title id="t">Secciones reconocidas por documento de prueba, antes y después</title><desc id="d">Títulos y subtítulos reconocidos en 15 documentos de prueba antes (commit 715d90a) y después del cambio.</desc>
+<style>
+.sf{fill:#fcfcfb}.t1{fill:#0b0b0b}.t2{fill:#52514e}.tm{fill:#898781}.gr{stroke:#e1e0d9}.bl{stroke:#c3c2b7}
+.s1{fill:#2a78d6}.s2{fill:#eb6834}
+@media (prefers-color-scheme: dark){.sf{fill:#1a1a19}.t1{fill:#f0efec}.t2{fill:#c3c2b7}.gr{stroke:#2c2c2a}.bl{stroke:#383835}
+.s1{fill:#3987e5}.s2{fill:#d95926}}
+text{font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+</style>
+<rect class="sf" width="900" height="662" rx="8"/>
+<text class="t1" x="24" y="34" font-size="18" font-weight="600">Títulos y subtítulos reconocidos por documento</text>
+<text class="t2" x="24" y="58" font-size="13">Secciones detectadas en docs/pruebas/documentos · 0 = el documento queda como un solo bloque</text>
+<rect class="s2" x="24" y="74" width="12" height="12" rx="2"/><text class="t2" x="42" y="84" font-size="12">Antes (commit 715d90a)</text>
+<rect class="s1" x="200" y="74" width="12" height="12" rx="2"/><text class="t2" x="218" y="84" font-size="12">Después (esta versión)</text>
+<line class="bl" x1="330.0" y1="104" x2="330.0" y2="606" stroke-width="1"/>
+<text class="tm" x="330.0" y="624" font-size="11" text-anchor="middle">0</text>
+<line class="gr" x1="434.0" y1="104" x2="434.0" y2="606" stroke-width="1"/>
+<text class="tm" x="434.0" y="624" font-size="11" text-anchor="middle">20</text>
+<line class="gr" x1="538.0" y1="104" x2="538.0" y2="606" stroke-width="1"/>
+<text class="tm" x="538.0" y="624" font-size="11" text-anchor="middle">40</text>
+<line class="gr" x1="642.0" y1="104" x2="642.0" y2="606" stroke-width="1"/>
+<text class="tm" x="642.0" y="624" font-size="11" text-anchor="middle">60</text>
+<line class="gr" x1="746.0" y1="104" x2="746.0" y2="606" stroke-width="1"/>
+<text class="tm" x="746.0" y="624" font-size="11" text-anchor="middle">80</text>
+<line class="gr" x1="850.0" y1="104" x2="850.0" y2="606" stroke-width="1"/>
+<text class="tm" x="850.0" y="624" font-size="11" text-anchor="middle">100</text>
+<text class="t2" x="320" y="127" font-size="12" text-anchor="end"><title>DD_IA_01.pdf</title>DD_IA_01.pdf</text>
+
+<text class="t2" x="336.0" y="121" font-size="11">0</text>
+<path class="s1" d="M330,124 H487.2 Q491.2,124 491.2,128 V130 Q491.2,134 487.2,134 H330 Z"><title>DD_IA_01.pdf · después: 31 secciones</title></path>
+<text class="t1" x="497.2" y="133" font-size="11">31</text>
+<text class="t2" x="320" y="159" font-size="12" text-anchor="end"><title>evidencia_scrum_21_a_24.pdf</title>evidencia_scrum_21_a_24.pdf (copia de DD_IA_01)</text>
+
+<text class="t2" x="336.0" y="153" font-size="11">0</text>
+<path class="s1" d="M330,156 H487.2 Q491.2,156 491.2,160 V162 Q491.2,166 487.2,166 H330 Z"><title>evidencia_scrum_21_a_24.pdf · después: 31 secciones</title></path>
+<text class="t1" x="497.2" y="165" font-size="11">31</text>
+<text class="t2" x="320" y="191" font-size="12" text-anchor="end"><title>guia-prompting-alcaraz-cricc.pdf</title>guia-prompting-alcaraz-cricc.pdf</text>
+<path class="s2" d="M330,176 H346.8 Q350.8,176 350.8,180 V182 Q350.8,186 346.8,186 H330 Z"><title>guia-prompting-alcaraz-cricc.pdf · antes: 4 secciones</title></path>
+<text class="t2" x="356.8" y="185" font-size="11">4</text>
+<path class="s1" d="M330,188 H497.6 Q501.6,188 501.6,192 V194 Q501.6,198 497.6,198 H330 Z"><title>guia-prompting-alcaraz-cricc.pdf · después: 33 secciones</title></path>
+<text class="t1" x="507.6" y="197" font-size="11">33</text>
+<text class="t2" x="320" y="223" font-size="12" text-anchor="end"><title>IoT-Guia-Basica.pdf</title>IoT-Guia-Basica.pdf</text>
+<path class="s2" d="M330,208 H352.0 Q356.0,208 356.0,212 V214 Q356.0,218 352.0,218 H330 Z"><title>IoT-Guia-Basica.pdf · antes: 5 secciones</title></path>
+<text class="t2" x="362.0" y="217" font-size="11">5</text>
+<path class="s1" d="M330,220 H435.2 Q439.2,220 439.2,224 V226 Q439.2,230 435.2,230 H330 Z"><title>IoT-Guia-Basica.pdf · después: 21 secciones</title></path>
+<text class="t1" x="445.2" y="229" font-size="11">21</text>
+<text class="t2" x="320" y="255" font-size="12" text-anchor="end"><title>Memoria en generador de video_v6 - DeepSeek.pdf</title>Memoria en generador de video_v6 - Deep….pdf</text>
+<path class="s2" d="M330,240 H804.4 Q808.4,240 808.4,244 V246 Q808.4,250 804.4,250 H330 Z"><title>Memoria en generador de video_v6 - DeepSeek.pdf · antes: 92 secciones</title></path>
+<text class="t2" x="814.4" y="249" font-size="11">92</text>
+<path class="s1" d="M330,252 H820.0 Q824.0,252 824.0,256 V258 Q824.0,262 820.0,262 H330 Z"><title>Memoria en generador de video_v6 - DeepSeek.pdf · después: 95 secciones</title></path>
+<text class="t1" x="830.0" y="261" font-size="11">95</text>
+<text class="t2" x="320" y="287" font-size="12" text-anchor="end"><title>E-Commers.pdf</title>E-Commers.pdf</text>
+<path class="s2" d="M330,272 H388.4 Q392.4,272 392.4,276 V278 Q392.4,282 388.4,282 H330 Z"><title>E-Commers.pdf · antes: 12 secciones</title></path>
+<text class="t2" x="398.4" y="281" font-size="11">12</text>
+<path class="s1" d="M330,284 H393.6 Q397.6,284 397.6,288 V290 Q397.6,294 393.6,294 H330 Z"><title>E-Commers.pdf · después: 13 secciones</title></path>
+<text class="t1" x="403.6" y="293" font-size="11">13</text>
+<text class="t2" x="320" y="319" font-size="12" text-anchor="end"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx</title>Fintech arquitectura tecnológica, mode….docx</text>
+<path class="s2" d="M330,304 H482.0 Q486.0,304 486.0,308 V310 Q486.0,314 482.0,314 H330 Z"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · antes: 30 secciones</title></path>
+<text class="t2" x="492.0" y="313" font-size="11">30</text>
+<path class="s1" d="M330,316 H482.0 Q486.0,316 486.0,320 V322 Q486.0,326 482.0,326 H330 Z"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · después: 30 secciones</title></path>
+<text class="t1" x="492.0" y="325" font-size="11">30</text>
+<text class="t2" x="320" y="351" font-size="12" text-anchor="end"><title>Políticas Generales y de Cumplimiento Financiero.docx</title>Políticas Generales y de Cumplimiento F….docx</text>
+<path class="s2" d="M330,336 H388.4 Q392.4,336 392.4,340 V342 Q392.4,346 388.4,346 H330 Z"><title>Políticas Generales y de Cumplimiento Financiero.docx · antes: 12 secciones</title></path>
+<text class="t2" x="398.4" y="345" font-size="11">12</text>
+<path class="s1" d="M330,348 H388.4 Q392.4,348 392.4,352 V354 Q392.4,358 388.4,358 H330 Z"><title>Políticas Generales y de Cumplimiento Financiero.docx · después: 12 secciones</title></path>
+<text class="t1" x="398.4" y="357" font-size="11">12</text>
+<text class="t2" x="320" y="383" font-size="12" text-anchor="end"><title>Normas de Conducta y Convivencia.pdf</title>Normas de Conducta y Convivencia.pdf</text>
+<path class="s2" d="M330,368 H372.8 Q376.8,368 376.8,372 V374 Q376.8,378 372.8,378 H330 Z"><title>Normas de Conducta y Convivencia.pdf · antes: 9 secciones</title></path>
+<text class="t2" x="382.8" y="377" font-size="11">9</text>
+<path class="s1" d="M330,380 H372.8 Q376.8,380 376.8,384 V386 Q376.8,390 372.8,390 H330 Z"><title>Normas de Conducta y Convivencia.pdf · después: 9 secciones</title></path>
+<text class="t1" x="382.8" y="389" font-size="11">9</text>
+<text class="t2" x="320" y="415" font-size="12" text-anchor="end"><title>Resumen_Ecommerce_Completo.docx</title>Resumen_Ecommerce_Completo.docx</text>
+<path class="s2" d="M330,400 H362.4 Q366.4,400 366.4,404 V406 Q366.4,410 362.4,410 H330 Z"><title>Resumen_Ecommerce_Completo.docx · antes: 7 secciones</title></path>
+<text class="t2" x="372.4" y="409" font-size="11">7</text>
+<path class="s1" d="M330,412 H362.4 Q366.4,412 366.4,416 V418 Q366.4,422 362.4,422 H330 Z"><title>Resumen_Ecommerce_Completo.docx · después: 7 secciones</title></path>
+<text class="t1" x="372.4" y="421" font-size="11">7</text>
+<text class="t2" x="320" y="447" font-size="12" text-anchor="end"><title>evidencia_scrum_21_a_24.md</title>evidencia_scrum_21_a_24.md</text>
+<path class="s2" d="M330,432 H346.8 Q350.8,432 350.8,436 V438 Q350.8,442 346.8,442 H330 Z"><title>evidencia_scrum_21_a_24.md · antes: 4 secciones</title></path>
+<text class="t2" x="356.8" y="441" font-size="11">4</text>
+<path class="s1" d="M330,444 H346.8 Q350.8,444 350.8,448 V450 Q350.8,454 346.8,454 H330 Z"><title>evidencia_scrum_21_a_24.md · después: 4 secciones</title></path>
+<text class="t1" x="356.8" y="453" font-size="11">4</text>
+<text class="t2" x="320" y="479" font-size="12" text-anchor="end"><title>Manual como hacer clic.pdf</title>Manual como hacer clic.pdf</text>
+<path class="s2" d="M330,464 H341.6 Q345.6,464 345.6,468 V470 Q345.6,474 341.6,474 H330 Z"><title>Manual como hacer clic.pdf · antes: 3 secciones</title></path>
+<text class="t2" x="351.6" y="473" font-size="11">3</text>
+<path class="s1" d="M330,476 H341.6 Q345.6,476 345.6,480 V482 Q345.6,486 341.6,486 H330 Z"><title>Manual como hacer clic.pdf · después: 3 secciones</title></path>
+<text class="t1" x="351.6" y="485" font-size="11">3</text>
+<text class="t2" x="320" y="511" font-size="12" text-anchor="end"><title>original6.pdf</title>original6.pdf</text>
+
+<text class="t2" x="336.0" y="505" font-size="11">0</text>
+
+<text class="t1" x="336.0" y="517" font-size="11">0</text>
+<text class="t2" x="320" y="543" font-size="12" text-anchor="end"><title>Manual Forms 6i.pdf</title>Manual Forms 6i.pdf</text>
+<path class="s2" d="M330,528 H554.8 Q558.8,528 558.8,532 V534 Q558.8,538 554.8,538 H330 Z"><title>Manual Forms 6i.pdf · antes: 44 secciones</title></path>
+<text class="t2" x="564.8" y="537" font-size="11">44</text>
+<path class="s1" d="M330,540 H513.2 Q517.2,540 517.2,544 V546 Q517.2,550 513.2,550 H330 Z"><title>Manual Forms 6i.pdf · después: 36 secciones</title></path>
+<text class="t1" x="523.2" y="549" font-size="11">36</text>
+<text class="t2" x="320" y="575" font-size="12" text-anchor="end"><title>Libro guía del usuario.pdf</title>Libro guía del usuario.pdf</text>
+<path class="s2" d="M330,560 H554.8 Q558.8,560 558.8,564 V566 Q558.8,570 554.8,570 H330 Z"><title>Libro guía del usuario.pdf · antes: 44 secciones</title></path>
+<text class="t2" x="564.8" y="569" font-size="11">44</text>
+<path class="s1" d="M330,572 H508.0 Q512.0,572 512.0,576 V578 Q512.0,582 508.0,582 H330 Z"><title>Libro guía del usuario.pdf · después: 35 secciones</title></path>
+<text class="t1" x="518.0" y="581" font-size="11">35</text>
+<text class="tm" x="24" y="640" font-size="11">Manual Forms 6i y Libro guía: el "antes" contaba unas 15 líneas de código como títulos.</text>
+<text class="tm" x="24" y="654" font-size="11">original6.pdf guarda el texto sin espacios entre palabras: se lee con OCR cuando hay clave de Gemini.</text>
+</svg>

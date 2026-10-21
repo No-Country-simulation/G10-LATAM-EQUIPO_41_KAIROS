@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,6 +21,10 @@ from pathlib import Path
 from nuevamente.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Si OCI rechazó la conexión, no se vuelve a consultar hasta pasado este tiempo: cada consulta
+# cuenta contra el cupo gratuito y /health se llama en cada carga de la página.
+_REINTENTO_CONEXION_SEG = 300
 
 
 @dataclass
@@ -34,6 +39,8 @@ class StorageService:
 
     def __init__(self) -> None:
         self._namespace_oci: str | None = None
+        self._motivo_oci = ""  # por qué no se puede usar OCI ahora ("" si funciona o no se probó)
+        self._error_hasta = 0.0  # hasta cuándo (time.monotonic) no se vuelve a probar la conexión
         self._cliente_oci = self._intentar_crear_cliente_oci()
         self._fallback_dir = Path(settings.fallback_dir)
         self._fallback_dir.mkdir(parents=True, exist_ok=True)
@@ -42,10 +49,12 @@ class StorageService:
         try:
             import oci  # type: ignore
         except ImportError:
+            self._motivo_oci = "La librería oci no está instalada."
             return None
 
         config_path = Path(settings.oci_config_file).expanduser()
         if not config_path.exists():
+            self._motivo_oci = f"No existe el archivo de configuración de OCI ({settings.oci_config_file})."
             return None
         try:
             config = oci.config.from_file(str(config_path), settings.oci_profile)
@@ -61,6 +70,7 @@ class StorageService:
             # Cualquier problema de credenciales o red: caemos a fallback local,
             # sin tumbar la aplicación (y se registra por qué).
             logger.warning("OCI Object Storage no disponible, se usa el respaldo local: %s", exc)
+            self._motivo_oci = f"La configuración de OCI no es válida: {exc}"
             return None
 
     def _namespace(self) -> str:
@@ -71,7 +81,41 @@ class StorageService:
         return self._namespace_oci
 
     def disponible_oci(self) -> bool:
-        return self._cliente_oci is not None
+        """OCI acepta de verdad las credenciales. No basta con que exista el config: una llave
+        de API que no está registrada en la cuenta da 401 en cada subida. La conexión se
+        comprueba una vez (pidiendo el namespace) y se vuelve a probar cada pocos minutos si
+        falló; cada subida actualiza el resultado."""
+        if self._cliente_oci is None:
+            return False
+        if self._namespace_oci is not None:
+            return True
+        if time.monotonic() < self._error_hasta:
+            return False
+        try:
+            self._namespace()
+            return True
+        except Exception as exc:
+            self._registrar_fallo(exc)
+            return False
+
+    def motivo_oci(self) -> str:
+        """Por qué no se está guardando en OCI, en palabras para el usuario ("" si funciona)."""
+        return "" if self.disponible_oci() else self._motivo_oci
+
+    def _registrar_fallo(self, exc: Exception) -> None:
+        self._error_hasta = time.monotonic() + _REINTENTO_CONEXION_SEG
+        estado = getattr(exc, "status", None)
+        if estado == 401:
+            self._motivo_oci = (
+                "OCI rechazó las credenciales (401): la llave de API del config no está registrada "
+                "en la cuenta. Súbela en la consola de OCI (Mi perfil → Claves de API)."
+            )
+        elif estado == 404:
+            self._motivo_oci = f"No se encontró el bucket {settings.oci_bucket} o el namespace (404)."
+        elif estado == 403:
+            self._motivo_oci = "El usuario de OCI no tiene permiso sobre el bucket (403)."
+        else:
+            self._motivo_oci = f"No se pudo conectar con OCI: {str(exc)[:200]}"
 
     def subir_bytes(self, objeto_id: str, datos: bytes, content_type: str = "application/octet-stream") -> ResultadoSubida:
         if self._cliente_oci is not None:
@@ -79,9 +123,11 @@ class StorageService:
                 self._cliente_oci.put_object(
                     self._namespace(), settings.oci_bucket, objeto_id, datos, content_type=content_type
                 )
+                self._motivo_oci, self._error_hasta = "", 0.0
                 return ResultadoSubida(bucket=settings.oci_bucket, objeto_id=objeto_id, status_upload="completado")
             except Exception as exc:  # cae a fallback local abajo
                 logger.warning("No se pudo subir %s a OCI, se guarda en el respaldo local: %s", objeto_id, exc)
+                self._registrar_fallo(exc)
 
         destino = self._fallback_dir / objeto_id.replace("/", "__")
         destino.parent.mkdir(parents=True, exist_ok=True)

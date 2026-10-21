@@ -363,6 +363,7 @@ class TemplateLLM:
                     apoyo_visual=f"Diapositiva: {_tema(c['seccion'], narracion, titulo)}",
                     duracion_seg=duracion,
                     fuentes=[c["chunk_id"]],
+                    seccion=c["seccion"],  # título de la diapositiva en el video
                 )
             )
         return GuionDeClaseContenido(

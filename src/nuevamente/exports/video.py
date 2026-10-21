@@ -3,9 +3,10 @@
 Responsable en el equipo Kairos G10: Dario Higuera Moreno (No Code Developer).
 
 Cada escena del guion se convierte en una diapositiva (Pillow) con su narración
-en voz femenina o masculina (ver exports/narracion.py). La clase abre con un
-saludo, enlaza las escenas con transiciones y cierra con una despedida, como lo
-haría un docente. Si no hay voz disponible (o VIDEO_TTS=off), cada escena se
+en voz femenina o masculina (ver exports/narracion.py). El video contiene solo
+datos del documento: una portada en silencio con su título y, en cada escena, la
+sección de la que sale y su narración, sin saludos, transiciones ni despedidas
+agregadas, y sin mostrar las indicaciones de apoyo visual. Si no hay voz disponible (o VIDEO_TTS=off), cada escena se
 muestra en silencio durante su `duracion_seg`. ffmpeg une todo en un MP4
 H.264/AAC con volumen normalizado y fundidos suaves entre diapositivas: se usa
 el ffmpeg del sistema y, si no hay, el que trae el paquete `imageio-ffmpeg`.
@@ -27,7 +28,7 @@ from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 7  # 7: 10 fps, imagen decodificada una vez y audio mono con dynaudnorm
+VERSION = 8  # 8: solo contenido del documento (sin saludo, transiciones, cierre ni títulos de apoyo visual)
 
 ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
 ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
@@ -35,8 +36,7 @@ MARGEN = 80
 # Diapositivas fijas: 10 cuadros por segundo bastan para los fundidos y la codificación
 # cuesta menos de la mitad que a 25 (importa en servidores con 0,1 CPU, como Render free).
 FPS = 10
-DURACION_PORTADA_SEG = 4
-DURACION_CIERRE_SEG = 3
+DURACION_PORTADA_SEG = 3  # portada en silencio, solo con el título del documento
 PAUSA_FINAL_SEG = 0.9  # respiro tras la narración de cada diapositiva
 FUNDIDO_SEG = 0.35
 
@@ -104,25 +104,6 @@ def _duracion(ffmpeg: str, archivo: Path) -> float:
     return int(horas) * 3600 + int(minutos) * 60 + float(segundos)
 
 
-# ---------- Guion hablado ----------
-
-_TRANSICIONES = [
-    "Sigamos.",
-    "Ahora veamos lo siguiente.",
-    "Continuemos.",
-    "Pasemos al siguiente punto.",
-]
-
-
-def _texto_hablado(indice: int, total: int, narracion: str) -> str:
-    """Narración de la escena con la transición que diría un docente."""
-    if indice == 1:
-        return narracion
-    if indice == total:
-        return f"Y para terminar. {narracion}"
-    return f"{_TRANSICIONES[(indice - 2) % len(_TRANSICIONES)]} {narracion}"
-
-
 # ---------- Diapositivas ----------
 
 # CAMBIO 1: lru_cache de fuentes 32 -> 8.
@@ -180,32 +161,16 @@ def _texto_ajustado(dibujo, texto: str, ancho: int, alto: int, tamanos, negrita=
     return fuente, lineas, interlineado
 
 
-def _portada(titulo: str, total_escenas: int, minutos: int, destino: Path) -> None:
+def _portada(titulo: str, destino: Path) -> None:
+    """Portada con el título del documento, sin textos agregados."""
     img = Image.new("RGB", (ANCHO, ALTO), FONDO)
     _degradado(img, (0, 0, ANCHO, ALTO), PRIMARIO, CORAL)
     dibujo = ImageDraw.Draw(img)
-    dibujo.text((MARGEN, 110), "GUION DE CLASE", font=_fuente(30, True), fill=BLANCO)
-    fuente, lineas, inter = _texto_ajustado(dibujo, titulo, ANCHO - 2 * MARGEN, 300, (72, 64, 56, 48, 40), True)
-    y = 170
+    fuente, lineas, inter = _texto_ajustado(dibujo, titulo, ANCHO - 2 * MARGEN, 360, (72, 64, 56, 48, 40), True)
+    y = (ALTO - len(lineas) * inter) // 2
     for linea in lineas:
         dibujo.text((MARGEN, y), linea, font=fuente, fill=BLANCO)
         y += inter
-    dibujo.text(
-        (MARGEN, y + 24),
-        f"{total_escenas} escenas · aprox. {minutos} min",
-        font=_fuente(32),
-        fill=BLANCO,
-    )
-    dibujo.text((MARGEN, ALTO - 90), "Kairos", font=_fuente(34, True), fill=BLANCO)
-    img.save(destino)
-
-
-def _cierre(total_escenas: int, destino: Path) -> None:
-    img = Image.new("RGB", (ANCHO, ALTO), FONDO)
-    _degradado(img, (0, 0, ANCHO, ALTO), PRIMARIO, CORAL)
-    dibujo = ImageDraw.Draw(img)
-    dibujo.text((MARGEN, 230), "¡Gracias!", font=_fuente(96, True), fill=BLANCO)
-    dibujo.text((MARGEN, 360), f"Repasaste {total_escenas} escenas de esta clase.", font=_fuente(34), fill=BLANCO)
     dibujo.text((MARGEN, ALTO - 90), "Kairos", font=_fuente(34, True), fill=BLANCO)
     img.save(destino)
 
@@ -266,9 +231,12 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
     ])
 
 
-def _titulo_escena(apoyo_visual: str, indice: int) -> str:
-    titulo = re.sub(r"^\s*diapositiva\s*:\s*", "", apoyo_visual, flags=re.IGNORECASE).strip()
-    if not titulo or titulo == "Documento completo":
+def _titulo_escena(seccion: str, indice: int) -> str:
+    """El título de la diapositiva es la sección del documento de la que sale la escena.
+    No se usa `apoyo_visual`: son indicaciones para armar la diapositiva («Diagrama de…»),
+    no contenido del documento."""
+    titulo = (seccion or "").strip()
+    if not titulo or titulo == "Documento completo":  # documento sin encabezados
         return f"Parte {indice}"
     return titulo
 
@@ -292,30 +260,22 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
         def agregar(nombre: str, dibujar, texto: str, duracion_seg: float) -> None:
             partes.append((nombre, dibujar, texto, duracion_seg))
 
-        agregar(
-            "000",
-            lambda ruta: _portada(titulo, total, guion.duracion_total_min, ruta),
-            f"Hola, te doy la bienvenida. En esta clase vamos a repasar: {titulo}. ¡Comencemos!",
-            DURACION_PORTADA_SEG,
-        )
         for i, escena in enumerate(guion.escenas, start=1):
-            titulo_escena = _titulo_escena(escena.apoyo_visual, i)
+            titulo_escena = _titulo_escena(escena.seccion, i)
             agregar(
                 f"{i:03d}",
                 lambda ruta, i=i, t=titulo_escena, n=escena.narracion: _diapositiva(i, total, t, n, ruta),
-                _texto_hablado(i, total, escena.narracion),
+                escena.narracion,  # solo la narración del guion: nada de saludos ni transiciones
                 escena.duracion_seg,
             )
-        agregar(
-            "999",
-            lambda ruta: _cierre(total, ruta),
-            "Eso es todo por esta clase. Gracias por tu atención, y nos vemos en la próxima.",
-            DURACION_CIERRE_SEG,
-        )
 
-        # CAMBIO 4-B: narrar TODO de una vez (respeta la cuota gratuita de Gemini),
-        # pero dibujar y segmentar escena por escena.
+        # Narrar TODO de una vez (respeta la cuota gratuita de Gemini), pero dibujar y
+        # segmentar escena por escena.
         audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
+
+        # la portada solo muestra el título del documento, sin voz
+        partes.insert(0, ("000", lambda ruta: _portada(titulo, ruta), "", DURACION_PORTADA_SEG))
+        audios = [None, *audios]
 
         segmentos: list[Path] = []
         for (nombre, dibujar, _, duracion_seg), audio in zip(partes, audios):

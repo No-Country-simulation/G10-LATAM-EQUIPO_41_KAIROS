@@ -105,6 +105,8 @@ def health():
         "status": "ok",
         "version": __version__,
         "oci_disponible": storage.disponible_oci(),
+        # por qué se guarda en el respaldo local ("" si OCI funciona)
+        "oci_motivo": storage.motivo_oci(),
     }
 
 

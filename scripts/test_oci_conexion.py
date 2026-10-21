@@ -11,14 +11,11 @@ def probar_oci_real():
     storage = get_storage_service()
     
     if not storage.disponible_oci():
-        print("\n❌ ALERTA: OCI Client no se inicializó correctamente.")
-        print("  Causas posibles:")
-        print("  1. No está instalado el paquete 'oci' (ejecuta: pip install oci).")
-        print("  2. El archivo ~/.oci/config no existe o no tiene el formato correcto.")
-        print("  3. El perfil especificado no coincide.")
+        print("\n❌ ALERTA: OCI no acepta la conexión.")
+        print(f"  Motivo: {storage.motivo_oci()}")
         return
 
-    print("\n✓ OCI Client inicializado. Probando subida de objeto real...")
+    print("\n✓ OCI aceptó las credenciales. Probando subida de objeto real...")
     
     payload_prueba = {
         "origen": "Prueba Hackathon ONE G10",
