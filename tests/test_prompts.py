@@ -43,3 +43,39 @@ def test_el_idioma_de_la_solicitud_llega_al_redactor(api_client, documento_salud
             "formato_salida": "Flashcards", "idioma_salida": "pt"}
     assert api_client.post("/api/v1/adaptar", json=body).status_code == 200
     assert vistos and vistos[-1][-1] == "pt"
+
+
+# --- Misma estructura en todos los sectores, con General como referencia ---
+
+from nuevamente.llm.prompts import (  # noqa: E402
+    SECTORES,
+    construir_prompt_critico,
+    construir_prompt_planificador,
+)
+from nuevamente.schemas.enums import NichoSector  # noqa: E402
+
+
+def _sin_contenido_del_sector(prompt: str, nicho: str) -> str:
+    """El prompt sin los textos propios del sector: lo que queda es su estructura."""
+    for valor in SECTORES[nicho].values():
+        prompt = prompt.replace(valor, "<sector>")
+    return prompt.replace(f"Sector: {nicho}", "Sector: <sector>").replace(f"Sector {nicho}:", "Sector <sector>:")
+
+
+def test_todos_los_sectores_de_la_web_estan_descritos_con_los_mismos_campos():
+    assert set(SECTORES) == {n.value for n in NichoSector}
+    campos = set(SECTORES["General"])
+    assert all(set(s) == campos and all(s.values()) for s in SECTORES.values())
+
+
+@pytest.mark.parametrize("formato", list(EJEMPLOS_POR_FORMATO))
+def test_los_prompts_tienen_la_misma_estructura_que_en_general(formato):
+    """Solo cambia el contenido del sector; secciones, reglas y formato son los de General."""
+    for construir in (
+        lambda n: construir_prompt_sistema(formato, "Principiante", n, "Didáctico"),
+        lambda n: construir_prompt_planificador(formato, "Principiante", n),
+        lambda n: construir_prompt_critico(formato, "Principiante", n),
+    ):
+        referencia = _sin_contenido_del_sector(construir("General"), "General")
+        for nicho in SECTORES:
+            assert _sin_contenido_del_sector(construir(nicho), nicho) == referencia, nicho

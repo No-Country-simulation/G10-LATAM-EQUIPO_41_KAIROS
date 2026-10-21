@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="670" viewBox="0 0 980 670" role="img" aria-labelledby="t d">
+<title id="t">Prueba de fidelidad por documento y formato</title><desc id="d">86 de 90 materiales aprobados. Puntaje de anclaje a la fuente por documento y formato, generador local.</desc>
+<style>
+.sf{fill:#fcfcfb}.t1{fill:#0b0b0b}.t2{fill:#52514e}.tm{fill:#898781}.gr{stroke:#e1e0d9}.bl{stroke:#c3c2b7}.ring{stroke:#fcfcfb}
+.crit{stroke:#d03b3b}.critf{fill:#d03b3b}.s1{fill:#2a78d6}.umb{stroke:#0b0b0b}
+@media (prefers-color-scheme: dark){.sf{fill:#1a1a19}.t1{fill:#f0efec}.t2{fill:#c3c2b7}.gr{stroke:#2c2c2a}.bl{stroke:#383835}.ring{stroke:#1a1a19}.s1{fill:#3987e5}.umb{stroke:#f0efec}}
+text{font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+</style>
+<rect class="sf" width="980" height="670" rx="8"/>
+<text class="t1" x="24" y="34" font-size="18" font-weight="600">Prueba de fidelidad: anclaje a la fuente por documento y formato</text>
+<text class="t2" x="24" y="58" font-size="13">86 de 90 materiales aprobados · generador local (sin red) · perfil Principiante · nivel Didáctico · umbral 0,85 (Salud 0,90)</text>
+<rect x="24" y="74" width="56" height="12" fill="#cde2fb"/>
+<text class="tm" x="24" y="100" font-size="11">&lt; 0,80</text>
+<rect x="82" y="74" width="56" height="12" fill="#9ec5f4"/>
+<text class="tm" x="82" y="100" font-size="11">0,80</text>
+<rect x="140" y="74" width="56" height="12" fill="#6da7ec"/>
+<text class="tm" x="140" y="100" font-size="11">0,85</text>
+<rect x="198" y="74" width="56" height="12" fill="#3987e5"/>
+<text class="tm" x="198" y="100" font-size="11">0,90</text>
+<rect x="256" y="74" width="56" height="12" fill="#256abf"/>
+<text class="tm" x="256" y="100" font-size="11">0,95</text>
+<rect x="314" y="74" width="56" height="12" fill="#184f95"/>
+<text class="tm" x="314" y="100" font-size="11">1,00</text>
+<rect x="400" y="73" width="22" height="14" rx="3" fill="none" class="crit" stroke-width="2"/><text class="critf" x="406" y="84" font-size="11" font-weight="700">✗</text>
+<text class="t2" x="428" y="84" font-size="12">No alcanza el umbral (borde rojo)</text>
+<text class="t2" x="346.0" y="138" font-size="12" text-anchor="middle">Tutorial</text>
+<text class="t2" x="438.0" y="138" font-size="12" text-anchor="middle">Flashcards</text>
+<text class="t2" x="530.0" y="138" font-size="12" text-anchor="middle">Quiz</text>
+<text class="t2" x="622.0" y="124" font-size="12" text-anchor="middle">Resumen</text>
+<text class="t2" x="622.0" y="138" font-size="12" text-anchor="middle">Ejecutivo</text>
+<text class="t2" x="714.0" y="124" font-size="12" text-anchor="middle">Guion de</text>
+<text class="t2" x="714.0" y="138" font-size="12" text-anchor="middle">Clase</text>
+<text class="t2" x="806.0" y="138" font-size="12" text-anchor="middle">Podcast</text>
+<text class="t2" x="892" y="138" font-size="12" text-anchor="middle">Umbral</text>
+<text class="t2" x="290" y="169.0" font-size="12" text-anchor="end"><title>DD_IA_01.pdf</title>DD_IA_01.pdf</text>
+<rect x="301.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="151.0" width="90" height="28" rx="3" fill="#184f95"><title>DD_IA_01.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="169.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="169.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="199.0" font-size="12" text-anchor="end"><title>E-Commers.pdf</title>E-Commers.pdf</text>
+<rect x="301.0" y="181.0" width="90" height="28" rx="3" fill="#3987e5"><title>E-Commers.pdf · Tutorial: 0.90 (8 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="199.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,90</text>
+<rect x="393.0" y="181.0" width="90" height="28" rx="3" fill="#9ec5f4"><title>E-Commers.pdf · Flashcards: 0.83 (9 de 12 afirmaciones sustentadas) · no alcanza el umbral</title></rect>
+<rect x="394.0" y="182.0" width="88" height="26" rx="3" fill="none" class="crit" stroke-width="2.5"/>
+<text x="438.0" y="199.0" font-size="12" text-anchor="middle" fill="#0b0b0b" font-weight="600">✗ 0,83</text>
+<rect x="485.0" y="181.0" width="90" height="28" rx="3" fill="#9ec5f4"><title>E-Commers.pdf · Quiz: 0.80 (7 de 10 afirmaciones sustentadas) · no alcanza el umbral</title></rect>
+<rect x="486.0" y="182.0" width="88" height="26" rx="3" fill="none" class="crit" stroke-width="2.5"/>
+<text x="530.0" y="199.0" font-size="12" text-anchor="middle" fill="#0b0b0b" font-weight="600">✗ 0,80</text>
+<rect x="577.0" y="181.0" width="90" height="28" rx="3" fill="#3987e5"><title>E-Commers.pdf · Resumen Ejecutivo: 0.92 (5 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="199.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,92</text>
+<rect x="669.0" y="181.0" width="90" height="28" rx="3" fill="#184f95"><title>E-Commers.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="199.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="181.0" width="90" height="28" rx="3" fill="#184f95"><title>E-Commers.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="199.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="199.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="229.0" font-size="12" text-anchor="end"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx</title>Fintech arquitectura tecnológica, mode….docx</text>
+<rect x="301.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Resumen Ejecutivo: 1.00 (5 de 5 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="211.0" width="90" height="28" rx="3" fill="#184f95"><title>Fintech arquitectura tecnológica, modelos analíticos y seguridad de los servicios financieros digitales.docx · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="229.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="229.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="259.0" font-size="12" text-anchor="end"><title>IoT-Guia-Basica.pdf</title>IoT-Guia-Basica.pdf</text>
+<rect x="301.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Resumen Ejecutivo: 1.00 (5 de 5 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="241.0" width="90" height="28" rx="3" fill="#184f95"><title>IoT-Guia-Basica.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="259.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="259.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="289.0" font-size="12" text-anchor="end"><title>Libro guía del usuario.pdf</title>Libro guía del usuario.pdf</text>
+<rect x="301.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="271.0" width="90" height="28" rx="3" fill="#184f95"><title>Libro guía del usuario.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="289.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="289.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="319.0" font-size="12" text-anchor="end"><title>Manual Forms 6i.pdf</title>Manual Forms 6i.pdf</text>
+<rect x="301.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="301.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual Forms 6i.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="319.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="319.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="349.0" font-size="12" text-anchor="end"><title>Manual como hacer clic.pdf</title>Manual como hacer clic.pdf</text>
+<rect x="301.0" y="331.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual como hacer clic.pdf · Tutorial: 1.00 (3 de 3 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="349.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="331.0" width="90" height="28" rx="3" fill="#3987e5"><title>Manual como hacer clic.pdf · Flashcards: 0.92 (10 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="349.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,92</text>
+<rect x="485.0" y="331.0" width="90" height="28" rx="3" fill="#9ec5f4"><title>Manual como hacer clic.pdf · Quiz: 0.83 (2 de 3 afirmaciones sustentadas) · no alcanza el umbral</title></rect>
+<rect x="486.0" y="332.0" width="88" height="26" rx="3" fill="none" class="crit" stroke-width="2.5"/>
+<text x="530.0" y="349.0" font-size="12" text-anchor="middle" fill="#0b0b0b" font-weight="600">✗ 0,83</text>
+<rect x="577.0" y="331.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual como hacer clic.pdf · Resumen Ejecutivo: 1.00 (3 de 3 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="349.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="331.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual como hacer clic.pdf · Guion de Clase: 1.00 (3 de 3 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="349.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="331.0" width="90" height="28" rx="3" fill="#184f95"><title>Manual como hacer clic.pdf · Podcast: 1.00 (3 de 3 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="349.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="349.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="379.0" font-size="12" text-anchor="end"><title>Memoria en generador de video_v6 - DeepSeek.pdf</title>Memoria en generador de video_v6 - Deep….pdf</text>
+<rect x="301.0" y="361.0" width="90" height="28" rx="3" fill="#256abf"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Tutorial: 0.95 (9 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="379.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,95</text>
+<rect x="393.0" y="361.0" width="90" height="28" rx="3" fill="#cde2fb"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Flashcards: 0.79 (9 de 12 afirmaciones sustentadas) · no alcanza el umbral</title></rect>
+<rect x="394.0" y="362.0" width="88" height="26" rx="3" fill="none" class="crit" stroke-width="2.5"/>
+<text x="438.0" y="379.0" font-size="12" text-anchor="middle" fill="#0b0b0b" font-weight="600">✗ 0,79</text>
+<rect x="485.0" y="361.0" width="90" height="28" rx="3" fill="#3987e5"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Quiz: 0.90 (9 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="379.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,90</text>
+<rect x="577.0" y="361.0" width="90" height="28" rx="3" fill="#184f95"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Resumen Ejecutivo: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="379.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="361.0" width="90" height="28" rx="3" fill="#184f95"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="379.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="361.0" width="90" height="28" rx="3" fill="#184f95"><title>Memoria en generador de video_v6 - DeepSeek.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="379.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="379.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="409.0" font-size="12" text-anchor="end"><title>Normas de Conducta y Convivencia.pdf</title>Normas de Conducta y Convivencia.pdf</text>
+<rect x="301.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Flashcards: 1.00 (11 de 11 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="391.0" width="90" height="28" rx="3" fill="#184f95"><title>Normas de Conducta y Convivencia.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="409.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="409.0" font-size="12" text-anchor="middle">0,90</text>
+<text class="t2" x="290" y="439.0" font-size="12" text-anchor="end"><title>Políticas Generales y de Cumplimiento Financiero.docx</title>Políticas Generales y de Cumplimiento F….docx</text>
+<rect x="301.0" y="421.0" width="90" height="28" rx="3" fill="#184f95"><title>Políticas Generales y de Cumplimiento Financiero.docx · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="421.0" width="90" height="28" rx="3" fill="#256abf"><title>Políticas Generales y de Cumplimiento Financiero.docx · Flashcards: 0.96 (11 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,96</text>
+<rect x="485.0" y="421.0" width="90" height="28" rx="3" fill="#256abf"><title>Políticas Generales y de Cumplimiento Financiero.docx · Quiz: 0.95 (9 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,95</text>
+<rect x="577.0" y="421.0" width="90" height="28" rx="3" fill="#184f95"><title>Políticas Generales y de Cumplimiento Financiero.docx · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="421.0" width="90" height="28" rx="3" fill="#184f95"><title>Políticas Generales y de Cumplimiento Financiero.docx · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="421.0" width="90" height="28" rx="3" fill="#184f95"><title>Políticas Generales y de Cumplimiento Financiero.docx · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="439.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="439.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="469.0" font-size="12" text-anchor="end"><title>Resumen_Ecommerce_Completo.docx</title>Resumen_Ecommerce_Completo.docx</text>
+<rect x="301.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Tutorial: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Flashcards: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Quiz: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Guion de Clase: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="451.0" width="90" height="28" rx="3" fill="#184f95"><title>Resumen_Ecommerce_Completo.docx · Podcast: 1.00 (7 de 7 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="469.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="469.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="499.0" font-size="12" text-anchor="end"><title>evidencia_scrum_21_a_24.md</title>evidencia_scrum_21_a_24.md</text>
+<rect x="301.0" y="481.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.md · Tutorial: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="499.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="481.0" width="90" height="28" rx="3" fill="#6da7ec"><title>evidencia_scrum_21_a_24.md · Flashcards: 0.89 (8 de 9 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="499.0" font-size="12" text-anchor="middle" fill="#0b0b0b" font-weight="400">0,89</text>
+<rect x="485.0" y="481.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.md · Quiz: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="499.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="481.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.md · Resumen Ejecutivo: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="499.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="481.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.md · Guion de Clase: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="499.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="481.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.md · Podcast: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="499.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="499.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="529.0" font-size="12" text-anchor="end"><title>evidencia_scrum_21_a_24.pdf</title>evidencia_scrum_21_a_24.pdf</text>
+<rect x="301.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Tutorial: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Flashcards: 1.00 (12 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Quiz: 1.00 (10 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Resumen Ejecutivo: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="511.0" width="90" height="28" rx="3" fill="#184f95"><title>evidencia_scrum_21_a_24.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="529.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="529.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="559.0" font-size="12" text-anchor="end"><title>guia-prompting-alcaraz-cricc.pdf</title>guia-prompting-alcaraz-cricc.pdf</text>
+<rect x="301.0" y="541.0" width="90" height="28" rx="3" fill="#3987e5"><title>guia-prompting-alcaraz-cricc.pdf · Tutorial: 0.90 (9 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,90</text>
+<rect x="393.0" y="541.0" width="90" height="28" rx="3" fill="#3987e5"><title>guia-prompting-alcaraz-cricc.pdf · Flashcards: 0.92 (11 de 12 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,92</text>
+<rect x="485.0" y="541.0" width="90" height="28" rx="3" fill="#3987e5"><title>guia-prompting-alcaraz-cricc.pdf · Quiz: 0.90 (9 de 10 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">0,90</text>
+<rect x="577.0" y="541.0" width="90" height="28" rx="3" fill="#184f95"><title>guia-prompting-alcaraz-cricc.pdf · Resumen Ejecutivo: 1.00 (5 de 5 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="541.0" width="90" height="28" rx="3" fill="#184f95"><title>guia-prompting-alcaraz-cricc.pdf · Guion de Clase: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="541.0" width="90" height="28" rx="3" fill="#184f95"><title>guia-prompting-alcaraz-cricc.pdf · Podcast: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="559.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="559.0" font-size="12" text-anchor="middle">0,85</text>
+<text class="t2" x="290" y="589.0" font-size="12" text-anchor="end"><title>original6.pdf</title>original6.pdf</text>
+<rect x="301.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Tutorial: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="346.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="393.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Flashcards: 1.00 (8 de 8 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="438.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="485.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Quiz: 1.00 (6 de 6 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="530.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="577.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Resumen Ejecutivo: 1.00 (5 de 5 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="622.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="669.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Guion de Clase: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="714.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<rect x="761.0" y="571.0" width="90" height="28" rx="3" fill="#184f95"><title>original6.pdf · Podcast: 1.00 (4 de 4 afirmaciones sustentadas) · aprobado</title></rect>
+<text x="806.0" y="589.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="400">1,00</text>
+<text class="t2" x="892" y="589.0" font-size="12" text-anchor="middle">0,90</text>
+<text class="tm" x="24" y="640" font-size="11">Puntaje = (afirmaciones sustentadas + 0,5 × parciales) / total. Cada afirmación se compara con el fragmento del documento que cita.</text>
+<text class="tm" x="24" y="656" font-size="11">Los 4 ✗ son frases copiadas tal cual pero muy cortas («Transacciones entre empresas.»): el verificador TF-IDF las subestima.</text>
+</svg>

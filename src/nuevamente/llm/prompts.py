@@ -99,40 +99,97 @@ PROMPT_POR_PERFIL = {
     ),
 }
 
-PROMPT_POR_NICHO = {
-    "General": "No hay un sector concreto: usa el contexto del propio documento.",
-    "Fintech": (
-        "Contextualiza los ejemplos en servicios financieros, procesamiento de pagos, banca "
-        "digital, auditoría, cumplimiento y seguridad de datos transaccionales."
-    ),
-    "Salud": (
-        "Contextualiza los ejemplos en historias clínicas, interoperabilidad médica "
-        "(FHIR/HL7), privacidad de datos de pacientes (HIPAA) y sistemas hospitalarios. "
-        "No des indicaciones clínicas, dosis ni recomendaciones que no estén literalmente "
-        "en la fuente."
-    ),
-    "E-commerce": (
-        "Contextualiza los ejemplos en comercio electrónico, pasarelas de pago, gestión de "
-        "inventario, logística, motores de recomendación y picos de tráfico."
-    ),
-    "Tecnología": (
-        "Contextualiza los ejemplos en desarrollo de software, arquitectura cloud, CI/CD, "
-        "APIs y ecosistemas digitales modernos."
-    ),
+# ============================================================================
+# Sectores: una sola plantilla para todos
+# ============================================================================
+# Todos los sectores se describen con los mismos campos y se insertan con las mismas
+# plantillas, tomando como referencia el sector General. Así el material tiene la misma
+# estructura, organización y criterios en cualquier sector; solo cambia el contenido de
+# cada campo. El sector orienta el vocabulario y los ejemplos, nunca agrega temas: si el
+# documento no trata del sector, se usa el contexto del propio documento, como en General.
+
+SECTORES = {
+    "General": {
+        "enfoque": "el contexto y los temas del propio documento",
+        "prioridades": "las ideas centrales del documento, su secuencia lógica y los conceptos que el resto necesita",
+        "cuidado": "No agregues datos, cifras ni recomendaciones que no estén en la fuente.",
+        "verificacion": "cada dato, cifra y recomendación coincida con la fuente",
+    },
+    "Fintech": {
+        "enfoque": "servicios financieros, pagos, banca digital, auditoría, cumplimiento y seguridad de las transacciones",
+        "prioridades": "los conceptos regulatorios, los flujos transaccionales seguros y la mitigación de riesgos financieros",
+        "cuidado": "No prometas rentabilidades ni cambies normas o cifras financieras que no estén en la fuente.",
+        "verificacion": "no se prometan rentabilidades ni se alteren normas o cifras financieras de la fuente",
+    },
+    "Salud": {
+        "enfoque": "la atención sanitaria, los protocolos, la bioseguridad, los sistemas hospitalarios y la privacidad de los pacientes",
+        "prioridades": "los protocolos oficiales, las medidas de bioseguridad, la prevención de infecciones y los procedimientos estándar",
+        "cuidado": "No des indicaciones clínicas, diagnósticos ni dosis que no estén literalmente en la fuente.",
+        "verificacion": "no haya indicaciones clínicas, diagnósticos, dosis ni procedimientos que no estén en la fuente",
+    },
+    "E-commerce": {
+        "enfoque": "el comercio electrónico, la experiencia de compra, las pasarelas de pago, el inventario y la logística",
+        "prioridades": "la experiencia del cliente, la conversión, la gestión de inventario y los procesos de venta",
+        "cuidado": "No inventes métricas comerciales ni políticas de plataforma que no estén en la fuente.",
+        "verificacion": "las métricas comerciales y las políticas de plataforma coincidan con la fuente",
+    },
+    "Tecnología": {
+        "enfoque": "el desarrollo de software, la arquitectura, la infraestructura cloud, las APIs y la seguridad",
+        "prioridades": "la arquitectura, las dependencias entre componentes, la seguridad y las buenas prácticas de ingeniería",
+        "cuidado": "No cambies comandos, versiones, configuraciones ni nombres técnicos de la fuente.",
+        "verificacion": "los comandos, versiones, configuraciones y nombres técnicos coincidan con la fuente",
+    },
 }
 
-# Sectores con prompt listo pero que aún no se pueden elegir en la web. Para activar
-# uno, agrega su valor a NichoSector (schemas/enums.py) y muévelo a PROMPT_POR_NICHO.
-PROMPT_SECTORES_SIN_ACTIVAR = {
-    "Educación": (
-        "Contextualiza los ejemplos en plataformas e-learning, metodologías pedagógicas, "
-        "seguimiento del estudiante y gamificación."
-    ),
-    "Manufactura": (
-        "Contextualiza los ejemplos en cadenas de suministro, automatización de procesos, "
-        "mantenimiento predictivo e Internet de las Cosas (IoT)."
-    ),
+# Sectores con su descripción lista pero que aún no se pueden elegir en la web. Para activar
+# uno, agrega su valor a NichoSector (schemas/enums.py) y muévelo a SECTORES.
+SECTORES_SIN_ACTIVAR = {
+    "Educación": {
+        "enfoque": "las plataformas e-learning, las metodologías pedagógicas, el seguimiento del estudiante y la gamificación",
+        "prioridades": "los objetivos de aprendizaje, la secuencia didáctica y la evaluación",
+        "cuidado": "No inventes resultados de aprendizaje ni datos de estudiantes que no estén en la fuente.",
+        "verificacion": "los resultados de aprendizaje y los datos educativos coincidan con la fuente",
+    },
+    "Manufactura": {
+        "enfoque": "las cadenas de suministro, la automatización de procesos, el mantenimiento predictivo y el Internet de las Cosas (IoT)",
+        "prioridades": "los procesos productivos, la seguridad industrial y el mantenimiento",
+        "cuidado": "No cambies especificaciones, tolerancias ni procedimientos de seguridad de la fuente.",
+        "verificacion": "las especificaciones, tolerancias y procedimientos de seguridad coincidan con la fuente",
+    },
 }
+
+
+def _sector(nicho: str) -> dict:
+    return SECTORES.get(nicho, SECTORES["General"])
+
+
+def prompt_sector_redactor(nicho: str) -> str:
+    """Bloque del sector en el prompt del Redactor: igual para todos los sectores."""
+    s = _sector(nicho)
+    return (
+        f"- Enfoque: orienta el vocabulario, los ejemplos y las situaciones hacia {s['enfoque']}, "
+        "solo en lo que el documento trate.\n"
+        "- Si el documento no trata de este sector, usa el contexto del propio documento, como en "
+        "el sector General. El sector nunca agrega temas, secciones ni partes al material.\n"
+        f"- Cuidado: {s['cuidado']}"
+    )
+
+
+def prompt_sector_planificador(nicho: str) -> str:
+    s = _sector(nicho)
+    return f"Sector {nicho if nicho in SECTORES else 'General'}: prioriza {s['prioridades']}. {s['cuidado']}"
+
+
+def prompt_sector_critico(nicho: str) -> str:
+    s = _sector(nicho)
+    return (
+        f"Sector {nicho if nicho in SECTORES else 'General'}: verifica la fidelidad factual estricta "
+        f"contra el texto original y, además, que {s['verificacion']}."
+    )
+
+
+# Compatibilidad: el texto del sector para el Redactor, por nombre de sector.
+PROMPT_POR_NICHO = {nombre: prompt_sector_redactor(nombre) for nombre in SECTORES}
 
 PROMPT_POR_NIVEL = {
     "Conciso": "Respuestas directas, puntos clave, sin explicaciones extensas.",
@@ -182,14 +239,18 @@ PROMPT_POR_FORMATO = {
         "explica». Agrupan conceptos de todo el documento, no solo los primeros.\n"
         "- `decisiones_o_riesgos` (2 a 5): cada elemento empieza por «Riesgo:» o por "
         "«Recomendación:», con una acción o consecuencia concreta según la fuente.\n"
-        "- `impacto_de_negocio`: dos o tres oraciones sobre el impacto en el sector."
+        "- `impacto_de_negocio`: dos o tres oraciones sobre el impacto en el sector elegido (en "
+        "el sector General, en la organización o el ámbito del documento)."
     ),
     "Guion de Clase": (
-        "Guion de Clase: introducción con gancho, desarrollo temático por bloques y, al "
-        "final, una sección de preguntas frecuentes (FAQs) respondidas con el documento. "
-        "Cada parte es una o más escenas, una idea por escena. La narración está escrita "
-        "para leerse en voz alta; el apoyo visual describe la diapositiva. Estima la "
-        "duración de cada escena."
+        "Guion de Clase: desarrollo temático por bloques, siguiendo las secciones del "
+        "documento, y al final preguntas frecuentes respondidas con el documento. Cada "
+        "parte es una o más escenas, una idea por escena. La narración contiene solo "
+        "información del documento, escrita para leerse en voz alta: sin saludos, "
+        "bienvenidas, despedidas ni frases sobre la clase, la sesión o el video («hoy "
+        "veremos», «sigamos», «gracias por su atención»), y sin indicaciones de escena ni "
+        "de cámara. El apoyo visual describe la diapositiva y no se lee ni se muestra como "
+        "texto. Estima la duración de cada escena."
     ),
     # Los locutores son Ana (host) y Leo (experto): son los nombres que usan el esquema,
     # las voces y los episodios ya guardados. El tono va en la redacción y no como
@@ -353,7 +414,7 @@ def construir_prompt_sistema(formato: str, perfil: str, nicho: str, nivel_detall
         (
             "[REGLAS DE ADAPTACIÓN]\n"
             f"1. Aplica la perspectiva del perfil:\n{PROMPT_POR_PERFIL.get(perfil, '')}\n\n"
-            f"2. Contextualiza el dominio al sector:\n{PROMPT_POR_NICHO.get(nicho, '')}\n\n"
+            f"2. Contextualiza el dominio al sector:\n{prompt_sector_redactor(nicho)}\n\n"
             f"3. Ajusta la profundidad ({nivel_detalle}):\n{PROMPT_POR_NIVEL.get(nivel_detalle, '')}"
         ),
         (
@@ -384,17 +445,7 @@ PROMPT_PLANIFICADOR_BASE = (
     "Responde siempre en español, con lenguaje estructurado y rigor conceptual."
 )
 
-PROMPT_PLANIFICADOR_POR_NICHO = {
-    "General": "",
-    "Fintech": "Prioriza conceptos regulatorios, flujos transaccionales seguros y mitigación de riesgos financieros.",
-    "Salud": (
-        "En el sector Salud, la precisión es crítica de vida o muerte. Prioriza protocolos oficiales, "
-        "medidas de bioseguridad, prevención de infecciones y procedimientos estándar. "
-        "No asumas información no especificada ni planifiques contenidos de diagnóstico o prescripción médica."
-    ),
-    "E-commerce": "Prioriza experiencia de usuario, conversión, gestión de inventario y embudos de venta.",
-    "Tecnología": "Prioriza arquitectura, dependencias entre componentes, seguridad y buenas prácticas de ingeniería.",
-}
+PROMPT_PLANIFICADOR_POR_NICHO = {nombre: prompt_sector_planificador(nombre) for nombre in SECTORES}
 
 
 def construir_prompt_planificador(
@@ -410,7 +461,7 @@ def construir_prompt_planificador(
         PROMPT_PLANIFICADOR_BASE,
         f"Formato pedagógico objetivo: {formato}.",
         f"Perfil del estudiante: {perfil} ({PROMPT_POR_PERFIL.get(perfil, '')})",
-        PROMPT_PLANIFICADOR_POR_NICHO.get(nicho, ""),
+        prompt_sector_planificador(nicho),
         PROMPT_POR_NIVEL.get(nivel_detalle, ""),
     ]
     return "\n\n".join(p for p in partes if p)
@@ -428,7 +479,7 @@ PROMPT_CRITICO_BASE = (
     "1. Cero alucinaciones: Cada hecho, dato, cifra o indicación debe estar explícitamente "
     "sustentado por los chunks proporcionados.\n"
     "2. Trazabilidad: Las fuentes declaradas (chunk_id) deben corresponder exactamente a la información.\n"
-    "3. Rigor en Salud: En temas médicos o sanitarios, cualquier afirmación inventada o dosificación inexacta "
+    "3. Rigor del sector: Cualquier afirmación que no respete la verificación del sector (abajo) "
     "es motivo de RECHAZO inmediato.\n"
     "4. Claridad pedagógica: El contenido debe ser comprensible y adecuado al perfil del destinatario.\n\n"
     "Si el contenido no cumple con la fidelidad o incluye afirmaciones dudosas, debes RECHAZARLO y emitir "
@@ -436,16 +487,7 @@ PROMPT_CRITICO_BASE = (
     "para que el Redactor las subsane en el siguiente intento. Si cumple rigurosamente, apruébalo."
 )
 
-PROMPT_CRITICO_POR_NICHO = {
-    "General": "Verifica fidelidad factual estricta contra el texto original.",
-    "Fintech": "Verifica que no se prometan rentabilidades no sustentadas ni se alteren normativas financieras.",
-    "Salud": (
-        "AUDITORÍA CRÍTICA DE SALUD: Verifica exhaustivamente que no haya desinformación médica, "
-        "procedimientos invasivos no autorizados o indicaciones clínicas no presentes en la fuente."
-    ),
-    "E-commerce": "Verifica métricas comerciales y políticas de plataforma contra la fuente.",
-    "Tecnología": "Verifica que comandos, versiones, configuraciones y nombres técnicos coincidan con la fuente.",
-}
+PROMPT_CRITICO_POR_NICHO = {nombre: prompt_sector_critico(nombre) for nombre in SECTORES}
 
 
 def construir_prompt_critico(formato: str, perfil: str, nicho: str) -> str:
@@ -458,7 +500,7 @@ def construir_prompt_critico(formato: str, perfil: str, nicho: str) -> str:
         PROMPT_CRITICO_BASE,
         f"Formato pedagógico evaluado: {formato}.",
         f"Perfil del destinatario: {perfil}.",
-        PROMPT_CRITICO_POR_NICHO.get(nicho, ""),
+        prompt_sector_critico(nicho),
     ]
     return "\n\n".join(p for p in partes if p)
 

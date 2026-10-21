@@ -35,7 +35,12 @@ def _doc_id(titulo: str, contenido: str) -> str:
     return h.hexdigest()[:16]
 
 
-_ENCABEZADO_MD = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
+_ENCABEZADO_MD = re.compile(r"^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$")
+# título "subrayado" de Markdown: la línea de abajo es solo "===" (nivel 1) o "---" (nivel 2)
+_SUBRAYADO_MD = re.compile(r"^ {0,3}(=+|-+)[ \t]*$")
+_CERCO_MD = re.compile(r"^ {0,3}(```|~~~)")
+# numeración de origen al principio de un título: "1. ", "2.3 ", "5.2-", "4 - "
+_NUMERACION_TITULO = re.compile(r"^\d{1,2}(?:\.\d{1,2})*(?:\s*[-–.)]\s*|\s+)(?=\S)")
 # "1. ACCESO A LA CONSOLA", "2.3 Modos de configuración": encabezados numerados de PDF/texto
 _ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)[.)]?\s+([^\W\d_].{1,90})$")
 
@@ -117,7 +122,10 @@ def _titulo_legible(texto: str, siglas: _Siglas | None = None) -> str:
     su forma: sin vocales, con números, de dos letras o una sigla técnica conocida."""
     siglas = siglas or _Siglas()
     texto = " ".join(texto.split()).rstrip(":").strip()
-    texto = re.sub(r"^\d{1,2}(?:\.\d{1,2})*[.)]?\s+", "", texto) or texto
+    # sin marcas de Markdown: **negrita**, `código`, [enlace](url)
+    texto = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", texto)
+    texto = re.sub(r"(\*\*|__|`)", "", texto).strip().rstrip(":").strip() or texto
+    texto = _NUMERACION_TITULO.sub("", texto) or texto
     letras = [c for c in texto if c.isalpha()]
     if not letras or sum(c.isupper() for c in letras) / len(letras) <= 0.9:
         return texto
@@ -202,11 +210,50 @@ def _secciones_desde(contenido: str, marcas: list[tuple]) -> list[tuple[str, str
     return secciones
 
 
+def _encabezados_markdown(contenido: str, siglas: _Siglas) -> list[tuple[int, int, str]]:
+    """(inicio, fin, título) de cada encabezado Markdown: "# …" a "###### …" y los títulos
+    subrayados con "===" o "---". Lo que está dentro de un bloque de código (```) no es
+    un título aunque empiece con "#": es un comentario."""
+    marcas: list[tuple[int, int, str]] = []
+    lineas = contenido.split("\n")
+    # un bloque de código solo cuenta si se cierra: un "```" suelto (por ejemplo, copiado
+    # de un PDF) no debe dejar el resto del documento sin títulos
+    cercos = [i for i, l in enumerate(lineas) if _CERCO_MD.match(l)]
+    if len(cercos) % 2:
+        cercos.pop()
+    cercos_validos = set(cercos)
+    inicio = 0
+    en_codigo = False
+    anterior: tuple[int, str] | None = None  # (inicio, texto) de la línea previa, si puede ser título
+    tras_blanco = True  # la línea previa estaba vacía (o es el principio del documento)
+    for n, linea in enumerate(lineas):
+        fin = inicio + len(linea)
+        if n in cercos_validos:
+            en_codigo, anterior = not en_codigo, None
+        elif not en_codigo:
+            m = _ENCABEZADO_MD.match(linea)
+            if m and m.group(2).strip("#").strip():
+                marcas.append((inicio, fin, _titulo_legible(m.group(2), siglas)))
+                anterior = None
+            elif anterior and _SUBRAYADO_MD.match(linea) and len(linea.strip()) >= 2:
+                marcas.append((anterior[0], fin, _titulo_legible(anterior[1], siglas)))
+                anterior = None
+            else:
+                texto = linea.strip()
+                # solo una línea suelta (con una línea vacía antes) puede ser un título
+                # subrayado: no una viñeta ni el final de un párrafo
+                suelta = tras_blanco and texto and len(texto) <= 120 and not re.match(r"[-*+>|]", texto)
+                anterior = (inicio, texto) if suelta else None
+        tras_blanco = not linea.strip()
+        inicio = fin + 1
+    return marcas
+
+
 def _detectar_secciones(contenido: str) -> list[tuple[str, str]]:
     """Divide por encabezados Markdown (#, ##, ###) si existen; si no, por encabezados
     numerados o en mayúsculas (típicos de un PDF); si tampoco hay, una sola sección."""
     siglas = _siglas_del_documento(contenido)
-    marcas = [(m.start(), m.end(), _titulo_legible(m.group(2), siglas)) for m in _ENCABEZADO_MD.finditer(contenido)]
+    marcas = _encabezados_markdown(contenido, siglas)
 
     if not marcas:
         lineas = contenido.split("\n")
