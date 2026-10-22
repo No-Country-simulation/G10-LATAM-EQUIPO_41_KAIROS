@@ -677,9 +677,9 @@ nuevamente/
 │   ├── schemas/        # enums, request, response, formatos (Ethan)
 │   ├── ingest/          # lectores + chunking (Gaspar)
 │   ├── rag/             # embeddings + vector store (Gaspar)
-│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Gaspar y Darío)
+│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Darío)
 │   ├── agents/           # orquestación de agentes (Ethan)
-│   ├── fidelity/         # verificación de fidelidad y juez de IA (Gaspar y Darío)
+│   ├── fidelity/         # verificación de fidelidad y juez de IA (Darío)
 │   ├── cache/            # caché de material aprobado (Ethan)
 │   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)
 │   ├── exports/          # Markdown, Anki, Word, PDF, PowerPoint, video MP4, podcast y narración (Dario)
@@ -1013,7 +1013,6 @@ Clic en una imagen para verla en tamaño completo.
 | `config.py`, arquitectura general, `docs/demo/` | Juan Pablo Calla | Project Manager |
 | `ingest/`, `rag/` | Gaspar Martínez Paiva | Data Engineer |
 | `agents/graph.py` (orquestación de agentes) | Ethan Espinoza Acosta | Orquestación de agentes |
-| `llm/`, `fidelity/` | Gaspar Martínez Paiva | Machine Learning Engineer |
 | `llm/`, `fidelity/` | Darío Higuera Moreno | Ingeniero de IA |
 | `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
 | `web/`, `ui/`, `exports/` | Darío Higuera Moreno | No Code Developer |
