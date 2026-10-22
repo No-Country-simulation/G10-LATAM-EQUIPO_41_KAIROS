@@ -1001,7 +1001,7 @@ Clic en una imagen para verla en tamaño completo.
 | Persona | Rol |
 |---|---|
 | Juan Pablo Calla | Project Manager |
-| Gaspar Martínez Paiva | Data Engineer · Ingeniero de IA |
+| Gaspar Martínez Paiva | Data Engineer · Machine Learning Engineer |
 | Ethan Espinoza Acosta | Backend Developer · Orquestación de agentes |
 | Darío Higuera Moreno | No Code Developer · Ingeniero de IA |
 | Diana Dure | QA Tester |
@@ -1013,7 +1013,8 @@ Clic en una imagen para verla en tamaño completo.
 | `config.py`, arquitectura general, `docs/demo/` | Juan Pablo Calla | Project Manager |
 | `ingest/`, `rag/` | Gaspar Martínez Paiva | Data Engineer |
 | `agents/graph.py` (orquestación de agentes) | Ethan Espinoza Acosta | Orquestación de agentes |
-| `llm/`, `fidelity/` | Gaspar Martínez Paiva y Darío Higuera Moreno | Ingenieros de IA |
+| `llm/`, `fidelity/` | Gaspar Martínez Paiva | Machine Learning Engineer |
+| `llm/`, `fidelity/` | Darío Higuera Moreno | Ingeniero de IA |
 | `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
 | `web/`, `ui/`, `exports/` | Darío Higuera Moreno | No Code Developer |
 | `tests/` | Diana Dure | QA Tester |
