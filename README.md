@@ -1,24 +1,61 @@
+<div align="center">
+
 # NuevaMente 🎓 — Kairos G10
 
-**Versión 1.5** (Sprint 5). La versión sigue el sprint: 1.N = Sprint N; se define en `src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
+**Sistema inteligente de adaptación y generación de contenido educativo**
 
-Sistema Inteligente de Adaptación y Generación de Contenido Educativo.
-**Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1.
-Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**.
+Convierte un documento técnico en material de estudio personalizado (tutoriales, flashcards,
+quizzes, resúmenes, videos y podcasts) y verifica cada afirmación contra la fuente.
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](src/nuevamente/api/app.py)
+[![LangGraph](https://img.shields.io/badge/Orquestación-LangGraph-FF6F00)](src/nuevamente/agents/graph.py)
+[![Oracle Cloud](https://img.shields.io/badge/Cloud-Oracle_OCI-F80000?logo=oracle&logoColor=white)](docs/SETUP_OCI.md)
+[![Docker](https://img.shields.io/badge/Docker-listo-2496ED?logo=docker&logoColor=white)](Dockerfile)
+[![Tests](https://img.shields.io/badge/Tests-295%20passed-success?logo=pytest&logoColor=white)](#7-pruebas)
+[![Deploy](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)](https://g10-latam-equipo-41-kairos.onrender.com/)
+[![Versión](https://img.shields.io/badge/Versión-1.5-blueviolet)](src/nuevamente/__init__.py)
+
+**[🌐 App en línea](https://g10-latam-equipo-41-kairos.onrender.com/)** ·
+**[📖 Documentación de la API](https://g10-latam-equipo-41-kairos.onrender.com/docs)** ·
+**[📋 Backlog en Jira](https://dielidube.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)** ·
+**[📊 Paneles de seguimiento](#2-demo-y-enlaces-del-proyecto)** ·
+**[💻 Repositorio](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS)**
+
+**Hackathon ONE G10** (Oracle Next Education & Alura) — Proyecto 1<br>
+Equipo **Kairos G10** (G10-LATAM-equipo 41) · Nicho de foco: **Salud**
+
+<img src="docs/pruebas/evidencias/pantallas/p01_inicio.jpg" alt="Interfaz web de NuevaMente" width="85%">
+
+</div>
+
+> [!IMPORTANT]
 > ⚕️ El contenido que genera esta aplicación es material de apoyo educativo
 > basado en la documentación que el usuario proporciona. **No reemplaza el
 > criterio de un profesional de salud ni las indicaciones oficiales vigentes.**
 
-**Material de la presentación (Sprint 4):** [Video](#141-video-sin-introducción-de-prueba-de-voz) ·
-[Viñetas y guiones](#142-viñetas-y-guiones-títulos-subtítulos-y-texto-en-markdown-y-pdf) ·
-[Evidencias de pruebas](#143-evidencias-de-pruebas) · [Repositorios de pruebas](#144-repositorios-de-pruebas) ·
-[Jira](#145-jira) · [Proceso por perfil](#146-proceso-de-generación-de-contenido-por-perfil) ·
-[Pantallas del aplicativo](#147-pantallas-del-aplicativo) (sección 14).
+---
+
+## Índice
+
+1. [Descripción general](#1-descripción-general)
+2. [Demo y enlaces del proyecto](#2-demo-y-enlaces-del-proyecto)
+3. [Arquitectura](#3-arquitectura)
+4. [Decisiones de diseño](#4-decisiones-de-diseño)
+5. [Instalación y puesta en marcha](#5-instalación-y-puesta-en-marcha)
+6. [Uso](#6-uso)
+7. [Pruebas](#7-pruebas)
+8. [Seguridad y manejo responsable del nicho Salud](#8-seguridad-y-manejo-responsable-del-nicho-salud)
+9. [Limitaciones conocidas](#9-limitaciones-conocidas)
+10. [Estado del proyecto](#10-estado-del-proyecto)
+11. [Estructura del repositorio](#11-estructura-del-repositorio)
+12. [Evidencias y material de presentación](#12-evidencias-y-material-de-presentación)
+13. [Equipo](#13-equipo)
+14. [Créditos](#créditos)
 
 ---
 
-## 1. Qué hace
+## 1. Descripción general
 
 Recibe un documento técnico (PDF, también escaneado mediante OCR con Gemini; Word .docx,
 Markdown o texto), lo indexa con RAG, y lo
@@ -44,7 +81,7 @@ la narración en las **notas del orador**.
 El **Guion de Clase** además se puede convertir en un **video MP4 narrado**: una
 diapositiva por escena con la narración en voz en off (botón "Generar video" en
 la interfaz, o `GET /api/v1/contenidos/{objeto_id}/video`). El video y el podcast se generan en
-segundo plano (ver sección 11).
+segundo plano (ver [sección 6.3](#63-video-del-guion-de-clase-y-podcast)).
 
 El **Podcast** es una conversación entre dos locutores: Ana conduce y pregunta,
 y Leo explica lo que dice el documento. Se entrega **solo como audio MP3**, con
@@ -76,7 +113,27 @@ resultado no trae afirmaciones con fuente, no se aprueba y su score es 0. Todo s
 respaldo local si OCI no está configurado) y se expone por API REST y por una
 interfaz web (HTML/CSS/JS, servida por la misma API en `http://localhost:8000/`).
 
-## 2. Arquitectura
+## 2. Demo y enlaces del proyecto
+
+| Recurso | Enlace |
+|---|---|
+| 🌐 Aplicación en línea (deploy en Render) | https://g10-latam-equipo-41-kairos.onrender.com/ |
+| 📖 Documentación interactiva de la API | https://g10-latam-equipo-41-kairos.onrender.com/docs |
+| 💻 Repositorio del proyecto (GitHub) | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS |
+| 🌿 Rama del sprint actual | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/tree/SPRINT05 |
+| 📋 Backlog del proyecto (Jira) | https://dielidube.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog |
+| 📊 Panel de seguimiento 1 (Jira) | https://dielidube.atlassian.net/jira/dashboards/10001 |
+| 📊 Panel de seguimiento 2 (Jira) | https://dielidube.atlassian.net/jira/dashboards/10002 |
+| 📁 Documentación de Jira (actividades, casos de prueba, estadísticas y pruebas por sprint) | [`docs/jira/`](docs/jira/README.md) |
+
+El seguimiento de las actividades se lleva en Jira, en el proyecto con clave `SCRUM`
+(por ejemplo, SCRUM-21 a SCRUM-24).
+
+> [!NOTE]
+> La aplicación en línea usa el plan gratuito de Render: si estuvo inactiva, la primera
+> carga puede tardar alrededor de un minuto mientras el servidor se reactiva.
+
+## 3. Arquitectura
 
 ![Arquitectura de Kairos](docs/entregables/Arquitectura_Kairos.jpg)
 
@@ -104,7 +161,7 @@ Documento (PDF/DOCX/MD/TXT)
   API REST (FastAPI)  ──►  Interfaz web (src/nuevamente/web/)
 ```
 
-### Diagrama de flujo de agentes
+### 3.1 Flujo de agentes
 
 Es un `StateGraph` de LangGraph ([agents/graph.py](src/nuevamente/agents/graph.py)), un nodo por agente:
 
@@ -122,29 +179,9 @@ flowchart LR
     E -- aprobado / sin mejora --> F[finalizar<br/>metadatos + OCI]
 ```
 
-## 3. Equipo de trabajo (Kairos G10)
+## 4. Decisiones de diseño
 
-| Persona | Rol |
-|---|---|
-| Juan Pablo Calla | Project Manager |
-| Gaspar Martínez Paiva | Data Engineer · Ingeniero de IA |
-| Ethan Espinoza Acosta | Backend Developer · Orquestación de agentes |
-| Darío Higuera Moreno | No Code Developer · Ingeniero de IA |
-| Diana Dure | QA Tester |
-
-### Quién construyó qué
-
-| Módulo | Responsable | Rol |
-|---|---|---|
-| `config.py`, arquitectura general, `docs/demo/` | Juan Pablo Calla | Project Manager |
-| `ingest/`, `rag/` | Gaspar Martínez Paiva | Data Engineer |
-| `agents/graph.py` (orquestación de agentes) | Ethan Espinoza Acosta | Orquestación de agentes |
-| `llm/`, `fidelity/` | Gaspar Martínez Paiva y Darío Higuera Moreno | Ingenieros de IA |
-| `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
-| `web/`, `ui/`, `exports/` | Darío Higuera Moreno | No Code Developer |
-| `tests/` | Diana Dure | QA Tester |
-
-## 4. Decisiones de diseño importantes (léelo antes de evaluar el código)
+> Recomendado leerlo antes de evaluar el código.
 
 El pipeline es **100% real y ejecutable** también sin servicios en la nube: cada
 pieza externa tiene una alternativa local con la misma interfaz, y la app usa la
@@ -166,7 +203,28 @@ real, recupera evidencia real y verifica fidelidad real contra esa evidencia.
 Lo que cambia entre este entorno y producción es *qué tan sofisticado* es el
 componente de generación/embeddings, no si el flujo funciona.
 
-## 5. Instalación y uso
+## 5. Instalación y puesta en marcha
+
+### 5.1 Inicio rápido
+
+Con `make` (requiere Python 3.10 o superior):
+
+```bash
+cp .env.example .env     # y completa las claves que vayas a usar
+make install
+make run-api             # → http://localhost:8000/
+```
+
+O con Docker Compose, en un solo paso (ver [5.5](#55-docker-compose)):
+
+```bash
+docker compose up -d --build   # → http://localhost:8000/
+```
+
+Sin ninguna clave, la aplicación funciona igual con las alternativas locales
+(ver [Decisiones de diseño](#4-decisiones-de-diseño)).
+
+### 5.2 Instalación paso a paso
 
 Requiere Python 3.10 o superior. Se recomienda un entorno virtual:
 
@@ -181,7 +239,7 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (295 pruebas, deben pasar todas; ver sección 13)           |
+| `make test`    | Corre los tests (295 pruebas, deben pasar todas; ver [sección 7](#7-pruebas))           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
@@ -214,17 +272,10 @@ python scripts/run_demo.py
 Extras opcionales de `pyproject.toml`: `claude` (Anthropic), `oci` (OCI Object Storage) y
 `chroma` (ChromaDB), por ejemplo `pip install -e ".[claude,oci]"`.
 
-Con Docker (la misma imagen que se usa para desplegar, ver [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)):
-
-```bash
-docker build -t kairos .
-docker run -p 8000:8000 -e GEMINI_API_KEY=... kairos   # http://localhost:8000/
-```
-
 > Las rutas de datos (`data/vectorstore`, `data/fallback`, `data/videos`, `data/estadisticas`) son relativas al
 > directorio desde donde se ejecuta el comando: correr todo desde la raíz del repo.
 
-### Variables de entorno (`.env`, ver `.env.example`)
+### 5.3 Variables de entorno
 
 Copia `.env.example` a `.env`. Se carga al importar `nuevamente.config`: primero el
 `.env` del directorio actual y luego el de la raíz del repo. Las variables ya
@@ -259,7 +310,8 @@ VIDEO_HILOS=1                    # hilos de ffmpeg: 1 = menos memoria
 CACHE_CONTENIDO_ACTIVADO=false   # caché de material aprobado (ahorra cuota del LLM)
 ```
 
-#### Rotación de modelos y de APIs
+<details>
+<summary><b>Rotación de modelos y de APIs</b> (qué pasa cuando un proveedor se queda sin cuota)</summary>
 
 Hay dos niveles, porque los dos problemas son distintos:
 
@@ -267,6 +319,7 @@ Hay dos niveles, porque los dos problemas son distintos:
 |---|---|---|
 | Modelos de la misma API | `llm/rotacion.py` | Un 429 o un 5xx en un modelo concreto. Reintenta con backoff y, si ese modelo no tiene cuota, pasa al siguiente de `LLM_MODELOS_RESPALDO`. |
 | APIs distintas | `llm/cadena_llm.py` | La cuota diaria de una cuenta se agotó. `LLM_PROVIDER=auto` cae a la siguiente API de `LLM_CADENA`. |
+
 Lo segundo es lo que evita que la generación se corte: todos los modelos de Gemini
 comparten la cuota de tu cuenta, así que cuando se agota no ayuda a añadir más modelos
 de Gemini, hace falta otra clave. Groq, Cerebras y OpenRouter tienen plan gratuito y
@@ -300,11 +353,53 @@ Los límites de los planes gratuitos cambian con frecuencia; se pueden cambiar l
 por proveedor sin tocar código con `LLM_MODELOS_GROQ`, `LLM_MODELOS_CEREBRAS`,
 `LLM_MODELOS_OPENROUTER`, `LLM_MODELOS_COHERE` y `LLM_MODELOS_OPENAI`.
 
+</details>
+
+### 5.4 Docker
+
+Con Docker (la misma imagen que se usa para desplegar, ver [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)):
+
+```bash
+docker build -t kairos .
+docker run -p 8000:8000 -e GEMINI_API_KEY=... kairos   # http://localhost:8000/
+```
+
+### 5.5 Docker Compose
+
+El repositorio incluye lo necesario para levantar la aplicación con Docker Compose, a partir
+del código del repo y de sus actualizaciones. Se probó en local y responde a las consultas.
+
+| Archivo | Para qué sirve |
+|---|---|
+| [`compose.yaml`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose.yaml) | Define el servicio (API + interfaz web), el volumen de datos y la configuración de OCI |
+| [`compose_comandos_kairos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_comandos_kairos.md) | Lista de comandos para manejar Docker Compose (levantar, ver logs, actualizar, detener) |
+| [`compose_checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_checklist.md) | Comprobaciones para verificar que el contenedor quedó bien montado y sano |
+
+```bash
+docker compose up -d --build   # construir y levantar → http://localhost:8000/
+docker compose logs -f         # ver los logs en vivo
+docker compose ps              # ver el estado y la salud
+docker compose down            # detener (los datos se conservan)
+```
+
+> Requisitos: el `.env` en la raíz del repo y `oci_config` (con su llave `.pem`) en la carpeta
+> padre del repo, como indica `compose.yaml`.
+
+### 5.6 Despliegue
+
+| Destino | Estado | Guía |
+|---|---|---|
+| Render (Docker, plan gratuito) | ✅ En línea: https://g10-latam-equipo-41-kairos.onrender.com/ | [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md) · [`render.yaml`](render.yaml) |
+| Railway / Fly.io / cualquier VM | Misma imagen de Docker | [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md) |
+| OCI Compute (VM Always Free) | Script, systemd y nginx listos; falta crear la instancia | [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md) · [`deploy/`](deploy/) |
+
 Ver también `docs/SETUP_OCI.md` para crear la cuenta OCI Always Free, el
 bucket privado y las claves API paso a paso, y `python scripts/test_oci_conexion.py` para
 comprobar una subida real al bucket.
 
-## 6. Ejemplo de uso de la API
+## 6. Uso
+
+### 6.1 API REST
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/adaptar \
@@ -324,7 +419,7 @@ Otros endpoints útiles: `POST /api/v1/adaptar/archivo` (multipart, con el archi
 `.../original` (documento original), `GET /health` y `GET /api/v1/estadisticas`.
 La documentación interactiva completa está en `/docs`.
 
-## 7. Los 3 escenarios de demo (Salud, casos de uso B2B)
+### 6.2 Escenarios de demo (Salud, casos de uso B2B)
 
 Ejecutados por `scripts/run_demo.py` sobre `docs/demo/protocolo_bioseguridad_salud.md`
 (documento original del equipo, de dominio general, sin datos de pacientes):
@@ -351,91 +446,7 @@ y el **juez de IA** activo:
 Si algún escenario sale del generador local (Gemini sin cuota), `make demo` no sobrescribe la
 evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 
-## 8. Checklist del enunciado — estado real
-
-- [x] Ingesta funcional de PDF, Word (.docx), Markdown y texto
-- [x] RAG con chunking, embeddings semánticos (Gemini, con TF-IDF de respaldo) y búsqueda vectorial
-- [x] Orquestación con LangGraph (Planificador → Investigador → Redactor → Crítico, con reintento)
-- [x] Prompts con role prompting y ejemplos few-shot por formato (validados contra su esquema)
-- [x] Juez de fidelidad con IA (citas verificadas) y evaluación de coherencia didáctica
-- [x] ChromaDB como vector store opcional (`VECTOR_STORE=chroma`)
-- [x] OCR de PDF escaneados con Gemini (`OCR=auto`)
-- [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
-- [x] Salida JSON estructurada, interfaz web propia + API REST operativa
-- [x] Orquestación con LLM real: Google Gemini (`GeminiLLM`), con Claude como alternativa
-- [ ] Integración con OCI Object Storage **verificada**: cliente, SDK, `~/.oci/config` y la llave
-      de API (`~/.oci/oci_api_key.pem`) están listos, pero OCI responde `401 NotAuthenticated`
-      hasta registrar la llave pública en la consola (*My profile → API keys*); mientras tanto
-      todo cae al respaldo local (`status_upload: "fallido_local"`). Ver `docs/SETUP_OCI.md`
-- [x] Verificación de fidelidad con score y afirmaciones no sustentadas
-- [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
-- [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
-- [x] Caché de material aprobado (opcional) para ahorrar cuota del LLM
-- [x] Tests automatizados (295), incluida seguridad ante inyección de instrucciones
-- [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
-      [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
-- [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
-      `Dockerfile`, `render.yaml` y guía en [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)
-
-## 9. Estructura del repositorio
-
-```
-nuevamente/
-├── src/nuevamente/
-│   ├── __init__.py        # versión de la app (1.N = Sprint N)
-│   ├── config.py
-│   ├── estadisticas.py    # estadísticas de uso y calificaciones
-│   ├── schemas/        # enums, request, response, formatos (Ethan)
-│   ├── ingest/          # lectores + chunking (Gaspar)
-│   ├── rag/             # embeddings + vector store (Gaspar)
-│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Gaspar y Darío)
-│   ├── agents/           # orquestación de agentes (Ethan)
-│   ├── fidelity/         # verificación de fidelidad y juez de IA (Gaspar y Darío)
-│   ├── cache/            # caché de material aprobado (Ethan)
-│   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)
-│   ├── exports/          # Markdown, Anki, Word, PDF, PowerPoint, video MP4, podcast y narración (Dario)
-│   ├── api/              # FastAPI (Ethan)
-│   └── web/              # Interfaz web y panel de estadísticas (Dario)
-├── ui/app.py              # Interfaz Streamlit anterior (opcional)
-├── scripts/
-│   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
-│   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
-│   ├── generar_requirements.py
-│   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 295 pruebas (Diana)
-├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
-├── docs/
-│   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
-│   ├── DEPLOY_OCI.md      # despliegue en una VM Always Free de OCI
-│   ├── DEPLOY_RENDER.md   # despliegue con Docker en Render (u otro servidor)
-│   ├── entregables/       # informes e historias de usuario (v2.0)
-│   ├── pruebas/
-│   │   ├── documentos/    # documentos de prueba (PDF, Markdown, Word) del sprint
-│   │   └── evidencias/    # capturas y gráficos de las pruebas realizadas (sección 14)
-│   └── demo/
-│       ├── protocolo_bioseguridad_salud.md
-│       └── resultados/
-├── pyproject.toml         # paquete instalable (pip install -e .)
-├── requirements.txt       # dependencias fijadas
-├── Makefile               # install / test / run-api / run-ui / demo
-├── Dockerfile             # imagen para Render, Railway, Fly.io o cualquier VM
-├── render.yaml            # blueprint de Render (plan gratuito)
-├── .env.example
-└── README.md
-```
-
-## 10. Seguridad y manejo responsable del nicho Salud
-
-- El documento de demo es contenido original del equipo, de carácter general,
-  **sin datos de pacientes** y sin indicaciones de dosificación de medicamentos.
-- El umbral de fidelidad para Salud es más estricto (0.90) que el general (0.85).
-- La interfaz muestra un aviso visible cuando el nicho seleccionado es Salud.
-- La interfaz web inserta todo el texto del documento como texto, nunca como HTML,
-  así que un documento con etiquetas o scripts no puede ejecutar código en el navegador.
-- El contenido del documento se trata siempre como **datos**, nunca como
-  instrucciones (ver `tests/test_security.py`).
-
-## 11. Video del Guion de Clase
+### 6.3 Video del Guion de Clase y podcast
 
 - Las diapositivas se dibujan con Pillow y ffmpeg arma el MP4 (H.264 + AAC, 1280×720).
   Se usa el ffmpeg del sistema y, si no hay, el que trae el paquete `imageio-ffmpeg`.
@@ -482,38 +493,13 @@ nuevamente/
   con `dynaudnorm`. En un guion de 12 escenas, ffmpeg pasó de 78 s de CPU a 16 s y su pico
   de memoria de 219 MB a 41 MB, sin cambiar cómo se ve ni cómo suena.
 
-## 12. Limitaciones conocidas
-
-### Juez de fidelidad
-
-- El primer filtro es la similitud TF-IDF contra el fragmento citado. Con un LLM real, un **juez
-  de IA** (`JUEZ_IA=auto`) revisa solo las afirmaciones dudosas, viendo el fragmento citado y los
-  más cercanos por significado, y en la misma solicitud evalúa la **coherencia didáctica**. Solo
-  puede dar por sustentada una afirmación si devuelve citas que **existen textualmente** en esos
-  fragmentos (se comprueba en código). Con el generador local queda solo el TF-IDF.
-
-### Cuotas gratuitas de Gemini
-
-- El plan gratuito limita las solicitudes por día y por modelo (texto, embeddings y TTS por
-  separado). La app rota entre modelos y, si se agotan todos, usa el respaldo local (TF-IDF,
-  generador local o voces del sistema) y lo indica; muchas pruebas seguidas agotan la cuota.
-
-### Generador local (`TemplateLLM`)
-
-- Es extractivo: no traduce. `idioma_salida` funciona con un LLM real (Gemini); con el
-  generador local el material sale en el idioma del documento.
-- Es determinista: ignora la retroalimentación del Crítico, por eso el flujo corta
-  los reintentos cuando el resultado sale idéntico al intento anterior.
-- En el Quiz, los distractores son oraciones reales de *otras* secciones del
-  documento; la correcta es la que corresponde a la sección que nombra la pregunta.
-
-## 13. Pruebas
+## 7. Pruebas
 
 El proyecto tiene **295 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
-### Cómo ejecutarlas
+### 7.1 Cómo ejecutarlas
 
 ```bash
 pip install -e ".[dev]"
@@ -526,7 +512,10 @@ Resultado esperado: `295 passed`.
 
 ![Pruebas automatizadas por archivo: 295 de 295 aprobadas](docs/pruebas/evidencias/graficos/grafico_pruebas_por_archivo.svg)
 
-### Qué cubre cada archivo
+### 7.2 Qué cubre cada archivo
+
+<details>
+<summary>Ver las 295 pruebas por archivo</summary>
 
 | Archivo | Pruebas | Qué verifica |
 |---|---:|---|
@@ -551,7 +540,9 @@ Resultado esperado: `295 passed`.
 | `tests/test_resumen.py` | 2 | Partes del Resumen Ejecutivo (idea central, puntos clave, riesgos y recomendaciones) para exportarlo |
 | `tests/test_security.py` | 3 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real, y que el módulo de OCI no desactive la verificación TLS del proceso |
 
-### Prueba manual con la solicitud del enunciado
+</details>
+
+### 7.3 Prueba manual con la solicitud del enunciado
 
 Con la API en marcha (`make run-api`), la solicitud de ejemplo del enunciado, tal cual:
 
@@ -604,12 +595,137 @@ varía según el modelo que las genere):
 `"fallido_local"` cuando el material se guardó en el respaldo local (`data/fallback/`).
 Esta misma solicitud está automatizada en `test_solicitud_exacta_del_enunciado`.
 
-## 14. Material de la presentación (Sprint 4)
+## 8. Seguridad y manejo responsable del nicho Salud
+
+- El documento de demo es contenido original del equipo, de carácter general,
+  **sin datos de pacientes** y sin indicaciones de dosificación de medicamentos.
+- El umbral de fidelidad para Salud es más estricto (0.90) que el general (0.85).
+- La interfaz muestra un aviso visible cuando el nicho seleccionado es Salud.
+- La interfaz web inserta todo el texto del documento como texto, nunca como HTML,
+  así que un documento con etiquetas o scripts no puede ejecutar código en el navegador.
+- El contenido del documento se trata siempre como **datos**, nunca como
+  instrucciones (ver `tests/test_security.py`).
+
+## 9. Limitaciones conocidas
+
+### 9.1 Juez de fidelidad
+
+- El primer filtro es la similitud TF-IDF contra el fragmento citado. Con un LLM real, un **juez
+  de IA** (`JUEZ_IA=auto`) revisa solo las afirmaciones dudosas, viendo el fragmento citado y los
+  más cercanos por significado, y en la misma solicitud evalúa la **coherencia didáctica**. Solo
+  puede dar por sustentada una afirmación si devuelve citas que **existen textualmente** en esos
+  fragmentos (se comprueba en código). Con el generador local queda solo el TF-IDF.
+
+### 9.2 Cuotas gratuitas de Gemini
+
+- El plan gratuito limita las solicitudes por día y por modelo (texto, embeddings y TTS por
+  separado). La app rota entre modelos y, si se agotan todos, usa el respaldo local (TF-IDF,
+  generador local o voces del sistema) y lo indica; muchas pruebas seguidas agotan la cuota.
+
+### 9.3 Generador local (`TemplateLLM`)
+
+- Es extractivo: no traduce. `idioma_salida` funciona con un LLM real (Gemini); con el
+  generador local el material sale en el idioma del documento.
+- Es determinista: ignora la retroalimentación del Crítico, por eso el flujo corta
+  los reintentos cuando el resultado sale idéntico al intento anterior.
+- En el Quiz, los distractores son oraciones reales de *otras* secciones del
+  documento; la correcta es la que corresponde a la sección que nombra la pregunta.
+
+## 10. Estado del proyecto
+
+**16 de 18** puntos del enunciado completados. Pendientes: verificar OCI Object Storage
+(falta registrar la llave de API en la consola) y crear la instancia de OCI Compute.
+
+<details>
+<summary>Ver el checklist completo del enunciado</summary>
+
+- [x] Ingesta funcional de PDF, Word (.docx), Markdown y texto
+- [x] RAG con chunking, embeddings semánticos (Gemini, con TF-IDF de respaldo) y búsqueda vectorial
+- [x] Orquestación con LangGraph (Planificador → Investigador → Redactor → Crítico, con reintento)
+- [x] Prompts con role prompting y ejemplos few-shot por formato (validados contra su esquema)
+- [x] Juez de fidelidad con IA (citas verificadas) y evaluación de coherencia didáctica
+- [x] ChromaDB como vector store opcional (`VECTOR_STORE=chroma`)
+- [x] OCR de PDF escaneados con Gemini (`OCR=auto`)
+- [x] Adapta el mismo contenido a los 4 perfiles y los 6 formatos (probado en `tests/test_api.py`)
+- [x] Salida JSON estructurada, interfaz web propia + API REST operativa
+- [x] Orquestación con LLM real: Google Gemini (`GeminiLLM`), con Claude como alternativa
+- [ ] Integración con OCI Object Storage **verificada**: cliente, SDK, `~/.oci/config` y la llave
+      de API (`~/.oci/oci_api_key.pem`) están listos, pero OCI responde `401 NotAuthenticated`
+      hasta registrar la llave pública en la consola (*My profile → API keys*); mientras tanto
+      todo cae al respaldo local (`status_upload: "fallido_local"`). Ver `docs/SETUP_OCI.md`
+- [x] Verificación de fidelidad con score y afirmaciones no sustentadas
+- [x] 3 ejemplos de ejecución reales con Gemini, documentados como casos de uso B2B en Salud
+- [x] Exportación multiformato: Markdown, Anki (CSV), Word, **PDF didáctico** y PowerPoint
+- [x] Caché de material aprobado (opcional) para ahorrar cuota del LLM
+- [x] Tests automatizados (295), incluida seguridad ante inyección de instrucciones
+- [ ] Despliegue en OCI Compute: script, servicio systemd, nginx y guía listos en `deploy/` y
+      [docs/DEPLOY_OCI.md](docs/DEPLOY_OCI.md); falta crear la instancia en la cuenta de OCI
+- [x] Despliegue alternativo con Docker en Render (plan gratuito), Railway o Fly.io:
+      `Dockerfile`, `render.yaml` y guía en [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
+      En línea: https://g10-latam-equipo-41-kairos.onrender.com/
+
+</details>
+
+## 11. Estructura del repositorio
+
+```
+nuevamente/
+├── src/nuevamente/
+│   ├── __init__.py        # versión de la app (1.N = Sprint N)
+│   ├── config.py
+│   ├── estadisticas.py    # estadísticas de uso y calificaciones
+│   ├── schemas/        # enums, request, response, formatos (Ethan)
+│   ├── ingest/          # lectores + chunking (Gaspar)
+│   ├── rag/             # embeddings + vector store (Gaspar)
+│   ├── llm/              # LLMClient, TemplateLLM, rotación, cadena y fábrica (Gaspar y Darío)
+│   ├── agents/           # orquestación de agentes (Ethan)
+│   ├── fidelity/         # verificación de fidelidad y juez de IA (Gaspar y Darío)
+│   ├── cache/            # caché de material aprobado (Ethan)
+│   ├── storage/          # cliente OCI + fallback (Ethan/Gaspar)
+│   ├── exports/          # Markdown, Anki, Word, PDF, PowerPoint, video MP4, podcast y narración (Dario)
+│   ├── api/              # FastAPI (Ethan)
+│   └── web/              # Interfaz web y panel de estadísticas (Dario)
+├── ui/app.py              # Interfaz Streamlit anterior (opcional)
+├── scripts/
+│   ├── oci_bootstrap.py   # crea/verifica el bucket OCI
+│   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
+│   ├── generar_requirements.py
+│   └── run_demo.py        # corre los 3 escenarios de Salud
+├── tests/                  # 295 pruebas (Diana)
+├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
+├── docs/
+│   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
+│   ├── DEPLOY_OCI.md      # despliegue en una VM Always Free de OCI
+│   ├── DEPLOY_RENDER.md   # despliegue con Docker en Render (u otro servidor)
+│   ├── entregables/       # informes e historias de usuario (v2.0)
+│   ├── jira/              # documentación de Jira por sprint: actividades, casos de prueba, estadísticas y pruebas
+│   ├── pruebas/
+│   │   ├── documentos/    # documentos de prueba (PDF, Markdown, Word) del sprint
+│   │   └── evidencias/    # capturas y gráficos de las pruebas realizadas (sección 12)
+│   └── demo/
+│       ├── protocolo_bioseguridad_salud.md
+│       └── resultados/
+├── pyproject.toml         # paquete instalable (pip install -e .)
+├── requirements.txt       # dependencias fijadas
+├── Makefile               # install / test / run-api / run-ui / demo
+├── Dockerfile             # imagen para Render, Railway, Fly.io o cualquier VM
+├── compose.yaml           # Docker Compose para levantar la app en local
+├── compose_comandos_kairos.md  # comandos para manejar Docker Compose
+├── compose_checklist.md   # comprobaciones del contenedor
+├── render.yaml            # blueprint de Render (plan gratuito)
+├── .env.example
+└── README.md
+```
+
+**Versionado:** la versión sigue el sprint (1.N = Sprint N; hoy **1.5**). Se define en
+`src/nuevamente/__init__.py` y se muestra en el pie de la interfaz y en `/health`.
+
+## 12. Evidencias y material de presentación
 
 Cada entrega del sprint se presenta con la misma estructura: **qué cambió**, **cómo se
-comprueba** y **dónde está la evidencia**.
+comprueba** y **dónde está la evidencia**. Las entregas de esta sección se presentaron en el Sprint 4.
 
-### 14.1 Video sin introducción de prueba de voz
+### 12.1 Video sin introducción de prueba de voz
 
 **Qué cambió.** El video del Guion de Clase ya no abre con el saludo hablado («Hola, te doy
 la bienvenida…»), que sonaba como una prueba de voz, ni agrega transiciones («Sigamos.») o
@@ -625,9 +741,9 @@ pero no forma parte del video. Los videos guardados con la versión anterior se 
 solos (`VERSION = 8` en `exports/video.py`).
 
 **Cómo se comprueba.** `pytest tests/test_narracion.py -k introduccion` verifica que la voz
-recibe únicamente el texto de las escenas. Evidencia: capturas 04 y 05 (sección 14.3).
+recibe únicamente el texto de las escenas. Evidencia: capturas 04 y 05 ([sección 12.3](#123-evidencias-de-pruebas)).
 
-### 14.2 Viñetas y guiones: títulos, subtítulos y texto en Markdown y PDF
+### 12.2 Viñetas y guiones: títulos, subtítulos y texto en Markdown y PDF
 
 **Qué cambió.** El material (pasos del tutorial, viñetas, flashcards, escenas del guion y
 diapositivas) se arma por secciones del documento, así que reconocer bien sus títulos es lo
@@ -664,7 +780,7 @@ después del cambio:
 **Cómo se comprueba.** `pytest tests/test_titulos.py -v` (15 pruebas, incluidas las de los
 documentos reales; se omiten si la carpeta no está en el equipo). Evidencia: capturas 01, 02 y 03.
 
-### 14.3 Evidencias de pruebas
+### 12.3 Evidencias de pruebas
 
 #### Resumen gráfico de las pruebas realizadas
 
@@ -701,7 +817,7 @@ flowchart LR
 | Material desde Markdown | API: Tutorial desde `evidencia_scrum_21_a_24.md` | ✅ un paso por cada título |
 | Material desde PDF | API: Guion de Clase desde `E-Commers.pdf` y Flashcards desde `Normas…pdf` | ✅ conceptos y tarjetas con los títulos del PDF |
 | Video MP4 | API: video del guion de `E-Commers.pdf` | ✅ portada sin saludo y escenas con su sección |
-| Interfaz web | Recorrido automático con Chrome: 4 perfiles × 6 formatos y 18 pantallas (secciones 14.6 y 14.7) | ✅ 24 materiales generados |
+| Interfaz web | Recorrido automático con Chrome: 4 perfiles × 6 formatos y 18 pantallas (secciones [12.5](#125-proceso-de-generación-de-contenido-por-perfil) y [12.6](#126-pantallas-del-aplicativo)) | ✅ 24 materiales generados |
 | Fidelidad, generador local | 15 documentos × 6 formatos | ✅ 86 de 90 (los 4 restantes: frases cortas, ver hallazgos) |
 | Fidelidad, IA real | Gemini: 5 documentos × Resumen Ejecutivo y Quiz | ✅ 9 de 10 (1 bajo el umbral de Salud) |
 
@@ -760,29 +876,23 @@ rama `SPRINT04.4` con el generador local (`LLM_PROVIDER=template`, sin red):
 | **04 · Portada del video, sin saludo** | **05 · Primera escena del video** |
 | ![Portada del video sin saludo](docs/pruebas/evidencias/04_video_portada_sin_saludo.png) | ![Primera escena del video](docs/pruebas/evidencias/05_video_primera_escena.png) |
 
-### 14.4 Repositorios de pruebas
+### 12.4 Recursos de pruebas
+
+Enlaces del proyecto (deploy, repositorio y Jira) en la [sección 2](#2-demo-y-enlaces-del-proyecto).
 
 | Recurso | Enlace |
 |---|---|
-| Repositorio del proyecto (GitHub) | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS |
-| Rama de este sprint | https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/tree/SPRINT05 |
-| Pruebas automatizadas | [`tests/`](tests/) (ver sección 13) |
+| Pruebas automatizadas | [`tests/`](tests/) (ver [sección 7](#7-pruebas)) |
 | Pruebas de títulos en Markdown y PDF | [`tests/test_titulos.py`](tests/test_titulos.py) |
 | Documentos de prueba | [`docs/pruebas/documentos/`](docs/pruebas/documentos/) |
 | Evidencias (capturas) | [`docs/pruebas/evidencias/`](docs/pruebas/evidencias/) |
 | Gráficos de las pruebas | [`docs/pruebas/evidencias/graficos/`](docs/pruebas/evidencias/graficos/) |
 | Capturas por perfil (24 materiales) | [`docs/pruebas/evidencias/perfiles/`](docs/pruebas/evidencias/perfiles/) |
 | Capturas de las pantallas | [`docs/pruebas/evidencias/pantallas/`](docs/pruebas/evidencias/pantallas/) |
+| Docker Compose (archivo y guías) | [`compose.yaml`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose.yaml) · [`compose_comandos_kairos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_comandos_kairos.md) · [`compose_checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_checklist.md) |
 | Resultados de los escenarios de demo | [`docs/demo/resultados/`](docs/demo/resultados/) |
 
-### 14.5 Jira
-
-Seguimiento de las actividades del sprint (proyecto con clave `SCRUM`, p. ej. SCRUM-21 a SCRUM-24):
-
-- **Tablero del sprint:** _pendiente: pegar aquí el enlace del tablero de Jira_
-  (`https://<espacio>.atlassian.net/jira/software/projects/SCRUM/boards/<id>`)
-
-### 14.6 Proceso de generación de contenido por perfil
+### 12.5 Proceso de generación de contenido por perfil
 
 Capturas de la interfaz tomadas el 20/10/2026 con el documento de prueba `E-Commers.pdf`,
 sector **General** y nivel de detalle **Didáctico**, para los 4 perfiles y los 6 formatos
@@ -864,10 +974,13 @@ flowchart LR
 
 </details>
 
-### 14.7 Pantallas del aplicativo
+### 12.6 Pantallas del aplicativo
 
 Todas las pantallas y estados de la interfaz web (`make run-api` → http://localhost:8000/).
 Clic en una imagen para verla en tamaño completo.
+
+<details open>
+<summary>Ver las 18 pantallas</summary>
 
 <table>
 <tr><td align="center" width="50%"><b>01 · Inicio: formulario y espacio para el material</b><br><a href="docs/pruebas/evidencias/pantallas/p01_inicio.jpg"><img src="docs/pruebas/evidencias/pantallas/p01_inicio.jpg" width="420" alt="Inicio: formulario y espacio para el material"></a></td><td align="center" width="50%"><b>02 · 💡 Cómo funciona (ayuda)</b><br><a href="docs/pruebas/evidencias/pantallas/p02_como_funciona.jpg"><img src="docs/pruebas/evidencias/pantallas/p02_como_funciona.jpg" width="420" alt="💡 Cómo funciona (ayuda)"></a></td></tr>
@@ -880,3 +993,33 @@ Clic en una imagen para verla en tamaño completo.
 <tr><td align="center" width="50%"><b>15 · Estado de guardado (OCI o respaldo local) y su motivo</b><br><a href="docs/pruebas/evidencias/pantallas/p17_guardado_oci.jpg"><img src="docs/pruebas/evidencias/pantallas/p17_guardado_oci.jpg" width="420" alt="Estado de guardado (OCI o respaldo local) y su motivo"></a></td><td align="center" width="50%"><b>16 · 🌙 Modo oscuro</b><br><a href="docs/pruebas/evidencias/pantallas/p18_modo_oscuro.jpg"><img src="docs/pruebas/evidencias/pantallas/p18_modo_oscuro.jpg" width="420" alt="🌙 Modo oscuro"></a></td></tr>
 <tr><td align="center" width="50%"><b>17 · 📊 Panel de estadísticas de uso</b><br><a href="docs/pruebas/evidencias/pantallas/p19_estadisticas.jpg"><img src="docs/pruebas/evidencias/pantallas/p19_estadisticas.jpg" width="420" alt="📊 Panel de estadísticas de uso"></a></td><td align="center" width="50%"><b>18 · Documentación de la API (/docs)</b><br><a href="docs/pruebas/evidencias/pantallas/p20_api_docs.jpg"><img src="docs/pruebas/evidencias/pantallas/p20_api_docs.jpg" width="420" alt="Documentación de la API (/docs)"></a></td></tr>
 </table>
+
+</details>
+
+## 13. Equipo
+
+| Persona | Rol |
+|---|---|
+| Juan Pablo Calla | Project Manager |
+| Gaspar Martínez Paiva | Data Engineer · Ingeniero de IA |
+| Ethan Espinoza Acosta | Backend Developer · Orquestación de agentes |
+| Darío Higuera Moreno | No Code Developer · Ingeniero de IA |
+| Diana Dure | QA Tester |
+
+### 13.1 Quién construyó qué
+
+| Módulo | Responsable | Rol |
+|---|---|---|
+| `config.py`, arquitectura general, `docs/demo/` | Juan Pablo Calla | Project Manager |
+| `ingest/`, `rag/` | Gaspar Martínez Paiva | Data Engineer |
+| `agents/graph.py` (orquestación de agentes) | Ethan Espinoza Acosta | Orquestación de agentes |
+| `llm/`, `fidelity/` | Gaspar Martínez Paiva y Darío Higuera Moreno | Ingenieros de IA |
+| `schemas/`, `api/`, `cache/` | Ethan Espinoza Acosta | Backend Developer |
+| `web/`, `ui/`, `exports/` | Darío Higuera Moreno | No Code Developer |
+| `tests/` | Diana Dure | QA Tester |
+
+## Créditos
+
+Proyecto desarrollado por el equipo **Kairos G10** (G10-LATAM-equipo 41) para el
+**Hackathon ONE G10** de **Oracle Next Education** y **Alura**, en la simulación de
+**No Country**.
