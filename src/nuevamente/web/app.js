@@ -1112,14 +1112,19 @@ function selectorVoz() {
 
 // Video y podcast tardan minutos: el servidor responde 202 mientras los genera en segundo
 // plano y se vuelve a pedir cada pocos segundos, sin dejar una conexión abierta (error 502).
-async function pedirArchivoGenerado(url) {
+// Con `senal` (AbortSignal) se puede cancelar la espera en cualquier momento.
+async function pedirArchivoGenerado(url, senal) {
   const limite = Date.now() + 20 * 60 * 1000;
   const separador = url.includes("?") ? "&" : "?";
   for (;;) {
-    const resp = await fetch(`${url}${separador}asincrono=1`);
+    senal?.throwIfAborted();
+    const resp = await fetch(`${url}${separador}asincrono=1`, { signal: senal });
     if (resp.status !== 202) return resp;
     if (Date.now() > limite) throw new Error("la generación tardó demasiado; inténtalo de nuevo");
-    await esperar(3000);
+    await new Promise((listo) => {
+      const t = setTimeout(listo, 3000);
+      senal?.addEventListener("abort", () => (clearTimeout(t), listo()), { once: true });
+    });
   }
 }
 
@@ -1133,9 +1138,26 @@ function panelVideo(escenas) {
     "Una diapositiva por escena, narrada como en una clase: saludo, transiciones y cierre. Puede tardar un minuto.",
   );
   const boton = h("button", { type: "button", class: "btn-video" }, "🎬 Generar video");
+  const cancelar = h(
+    "button",
+    { type: "button", class: "btn-cancelar", hidden: true, title: "Detener la generación del video" },
+    "✖ Cancelar",
+  );
+  let control = null; // AbortController de la generación en curso
+
+  cancelar.addEventListener("click", () => {
+    if (!control) return;
+    cancelar.disabled = true;
+    cancelar.textContent = "⏳ Cancelando…";
+    control.abort();
+  });
 
   boton.addEventListener("click", async () => {
     audioMuestra?.pause();
+    control = new AbortController();
+    cancelar.hidden = false;
+    cancelar.disabled = false;
+    cancelar.textContent = "✖ Cancelar";
     boton.disabled = true;
     boton.textContent = "⏳ Generando video…";
     nota.textContent = "Preparando diapositivas y narración. No cierres la página.";
@@ -1150,7 +1172,12 @@ function panelVideo(escenas) {
     zona.replaceChildren(avance.el);
     try {
       const parametros = new URLSearchParams({ titulo, voz: estado.voz });
-      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/video?${parametros}`);
+      const urlVideo = `/api/v1/contenidos/${objetoId}/video?${parametros}`;
+      control.signal.addEventListener("abort", () => {
+        // avisa al servidor para que el próximo intento no espere a un trabajo congelado
+        fetch(urlVideo, { method: "DELETE" }).catch(() => {});
+      });
+      const resp = await pedirArchivoGenerado(urlVideo, control.signal);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
       const videoBlob = await resp.blob();
       await avance.terminar();
@@ -1165,17 +1192,26 @@ function panelVideo(escenas) {
     } catch (err) {
       avance.detener();
       zona.replaceChildren(...anterior);
-      boton.textContent = "🎬 Reintentar";
-      nota.textContent = `No se pudo generar el video: ${err.message}`;
+      if (control.signal.aborted) {
+        boton.textContent = "🎬 Generar video";
+        nota.textContent = "Generación cancelada. Puedes volver a intentarlo cuando quieras.";
+      } else {
+        boton.textContent = "🎬 Reintentar";
+        nota.textContent = `No se pudo generar el video: ${err.message}`;
+      }
     } finally {
       boton.disabled = false;
+      cancelar.hidden = true;
+      control = null;
     }
   });
 
   return h(
     "div",
     { class: "panel-video" },
-    h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎬 Video de la clase"), nota), boton),
+    h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎬 Video de la clase"), nota),
+      h("div", { class: "video-acciones" }, cancelar, boton),
+    ),
     selectorVoz(),
     zona,
   );
@@ -1273,9 +1309,30 @@ function renderPodcast(c) {
   const zona = h("div", { class: "video-zona" });
   const nota = h("p", { class: "nota" });
   const reintentar = h("button", { type: "button", class: "btn-video", hidden: true }, "🎙️ Reintentar");
+  const cancelar = h(
+    "button",
+    { type: "button", class: "btn-cancelar", hidden: true, title: "Detener la grabación del episodio" },
+    "✖ Cancelar",
+  );
+  let control = null; // AbortController de la grabación en curso
+  cancelar.addEventListener("click", () => {
+    if (!control) return;
+    cancelar.disabled = true;
+    cancelar.textContent = "⏳ Cancelando…";
+    control.abort();
+  });
 
   async function grabar() {
     reintentar.hidden = true;
+    control = new AbortController();
+    cancelar.hidden = false;
+    cancelar.disabled = false;
+    cancelar.textContent = "✖ Cancelar";
+    const urlPodcast = `/api/v1/contenidos/${objetoId}/podcast`;
+    control.signal.addEventListener("abort", () => {
+      // avisa al servidor para que el próximo intento no espere a un trabajo congelado
+      fetch(urlPodcast, { method: "DELETE" }).catch(() => {});
+    });
     nota.textContent = "⏳ Ana y Leo están grabando el episodio. Puede tardar uno o dos minutos.";
     const avance = avanceEstimado({
       etiqueta: "Avance de la grabación del episodio",
@@ -1286,7 +1343,7 @@ function renderPodcast(c) {
     });
     zona.replaceChildren(avance.el);
     try {
-      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/podcast`);
+      const resp = await pedirArchivoGenerado(urlPodcast, control.signal);
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
       const audioBlob = await resp.blob();
       await avance.terminar();
@@ -1310,8 +1367,13 @@ function renderPodcast(c) {
     } catch (err) {
       avance.detener();
       zona.replaceChildren();
-      nota.textContent = `No se pudo grabar el episodio: ${err.message}`;
+      nota.textContent = control.signal.aborted
+        ? "Grabación cancelada. Puedes volver a intentarlo cuando quieras."
+        : `No se pudo grabar el episodio: ${err.message}`;
       reintentar.hidden = false;
+    } finally {
+      cancelar.hidden = true;
+      control = null;
     }
   }
   reintentar.addEventListener("click", grabar);
@@ -1332,7 +1394,9 @@ function renderPodcast(c) {
     h(
       "div",
       { class: "panel-video" },
-      h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎧 Escucha el episodio"), nota), reintentar),
+      h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎧 Escucha el episodio"), nota),
+        h("div", { class: "video-acciones" }, cancelar, reintentar),
+      ),
       zona,
     ),
     temas.length > 0 &&

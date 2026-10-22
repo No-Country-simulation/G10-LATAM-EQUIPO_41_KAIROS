@@ -492,7 +492,8 @@ def _producir(clave: str, generar, destino_de, *, asincrono: bool, que: str, pre
             _trabajos.pop(clave)  # la próxima solicitud lo vuelve a intentar
             raise HTTPException(status_code=500, detail=trabajo["detalle"])
         if trabajo is None:
-            _trabajos[clave] = {"estado": "generando"}
+            nuevo = {"estado": "generando"}
+            _trabajos[clave] = nuevo
 
             def tarea():
                 try:
@@ -500,7 +501,9 @@ def _producir(clave: str, generar, destino_de, *, asincrono: bool, que: str, pre
                 except Exception as exc:  # ffmpeg, voces, disco: el error llega a la interfaz
                     resultado = {"estado": "error", "detalle": f"No se pudo generar el {que}: {exc}"}
                 with _candado_trabajos:
-                    _trabajos[clave] = resultado
+                    # si se canceló, el trabajo ya no está (o es otro): no se pisa
+                    if _trabajos.get(clave) is nuevo:
+                        _trabajos[clave] = resultado
 
             threading.Thread(target=tarea, name=f"kairos-{clave[:24]}", daemon=True).start()
     return JSONResponse(status_code=202, content={"estado": "generando", "mensaje": f"Generando el {que}…"})
@@ -552,6 +555,51 @@ def video_contenido(
     return motor if isinstance(motor, JSONResponse) else entregar(motor)
 
 
+def _cancelar_trabajos(prefijo: str) -> int:
+    """Olvida los trabajos en curso cuya clave empieza por `prefijo`. El hilo puede seguir
+    terminando en segundo plano (si acaba, el archivo queda en caché), pero la próxima
+    solicitud ya no espera a ese trabajo."""
+    with _candado_trabajos:
+        claves = [c for c, t in _trabajos.items() if c.startswith(prefijo) and t["estado"] == "generando"]
+        for c in claves:
+            _trabajos.pop(c)
+    return len(claves)
+
+
+@app.delete("/api/v1/contenidos/{objeto_id:path}/video")
+def cancelar_video(
+    objeto_id: str,
+    titulo: str = "Guion de clase",
+    voz: Literal["femenina", "masculina"] = "femenina",
+):
+    """Cancela la generación en curso del video (por ejemplo, si quedó congelada)."""
+    from nuevamente.exports.video import VERSION
+
+    titulo = titulo.strip()[:200] or "Guion de clase"
+    motor = motor_voz()
+    clave = f"v{VERSION}::{objeto_id}::{titulo}::{voz}::{motor}::{nombre_voz(voz, motor)}"
+    nombre = f"{hashlib.sha256(clave.encode('utf-8')).hexdigest()[:16]}.mp4"
+    return {"cancelados": _cancelar_trabajos(f"video::{nombre}")}
+
+
+def _archivo_podcast(objeto_id: str, motor: str, version) -> Path:
+    if motor == "gemini":
+        voces = f"{settings.podcast_tts_model}:{settings.podcast_voz_ana}:{settings.podcast_voz_leo}"
+    else:
+        voces = ":".join(f"{t}={nombre_voz(t, 'sistema')}" for t in ("femenina", "masculina"))
+    huella = hashlib.sha256(f"v{version}::{objeto_id}::{motor}::{voces}".encode("utf-8")).hexdigest()[:16]
+    return Path(settings.videos_dir) / f"podcast-{motor}-{huella}.mp3"
+
+
+@app.delete("/api/v1/contenidos/{objeto_id:path}/podcast")
+def cancelar_podcast(objeto_id: str):
+    """Cancela la grabación en curso del podcast (por ejemplo, si quedó congelada)."""
+    from nuevamente.exports.podcast import VERSION
+
+    nombres = [_archivo_podcast(objeto_id, motor, VERSION).name for motor in ("gemini", "sistema")]
+    return {"cancelados": sum(_cancelar_trabajos(f"podcast::{n}") for n in nombres)}
+
+
 @app.get("/api/v1/contenidos/{objeto_id:path}/podcast")
 def podcast_contenido(objeto_id: str, asincrono: bool = False):
     """MP3 de un Podcast guardado, con Ana y Leo en voces distintas. Queda en caché.
@@ -578,12 +626,7 @@ def podcast_contenido(objeto_id: str, asincrono: bool = False):
         raise HTTPException(status_code=422, detail="Solo se puede generar audio a partir de un Podcast")
 
     def archivo(motor: str) -> Path:
-        if motor == "gemini":
-            voces = f"{settings.podcast_tts_model}:{settings.podcast_voz_ana}:{settings.podcast_voz_leo}"
-        else:
-            voces = ":".join(f"{t}={nombre_voz(t, 'sistema')}" for t in ("femenina", "masculina"))
-        huella = hashlib.sha256(f"v{VERSION}::{objeto_id}::{motor}::{voces}".encode("utf-8")).hexdigest()[:16]
-        return Path(settings.videos_dir) / f"podcast-{motor}-{huella}.mp3"
+        return _archivo_podcast(objeto_id, motor, VERSION)
 
     def entregar(motor: str):
         estadisticas.registrar("descarga", objeto_id=objeto_id, formato="podcast")
