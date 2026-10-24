@@ -48,3 +48,13 @@ venv/
 data/
 *.log
 
+# Evidencia local de la matriz de pruebas (72 casos) y fuentes generadas
+docs/pruebas/evidencia/
+docs/pruebas/fuentes/
+
+# Bitacoras y salidas de IA locales
+docs/pruebas/bitacoras/
+docs/pruebas/bitacoras_ia/
+docs/pruebas/**/*bitacora*
+docs/pruebas/**/*bitácora*
+
