@@ -25,7 +25,7 @@ docs/benchmark_api_ultima.json
 REPORTE_ARQUITECTURA_LLM.txt
 # Archivos temporales de bloqueo de Word/Excel/PowerPoint
 ~$*
-
+workbench/
 #####
 
 # Secretos — NUNCA subir
@@ -47,4 +47,14 @@ venv/
 # Datos generados
 data/
 *.log
+
+# Evidencia local de la matriz de pruebas (72 casos) y fuentes generadas
+docs/pruebas/evidencia/
+docs/pruebas/fuentes/
+
+# Bitacoras y salidas de IA locales
+docs/pruebas/bitacoras/
+docs/pruebas/bitacoras_ia/
+docs/pruebas/**/*bitacora*
+docs/pruebas/**/*bitácora*
 

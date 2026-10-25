@@ -299,7 +299,7 @@ def _procesar_adaptacion(
 
     slug_formato = formato.lower().replace(" ", "-")
     slug_perfil = perfil.lower().replace("/", "-").replace(" ", "-")
-    objeto_id = f"contenidos/{resultado.coleccion.doc_id}/{slug_formato}-{slug_perfil}-{request_id[:8]}.json"
+    objeto_id = f"contenidos/{resultado.coleccion.doc_id}/{slug_formato}-{slug_perfil}.json"
     objeto_original_id = f"originals/{resultado.coleccion.doc_id}.txt"
 
     # El registro completo (con fuentes, secciones y el detalle de fidelidad) es lo que se

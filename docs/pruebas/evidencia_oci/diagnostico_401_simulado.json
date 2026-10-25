@@ -1,0 +1,12 @@
+{
+  "escenario": "Simulacion local: OCI responde 401 NotAuthenticated",
+  "comprobacion_real_de_conexion": {
+    "oci_disponible": false,
+    "oci_motivo": "OCI rechazó las credenciales (401): la llave de API del config no está registrada en la cuenta. Súbela en la consola de OCI (Mi perfil → Claves de API)."
+  },
+  "subida_con_401": {
+    "status_upload": "fallido_local",
+    "bucket": "nuevamente-contenidos-educativos",
+    "objeto_id": "pruebas/diagnostico_401.txt"
+  }
+}
