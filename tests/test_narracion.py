@@ -127,19 +127,6 @@ def test_con_voces_del_sistema_no_se_llama_a_gemini(monkeypatch, tmp_path):
     assert motor == "sistema"
 
 
-def test_los_cortes_caen_en_la_pausa_larga_y_no_entre_oraciones():
-    """Tres fragmentos de igual largo en 30 s: las pausas largas (2 s) están cerca de los
-    10 s y los 20 s; las cortas (0,6 s) son pausas entre oraciones y se ignoran."""
-    silencios = [(4.0, 4.6), (9.2, 11.2), (14.0, 14.6), (19.5, 21.5), (25.0, 25.6)]
-    cortes = narracion.cortes_por_silencio(silencios, 30.0, [100, 100, 100])
-    assert cortes == [10.2, 20.5]
-
-
-def test_sin_pausa_reconocible_no_se_corta_a_ciegas():
-    with pytest.raises(ValueError):
-        narracion.cortes_por_silencio([(1.0, 1.6)], 30.0, [100, 100])
-
-
 def test_si_un_modelo_tts_se_queda_sin_cuota_se_usa_el_siguiente(monkeypatch):
     """La cuota gratuita es por día y por modelo: un 429 diario pasa al modelo siguiente."""
     from types import SimpleNamespace

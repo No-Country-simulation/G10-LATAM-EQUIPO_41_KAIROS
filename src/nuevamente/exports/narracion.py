@@ -4,7 +4,7 @@ Responsable en el equipo Kairos G10: Dario Higuera Moreno (No Code Developer).
 
 Tres motores de voz, en este orden:
   - "gemini" (por defecto): voces naturales de Gemini TTS (VIDEO_VOZ_FEMENINA y
-    VIDEO_VOZ_MASCULINA). Cada fragmento es una petición; se piden varios a la vez.
+    VIDEO_VOZ_MASCULINA). Cada fragmento es una petición, solo con su texto.
   - "openai": voces naturales de OpenAI TTS (VIDEO_VOZ_OPENAI_FEMENINA y
     VIDEO_VOZ_OPENAI_MASCULINA), si hay OPENAI_API_KEY. Es el respaldo cuando Gemini está
     saturado o sin cuota, para no caer a una voz robótica; con VIDEO_VOCES=openai va primero.
@@ -230,30 +230,28 @@ def _con_pausas_say(texto: str) -> str:
 
 # ---------- Síntesis con Gemini TTS ----------
 #
-# El plan gratuito de Gemini TTS admite muy pocas solicitudes por minuto, así que toda
-# la narración de un video va en UNA solicitud: los fragmentos se leen seguidos, con un
-# silencio largo entre uno y otro, y el audio se corta después en esos silencios. Cada
-# corte se busca cerca de donde debería caer según el largo del texto, para no
-# confundirlo con la pausa normal entre dos oraciones.
+# A Gemini se le envía solo el texto de cada escena, sin indicaciones de estilo ni de
+# pausas: así nunca puede leer una indicación en voz alta. Cada escena es una solicitud;
+# si el plan gratuito pide esperar (límite por minuto), se espera y se sigue.
 
 SERVICIO_TTS = "tts:gemini"  # el mismo que pausa el podcast: si falla uno, el otro no lo espera
 SERVICIO_TTS_OPENAI = "tts:openai"
+# Indicaciones de estilo de la voz. Se conservan como referencia, pero NO se envían al
+# generar el video: la voz recibe solo el texto de cada escena.
 # Indicación de estilo para OpenAI TTS (gpt-4o-mini-tts la sigue): voz de docente, no de locutor.
 _INDICACION_OPENAI = (
     "Habla en español latinoamericano neutro, como un docente cercano que explica una clase "
     "a sus estudiantes: voz humana y natural, tono cálido, ritmo pausado, entonación expresiva "
     "y pausas breves entre ideas. Nada de tono de locutor ni de lectura robótica."
 )
-_HILOS_OPENAI = 4  # fragmentos que se piden a la vez
-_GEMINI_HZ = 24000  # Gemini TTS devuelve PCM lineal de 16 bits, mono, a 24 kHz
-_MAX_CARACTERES_POR_PETICION = 4000  # más largo, se divide en bloques de fragmentos completos
-_ESPERA_MAXIMA_SEG = 45  # si Gemini pide esperar (límite por minuto) hasta esto, se espera
-_SILENCIO_MINIMO_SEG = 0.5
 _INDICACION_GEMINI = (
     "Lee en español latinoamericano neutro, como un profesor que explica a su clase: "
     "tono cálido y cercano, ritmo pausado, pronunciación clara y pausas breves entre ideas. "
     "Lee solo el texto, sin agregar nada."
 )
+_HILOS_OPENAI = 4  # fragmentos que se piden a la vez
+_GEMINI_HZ = 24000  # Gemini TTS devuelve PCM lineal de 16 bits, mono, a 24 kHz
+_ESPERA_MAXIMA_SEG = 45  # si Gemini pide esperar (límite por minuto) hasta esto, se espera
 
 
 def _cliente_gemini():
@@ -319,20 +317,17 @@ def generar_audio_tts(cliente, contenido, config, por_locutor=None) -> bytes:
     raise RuntimeError(f"Ningún modelo de Gemini TTS disponible: {ultimo}")
 
 
-def _pcm_gemini(parrafos: list[str], tipo: str, cliente) -> bytes:
-    """PCM de los párrafos leídos seguidos por la voz de Gemini, con silencios largos entre ellos."""
+def _pcm_gemini(texto: str, tipo: str, cliente) -> bytes:
+    """PCM del texto leído por la voz de Gemini. Se envía solo el contenido, sin indicaciones."""
     from google.genai import types
 
-    indicacion = _INDICACION_GEMINI
-    if len(parrafos) > 1:
-        indicacion += f" Son {len(parrafos)} párrafos: después de cada uno haz un silencio de dos segundos."
     config = types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
             prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=_voz_gemini(tipo)),
         )),
     )
-    return generar_audio_tts(cliente, indicacion + "\n\n" + "\n\n".join(parrafos), config)
+    return generar_audio_tts(cliente, texto, config)
 
 
 def _escribir_wav(pcm: bytes, destino: Path) -> Path:
@@ -344,74 +339,13 @@ def _escribir_wav(pcm: bytes, destino: Path) -> Path:
     return destino
 
 
-def _silencios(ffmpeg: str, audio: Path) -> list[tuple[float, float]]:
-    """(inicio, fin) de cada silencio del audio, según `silencedetect` de ffmpeg."""
-    salida = subprocess.run(
-        [ffmpeg, "-hide_banner", "-i", str(audio), "-af", f"silencedetect=noise=-38dB:d={_SILENCIO_MINIMO_SEG}", "-f", "null", "-"],
-        capture_output=True, text=True, timeout=120,
-    ).stderr
-    inicios = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", salida)]
-    fines = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", salida)]
-    return list(zip(inicios, fines))
-
-
-def cortes_por_silencio(silencios: list[tuple[float, float]], total: float, largos: list[int]) -> list[float]:
-    """Dónde cortar un audio de `total` segundos en len(largos) fragmentos.
-
-    Para cada frontera se calcula dónde debería caer según el largo del texto y se elige
-    el silencio más largo cerca de ese punto. Lanza ValueError si no encuentra uno."""
-    cortes: list[float] = []
-    acumulado, suma = 0, sum(largos)
-    previo = 0.0
-    for largo in largos[:-1]:
-        acumulado += largo
-        esperado = total * acumulado / suma
-        tolerancia = max(2.0, 0.4 * total / len(largos))
-        candidatos = [
-            (fin - ini, (ini + fin) / 2) for ini, fin in silencios
-            if (ini + fin) / 2 > previo + 0.5 and abs((ini + fin) / 2 - esperado) <= tolerancia
-        ]
-        if not candidatos:
-            raise ValueError("No se encontró la pausa entre dos fragmentos de la narración.")
-        # el más largo, y entre parecidos el más cercano a lo esperado
-        _, corte = max(candidatos, key=lambda c: c[0] - 0.1 * abs(c[1] - esperado) / tolerancia)
-        cortes.append(corte)
-        previo = corte
-    return cortes
-
-
 def _narrar_gemini(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
-    """Narra todos los fragmentos con Gemini en el menor número de solicitudes posible."""
-    from nuevamente.exports.video import _ejecutar, _ffmpeg
-
-    ffmpeg = _ffmpeg()
+    """Narra cada fragmento con Gemini, una solicitud por fragmento."""
     cliente = _cliente_gemini()
-    preparados = [(preparar_texto(texto), Path(destino)) for texto, destino in textos]
-    bloques: list[list[tuple[str, Path]]] = [[]]
-    for par in preparados:
-        if bloques[-1] and sum(len(t) for t, _ in bloques[-1]) + len(par[0]) > _MAX_CARACTERES_POR_PETICION:
-            bloques.append([])
-        bloques[-1].append(par)
-
     audios: list[Path] = []
-    for k, bloque in enumerate(bloques):
-        completo = _escribir_wav(_pcm_gemini([t for t, _ in bloque], tipo, cliente), bloque[0][1].with_name(f"narracion-{k}.wav"))
-        if len(bloque) == 1:
-            audios.append(completo)
-            continue
-        total = len(completo.read_bytes()) / (2 * _GEMINI_HZ)
-        cortes = cortes_por_silencio(_silencios(ffmpeg, completo), total, [len(t) for t, _ in bloque])
-        limites = [0.0, *cortes, total]
-        for (_, destino), desde, hasta in zip(bloque, limites, limites[1:]):
-            audio = destino.with_suffix(".wav")
-            # cada fragmento sin el silencio largo de los bordes (silenceremove)
-            _ejecutar([
-                ffmpeg, "-y", "-loglevel", "error", "-i", str(completo), "-ss", f"{desde:.3f}", "-to", f"{hasta:.3f}",
-                "-af", "silenceremove=start_periods=1:start_threshold=-45dB,areverse,"
-                       "silenceremove=start_periods=1:start_threshold=-45dB,areverse",
-                str(audio),
-            ])
-            audios.append(audio)
+    for texto, destino in textos:
+        destino = Path(destino)
+        audios.append(_escribir_wav(_pcm_gemini(preparar_texto(texto), tipo, cliente), destino.with_suffix(".wav")))
     return audios
 
 
@@ -426,7 +360,6 @@ def _audio_openai(texto: str, tipo: str, destino: Path) -> Path:
             "model": settings.openai_tts_model,
             "voice": _voz_openai(tipo),
             "input": texto,
-            "instructions": _INDICACION_OPENAI,
             "response_format": "wav",
         },
         timeout=settings.llm_timeout_s * 3,
