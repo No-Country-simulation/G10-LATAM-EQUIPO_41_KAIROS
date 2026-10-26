@@ -193,3 +193,18 @@ def test_video_sin_introduccion_hablada(monkeypatch, tmp_path):
     video.generar_video(guion, "Bioseguridad", tmp_path / "clase.mp4", "femenina")
     assert narrados == ["El lavado de manos elimina microorganismos.", "Los guantes se cambian entre pacientes."]
     assert (tmp_path / "clase.mp4").stat().st_size > 0
+
+
+def test_audio_de_gemini_en_wav_se_queda_solo_con_el_sonido():
+    """Gemini puede devolver un WAV completo: la cabecera y los metadatos del final
+    (marca SynthID) no deben sonar como ruido al empezar y terminar cada escena."""
+    pcm = b"\x01\x00\x02\x00\x03\x00"
+    meta = b"Created by Google Generative AI."
+    wav = (
+        b"RIFF" + (4 + 8 + 16 + 8 + len(pcm) + 8 + len(meta)).to_bytes(4, "little") + b"WAVE"
+        + b"fmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00\xc0\x5d\x00\x00\x80\xbb\x00\x00\x02\x00\x10\x00"
+        + b"data" + len(pcm).to_bytes(4, "little") + pcm
+        + b"c2pa" + len(meta).to_bytes(4, "little") + meta
+    )
+    assert narracion.solo_pcm(wav) == pcm
+    assert narracion.solo_pcm(pcm) == pcm  # PCM crudo: sin cambios

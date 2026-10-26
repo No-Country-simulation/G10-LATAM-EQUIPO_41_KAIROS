@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el audio,
 # los podcasts ya guardados se regeneran.
-VERSION = 3  # 3: voces naturales de Gemini TTS
+VERSION = 4  # 4: sin el ruido de la cabecera y los metadatos del WAV de Gemini
 
 VOZ_POR_LOCUTOR = {"Ana": "femenina", "Leo": "masculina"}
 PAUSA_ENTRE_TURNOS_SEG = 0.45

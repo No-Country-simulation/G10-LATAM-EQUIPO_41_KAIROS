@@ -283,6 +283,24 @@ def _segundos_de_espera(mensaje: str) -> float | None:
     return int(m.group(1) or 0) * 3600 + int(m.group(2) or 0) * 60 + float(m.group(3))
 
 
+def solo_pcm(datos: bytes) -> bytes:
+    """El audio (PCM) de lo que devuelve Gemini TTS.
+
+    Algunos modelos devuelven PCM crudo y otros un archivo WAV completo: cabecera RIFF
+    al inicio y, al final, un bloque de metadatos («Created by Google Generative AI…
+    SynthID»). Si se tomara todo como audio, la cabecera sonaría como un golpe al
+    empezar y los metadatos como un ruido fuerte al terminar cada escena."""
+    if not datos.startswith(b"RIFF") or datos[8:12] != b"WAVE":
+        return datos
+    pos = 12
+    while pos + 8 <= len(datos):
+        nombre, largo = datos[pos:pos + 4], int.from_bytes(datos[pos + 4:pos + 8], "little")
+        if nombre == b"data":
+            return datos[pos + 8:pos + 8 + largo]
+        pos += 8 + largo + (largo % 2)  # los bloques de RIFF se alinean a 2 bytes
+    raise RuntimeError("Gemini TTS devolvió un WAV sin audio.")
+
+
 def generar_audio_tts(cliente, contenido, config, por_locutor=None) -> bytes:
     """PCM de Gemini TTS, rotando de modelo cuando uno se queda sin cuota (429) o no
     está disponible (404/503). Si Gemini pide esperar poco (límite por minuto), espera.
@@ -297,7 +315,7 @@ def generar_audio_tts(cliente, contenido, config, por_locutor=None) -> bytes:
             try:
                 respuesta = cliente.models.generate_content(model=modelo, contents=entrada, config=config)
                 partes = respuesta.candidates[0].content.parts if respuesta.candidates else []
-                pcm = b"".join(p.inline_data.data for p in partes if p.inline_data and p.inline_data.data)
+                pcm = b"".join(solo_pcm(p.inline_data.data) for p in partes if p.inline_data and p.inline_data.data)
                 if not pcm:
                     raise RuntimeError(f"{modelo} no devolvió audio.")
                 return pcm
