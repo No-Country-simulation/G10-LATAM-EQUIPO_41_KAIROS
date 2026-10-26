@@ -1,0 +1,6 @@
+{
+  "url": "https://g10-latam-equipo-41-kairos.onrender.com/",
+  "indicador": "Guardando en OCI",
+  "detalle": "Cada material se guarda en OCI Object Storage, en la nube de Oracle. Puedes volver a abrirlo desde el Historial.",
+  "clases_css": "estado estado-ok"
+}
