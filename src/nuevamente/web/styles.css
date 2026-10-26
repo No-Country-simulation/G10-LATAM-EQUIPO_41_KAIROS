@@ -163,17 +163,13 @@ html { scroll-behavior: smooth; }
 
 .marca { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; flex: none; }
 .marca-logo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  font-size: 22px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, var(--primario), var(--coral));
-  transform: rotate(-6deg);
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
   transition: transform 0.2s;
 }
-.marca:hover .marca-logo { transform: rotate(0deg) scale(1.05); }
+.marca:hover .marca-logo { transform: scale(1.08); }
 .marca-texto { display: flex; flex-direction: column; line-height: 1.1; }
 .marca-texto strong { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; }
 .marca-texto small { color: var(--texto-suave); font-size: 0.75rem; font-weight: 700; }
@@ -358,7 +354,6 @@ button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(
 @media (max-width: 1023px) {
   .navbar { padding: 8px 12px; }
   .navbar-interior { flex-wrap: wrap; gap: 8px; }
-  .marca-texto small { display: none; }
   .btn-menu {
     display: grid;
     align-content: center;
@@ -392,6 +387,14 @@ button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(
 }
 
 /* ---------- Diálogo "Cómo funciona" ---------- */
+/* Logo completo en "Cómo funciona" */
+.logo-completo {
+  display: block;
+  width: min(320px, 85%);
+  height: auto;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+}
 .dialogo {
   width: min(560px, calc(100vw - 32px));
   padding: 28px;
@@ -1204,3 +1207,9 @@ pre {
 
 .datos .dato-objeto { display: block; margin-top: 2px; color: var(--texto-suave); font-size: 0.82em; overflow-wrap: anywhere; }
 .datos .dato-descarga { display: inline-block; margin-top: 6px; font-family: "Nunito", system-ui, sans-serif; font-weight: 800; }
+
+/* En celulares solo queda "Kairos" junto al emblema */
+@media (max-width: 640px) {
+  .marca-logo { width: 40px; height: 40px; }
+  .marca-texto small { display: none; }
+}
