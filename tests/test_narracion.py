@@ -208,3 +208,18 @@ def test_audio_de_gemini_en_wav_se_queda_solo_con_el_sonido():
     )
     assert narracion.solo_pcm(wav) == pcm
     assert narracion.solo_pcm(pcm) == pcm  # PCM crudo: sin cambios
+
+
+def test_sin_voz_del_sistema_se_reintenta_la_voz_natural_en_pausa(con_gemini, monkeypatch):
+    """En Render (sin eSpeak), si Gemini quedó en pausa por un fallo, se vuelve a intentar
+    en lugar de entregar un video mudo."""
+    from nuevamente.llm import disponibilidad
+
+    monkeypatch.setattr(narracion, "hay_voz_del_sistema", lambda: False)
+    disponibilidad.pausar(narracion.SERVICIO_TTS, "429 RESOURCE_EXHAUSTED")
+    try:
+        assert narracion.motores_disponibles()[0] == "gemini"
+        monkeypatch.setattr(narracion, "hay_voz_del_sistema", lambda: True)
+        assert narracion.motores_disponibles()[0] != "gemini"  # con voz del sistema, se respeta la pausa
+    finally:
+        disponibilidad.reanudar(narracion.SERVICIO_TTS)

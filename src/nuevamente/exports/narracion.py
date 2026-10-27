@@ -117,16 +117,25 @@ def openai_configurado() -> bool:
     return settings.video_voces in ("gemini", "openai") and bool(settings.openai_api_key)
 
 
+def hay_voz_del_sistema() -> bool:
+    """El servidor tiene `say` (macOS) o eSpeak: el respaldo que no depende de la red."""
+    return bool(_voces_macos()) or bool(_espeak())
+
+
 def motores_disponibles() -> list[str]:
     """Motores de voz en orden de preferencia, sin los que fallaron hace poco. Siempre
-    termina en "sistema", el respaldo que no depende de la red."""
+    termina en "sistema", el respaldo que no depende de la red.
+
+    Si todos los motores con voz natural están en pausa y el servidor no tiene voz del
+    sistema (Render sin Docker no trae eSpeak), se vuelven a intentar igual: es mejor
+    reintentar que entregar un video o un podcast mudo."""
     from nuevamente.llm import disponibilidad
 
-    motores = []
-    if gemini_configurado() and not disponibilidad.en_pausa(SERVICIO_TTS):
-        motores.append("gemini")
-    if openai_configurado() and not disponibilidad.en_pausa(SERVICIO_TTS_OPENAI):
-        motores.append("openai")
+    configurados = [m for m, ok in (("gemini", gemini_configurado()), ("openai", openai_configurado())) if ok]
+    pausas = {"gemini": SERVICIO_TTS, "openai": SERVICIO_TTS_OPENAI}
+    motores = [m for m in configurados if not disponibilidad.en_pausa(pausas[m])]
+    if not motores and configurados and not hay_voz_del_sistema():
+        motores = configurados
     return [*motores, "sistema"]
 
 
