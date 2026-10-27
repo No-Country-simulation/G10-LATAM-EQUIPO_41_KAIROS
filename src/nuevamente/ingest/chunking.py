@@ -42,7 +42,8 @@ _CERCO_MD = re.compile(r"^ {0,3}(```|~~~)")
 # numeración de origen al principio de un título: "1. ", "2.3 ", "5.2-", "4 - "
 _NUMERACION_TITULO = re.compile(r"^\d{1,2}(?:\.\d{1,2})*(?:\s*[-–.)]\s*|\s+)(?=\S)")
 # "1. ACCESO A LA CONSOLA", "2.3 Modos de configuración": encabezados numerados de PDF/texto
-_ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)[.)]?\s+([^\W\d_].{1,90})$")
+# "1 Objetivos", "1. Objetivos", "1) Objetivos" y también con guion o raya: "1 - Objetivos", "1 – Objetivos"
+_ENCABEZADO_NUMERADO = re.compile(r"^(\d{1,2}(?:\.\d{1,2})*)(?:[.)]|\s*[-–—])?\s+([^\W\d_].{1,90})$")
 
 
 # emoji o símbolo decorativo delante de un título ("🏥 1. Ámbito de la Salud")

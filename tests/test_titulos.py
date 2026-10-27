@@ -177,3 +177,28 @@ def test_pdf_de_prueba_del_equipo(archivo, esperados):
 def test_markdown_cerco_de_codigo_sin_cerrar_no_borra_los_titulos_siguientes():
     md = "# Sintaxis\n\nEjemplo:\n```\n\n# Seguridad\n\nTexto.\n\n# Privacidad\n\nMás texto.\n"
     assert _secciones(md) == ["Sintaxis", "Seguridad", "Privacidad"]
+
+
+def test_titulos_numerados_con_guion_en_texto_plano():
+    from nuevamente.ingest.chunking import _detectar_secciones
+
+    texto = (
+        "1 - Objetivos\nEl objetivo es aprender las normas del equipo y aplicarlas siempre.\n\n"
+        "2 – Alcance\nAplica a todo el personal de la empresa en todas las sedes.\n\n"
+        "3 — Responsabilidades\nCada líder vela por el cumplimiento de estas normas.\n"
+    )
+    assert [t for t, _ in _detectar_secciones(texto)] == ["Objetivos", "Alcance", "Responsabilidades"]
+
+
+def test_titulos_con_guion_en_markdown():
+    from nuevamente.ingest.chunking import _detectar_secciones
+
+    texto = "## 1 - Objetivos\nAprender las normas del equipo.\n\n## 2 - Alcance\nTodo el personal.\n"
+    assert [t for t, _ in _detectar_secciones(texto)] == ["Objetivos", "Alcance"]
+
+
+def test_un_rango_numerico_no_es_titulo():
+    from nuevamente.ingest.chunking import _detectar_secciones
+
+    texto = "10 - 20 personas por turno.\nEl resto del texto sigue aquí sin títulos.\n"
+    assert [t for t, _ in _detectar_secciones(texto)] == ["Documento completo"]
