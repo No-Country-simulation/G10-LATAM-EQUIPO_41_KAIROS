@@ -451,6 +451,14 @@ def exportar_contenido(objeto_id: str, formato: str = "markdown", titulo: str = 
 
 
 # ---------- Video y podcast: archivos pesados ----------
+
+
+def _huella_contenido(crudo: str) -> str:
+    """Huella del material guardado. La ruta en OCI es la misma para el mismo documento,
+    formato y perfil (HU-52), así que el caché de video y podcast también depende del
+    contenido: si el material se vuelve a generar, no se entrega el audio del anterior."""
+    return hashlib.sha256(crudo.encode("utf-8")).hexdigest()[:16]
+
 # Generarlos tarda minutos y usa mucha memoria (ffmpeg + voces). Para que un servidor
 # pequeño (Render gratis: 512 MB) no se caiga ni corte la conexión (error 502):
 #   - se genera uno a la vez por proceso;
@@ -562,9 +570,10 @@ def video_contenido(
         raise HTTPException(status_code=422, detail="Solo se puede generar video a partir de un Guion de Clase")
 
     titulo = titulo.strip()[:200] or "Guion de clase"
+    huella_contenido = _huella_contenido(crudo)
 
     def archivo(motor: str) -> Path:
-        clave = f"v{VERSION}::{objeto_id}::{titulo}::{voz}::{motor}::{nombre_voz(voz, motor)}"
+        clave = f"v{VERSION}::{objeto_id}::{huella_contenido}::{titulo}::{voz}::{motor}::{nombre_voz(voz, motor)}"
         return Path(settings.videos_dir) / f"{hashlib.sha256(clave.encode('utf-8')).hexdigest()[:16]}.mp4"
 
     def entregar(motor: str):
@@ -609,13 +618,16 @@ def podcast_contenido(objeto_id: str, asincrono: bool = False):
         raise HTTPException(status_code=422, detail="El objeto no es un contenido adaptado") from exc
     if respuesta.contenido_adaptado.formato != "Podcast":
         raise HTTPException(status_code=422, detail="Solo se puede generar audio a partir de un Podcast")
+    huella_contenido = _huella_contenido(crudo)
 
     def archivo(motor: str) -> Path:
         if motor == "gemini":
             voces = f"{settings.podcast_tts_model}:{settings.podcast_voz_ana}:{settings.podcast_voz_leo}"
         else:
             voces = ":".join(f"{t}={nombre_voz(t, 'sistema')}" for t in ("femenina", "masculina"))
-        huella = hashlib.sha256(f"v{VERSION}::{objeto_id}::{motor}::{voces}".encode("utf-8")).hexdigest()[:16]
+        huella = hashlib.sha256(
+            f"v{VERSION}::{objeto_id}::{huella_contenido}::{motor}::{voces}".encode("utf-8")
+        ).hexdigest()[:16]
         return Path(settings.videos_dir) / f"podcast-{motor}-{huella}.mp3"
 
     def entregar(motor: str):
