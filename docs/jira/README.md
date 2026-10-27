@@ -8,6 +8,15 @@ Exportaciones y reportes del proyecto `SCRUM` en Jira, ordenados por sprint.
 | Panel de seguimiento 1 | https://dielidube.atlassian.net/jira/dashboards/10001 |
 | Panel de seguimiento 2 | https://dielidube.atlassian.net/jira/dashboards/10002 |
 
+
+## Sprint 2
+
+| Documento | Contenido |
+|---|---|
+| [Actividades_Sprint02.xlsx](sprint02/Actividades_Sprint02.xlsx) | Actividades del sprint (exportación de Jira) |
+| [Actividades_y_Asignaciones_Sprint02.docx](sprint02/Actividades_y_Asignaciones_Sprint02.docx) | Actividades y su asignación por integrante |
+
+
 ## Sprint 3
 
 | Documento | Contenido |

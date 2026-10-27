@@ -23,12 +23,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from nuevamente.config import settings
-from nuevamente.exports.narracion import narrar
+from nuevamente.exports.narracion import narrar, revisar_cancelacion
 from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
 # los videos ya guardados se regeneran.
-VERSION = 8  # 8: solo contenido del documento (sin saludo, transiciones, cierre ni títulos de apoyo visual)
+VERSION = 9  # 9: sin el ruido de la cabecera y los metadatos del WAV de Gemini al cambiar de diapositiva
 
 ANCHO, ALTO = 1280, 720          # resolución de dibujo (Pillow): se mantiene
 ANCHO_SALIDA, ALTO_SALIDA = 960, 540   # resolución del MP4 final (la reduce ffmpeg)
@@ -202,6 +202,26 @@ def _diapositiva(indice: int, total: int, titulo: str, narracion: str, destino: 
 
 # ---------- Ensamblado ----------
 
+# Audio de cada escena, sin ruido en el cambio de diapositiva:
+#  - dynaudnorm: volumen parejo entre escenas (un tercio de la CPU de loudnorm). m=4 limita
+#    cuánto sube las partes bajas: con el valor por defecto (10) el ruido de fondo de la
+#    voz se volvía un siseo audible al empezar cada escena.
+#  - silenceremove (al inicio, y con areverse al final): quita ese ruido antes y después de la voz.
+#  - afade: entrada y salida de 60 ms, para que la voz no empiece ni termine con un golpe.
+#  - adelay + apad: un instante de silencio antes de hablar y el respiro final.
+_FILTRO_NARRACION = (
+    "dynaudnorm=f=150:g=15:m=4,"
+    "silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.05:detection=rms,"
+    "areverse,"
+    "silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.05:detection=rms,"
+    "afade=t=in:d=0.06,"
+    "areverse,"
+    "afade=t=in:d=0.06,"
+    "adelay=150:all=1,"
+    "apad"
+)
+
+
 def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float, destino: Path) -> None:
     """Una diapositiva con su narración (o silencio), con fundido de entrada y salida."""
     total = _duracion(ffmpeg, audio) + PAUSA_FINAL_SEG if audio is not None else float(duracion_seg)
@@ -213,9 +233,7 @@ def _segmento(ffmpeg: str, imagen: Path, audio: Path | None, duracion_seg: float
         f"fade=t=in:st=0:d={FUNDIDO_SEG},fade=t=out:st={max(0.0, total - FUNDIDO_SEG):.2f}:d={FUNDIDO_SEG}"
     )
     entrada_audio = ["-i", str(audio)] if audio is not None else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono"]
-    # dynaudnorm: todas las escenas a un volumen parejo, con un tercio de la CPU de loudnorm
-    # (que remuestrea a 192 kHz); apad: el silencio del respiro final
-    filtro_audio = "dynaudnorm=f=150:g=15,apad" if audio is not None else "anull"
+    filtro_audio = _FILTRO_NARRACION if audio is not None else "anull"
     _ejecutar([
         ffmpeg, "-y", "-framerate", str(FPS), "-i", str(imagen), *entrada_audio,
         "-vf", filtro_video, "-af", filtro_audio,
@@ -241,12 +259,13 @@ def _titulo_escena(seccion: str, indice: int) -> str:
     return titulo
 
 
-def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina") -> str:
+def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina", cancelado=None) -> str:
     """Renderiza el guion completo a un MP4 en `destino` y devuelve el motor de voz que
     lo narró ("gemini" o "sistema").
 
     `voz` es "femenina" o "masculina"; si no hay ninguna voz de ese tipo disponible,
-    el video sale sin narración.
+    el video sale sin narración. `cancelado` (opcional) se consulta entre escenas: si
+    devuelve True, se lanza narracion.Cancelado y no queda ningún archivo.
     """
     ffmpeg = _ffmpeg()
     destino = Path(destino)
@@ -269,9 +288,16 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
                 escena.duracion_seg,
             )
 
-        # Narrar TODO de una vez (respeta la cuota gratuita de Gemini), pero dibujar y
-        # segmentar escena por escena.
-        audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
+        # Narrar todas las escenas primero (una sola voz para todo el video), y después
+        # dibujar y segmentar escena por escena.
+        audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz, cancelado)
+        if settings.video_tts != "off" and partes and all(a is None for a in audios):
+            # Ninguna voz pudo narrar (cuota de Gemini agotada, OpenAI sin respuesta y el
+            # servidor sin voz del sistema): mejor avisar que entregar un video mudo.
+            raise VideoError(
+                "ninguna voz está disponible en este momento (la cuota gratuita de voz puede estar "
+                "agotada). Vuelve a intentarlo en unos minutos."
+            )
 
         # la portada solo muestra el título del documento, sin voz
         partes.insert(0, ("000", lambda ruta: _portada(titulo, ruta), "", DURACION_PORTADA_SEG))
@@ -279,6 +305,7 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
 
         segmentos: list[Path] = []
         for (nombre, dibujar, _, duracion_seg), audio in zip(partes, audios):
+            revisar_cancelacion(cancelado)
             imagen = carpeta / f"{nombre}.png"
             dibujar(imagen)
             segmento = carpeta / f"{nombre}.mp4"

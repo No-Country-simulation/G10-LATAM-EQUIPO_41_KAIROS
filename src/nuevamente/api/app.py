@@ -462,11 +462,16 @@ _trabajos: dict[str, dict] = {}
 _candado_trabajos = threading.Lock()
 
 
-def _fabricar(generar, destino_de, prefijo: str, extension: str) -> str:
-    """Genera el archivo en un temporal y lo mueve a su destino según el motor que lo narró."""
+def _fabricar(generar, destino_de, prefijo: str, extension: str, cancelado=None) -> str:
+    """Genera el archivo en un temporal y lo mueve a su destino según el motor que lo narró.
+    Si se cancela, la carpeta temporal se borra y no queda ningún archivo."""
+    from nuevamente.exports.narracion import revisar_cancelacion
+
     with _un_archivo_a_la_vez, tempfile.TemporaryDirectory(prefix=prefijo) as tmp:
+        revisar_cancelacion(cancelado)  # pudo cancelarse mientras esperaba su turno
         temporal = Path(tmp) / f"archivo{extension}"  # ffmpeg elige el formato por la extensión
-        motor = generar(temporal)
+        motor = generar(temporal, cancelado)
+        revisar_cancelacion(cancelado)  # cancelado al final: no se guarda en la caché
         # se guarda con el motor que de verdad lo narró: si Gemini falló, la próxima vez
         # se vuelve a intentar con la voz natural
         destino_de(motor).parent.mkdir(parents=True, exist_ok=True)
@@ -475,7 +480,9 @@ def _fabricar(generar, destino_de, prefijo: str, extension: str) -> str:
 
 
 def _producir(clave: str, generar, destino_de, *, asincrono: bool, que: str, prefijo: str, extension: str):
-    """Devuelve el motor con que quedó el archivo, o una respuesta 202 si sigue en curso."""
+    """Devuelve el motor con que quedó el archivo, o una respuesta 202 si sigue en curso.
+    La respuesta 202 trae el identificador del trabajo, para poder cancelarlo."""
+    from nuevamente.exports.narracion import Cancelado
     from nuevamente.exports.video import VideoError
 
     if not asincrono:
@@ -493,18 +500,44 @@ def _producir(clave: str, generar, destino_de, *, asincrono: bool, que: str, pre
             _trabajos.pop(clave)  # la próxima solicitud lo vuelve a intentar
             raise HTTPException(status_code=500, detail=trabajo["detalle"])
         if trabajo is None:
-            _trabajos[clave] = {"estado": "generando"}
+            senal = threading.Event()
+            _trabajos[clave] = {"estado": "generando", "cancelar": senal}
 
             def tarea():
                 try:
-                    resultado = {"estado": "listo", "motor": _fabricar(generar, destino_de, prefijo, extension)}
+                    resultado = {"estado": "listo", "motor": _fabricar(generar, destino_de, prefijo, extension, senal.is_set)}
+                except Cancelado:
+                    resultado = None  # cancelado: se olvida, y la próxima solicitud empieza de cero
                 except Exception as exc:  # ffmpeg, voces, disco: el error llega a la interfaz
                     resultado = {"estado": "error", "detalle": f"No se pudo generar el {que}: {exc}"}
                 with _candado_trabajos:
-                    _trabajos[clave] = resultado
+                    if resultado is None:
+                        _trabajos.pop(clave, None)
+                    else:
+                        _trabajos[clave] = resultado
 
             threading.Thread(target=tarea, name=f"kairos-{clave[:24]}", daemon=True).start()
-    return JSONResponse(status_code=202, content={"estado": "generando", "mensaje": f"Generando el {que}…"})
+    return JSONResponse(
+        status_code=202, content={"estado": "generando", "mensaje": f"Generando el {que}…", "trabajo": clave},
+    )
+
+
+@app.delete("/api/v1/trabajos/{trabajo:path}")
+def cancelar_trabajo(trabajo: str):
+    """Cancela un video o podcast que se está generando en segundo plano («Cancelar video»).
+    La generación se detiene en la siguiente escena y no queda ningún archivo. Si ya
+    terminó, el archivo se conserva."""
+    with _candado_trabajos:
+        actual = _trabajos.get(trabajo)
+        if actual is None:
+            raise HTTPException(status_code=404, detail="No hay ninguna generación en curso con ese identificador")
+        if actual["estado"] != "generando":
+            return {"estado": actual["estado"], "mensaje": "La generación ya había terminado."}
+        actual["cancelar"].set()
+        actual["estado"] = "cancelando"
+    que = trabajo.split("::", 1)[0]
+    estadisticas.registrar("cancelacion", formato=que)
+    return {"estado": "cancelando", "mensaje": "Generación cancelada."}
 
 
 @app.get("/api/v1/contenidos/{objeto_id:path}/video")
@@ -547,7 +580,7 @@ def video_contenido(
         return entregar(preferido)
     motor = _producir(
         f"video::{archivo(preferido).name}",
-        lambda temporal: generar_video(respuesta.contenido_adaptado, titulo, temporal, voz=voz),
+        lambda temporal, cancelado: generar_video(respuesta.contenido_adaptado, titulo, temporal, voz=voz, cancelado=cancelado),
         archivo, asincrono=asincrono, que="video", prefijo="kairos-video-", extension=".mp4",
     )
     return motor if isinstance(motor, JSONResponse) else entregar(motor)
@@ -601,7 +634,7 @@ def podcast_contenido(objeto_id: str, asincrono: bool = False):
 
     motor = _producir(
         f"podcast::{archivo(preferido).name}",
-        lambda temporal: generar_podcast(respuesta.contenido_adaptado, temporal),
+        lambda temporal, cancelado: generar_podcast(respuesta.contenido_adaptado, temporal),
         archivo, asincrono=asincrono, que="podcast", prefijo="kairos-podcast-", extension=".mp3",
     )
     return motor if isinstance(motor, JSONResponse) else entregar(motor)

@@ -848,3 +848,66 @@ def test_video_en_segundo_plano_responde_202_y_luego_el_archivo(api_client, docu
         time.sleep(0.5)
     assert r.status_code == 200 and r.headers["content-type"] == "video/mp4"
     assert r.content[4:8] == b"ftyp"  # un MP4 de verdad
+
+
+def test_cancelar_video_detiene_la_generacion_sin_dejar_archivo(api_client, documento_salud, monkeypatch):
+    """«Cancelar video» (HU-100): la generación se corta entre escenas, no queda nada en la
+    caché y la siguiente solicitud empieza de cero."""
+    import threading
+    import time
+
+    from pathlib import Path
+
+    from nuevamente.config import settings
+    from nuevamente.exports import video
+
+    empezo, dejar_seguir = threading.Event(), threading.Event()
+    escenas_hechas: list[int] = []
+
+    def generar_lento(guion, titulo, destino, voz="femenina", cancelado=None):
+        from nuevamente.exports.narracion import revisar_cancelacion
+
+        for i, _ in enumerate(guion.escenas):
+            revisar_cancelacion(cancelado)
+            escenas_hechas.append(i)
+            empezo.set()
+            dejar_seguir.wait(5)
+        Path(destino).write_bytes(b"....ftyp")
+        return "sistema"
+
+    monkeypatch.setattr(video, "generar_video", generar_lento)
+    objeto_id = _crear(api_client, documento_salud, "Guion de Clase")
+    url = f"/api/v1/contenidos/{objeto_id}/video"
+    params = {"titulo": "Cancelable", "asincrono": 1}
+
+    r = api_client.get(url, params=params)
+    assert r.status_code == 202
+    trabajo = r.json()["trabajo"]
+    assert empezo.wait(5)
+
+    cancelado = api_client.delete(f"/api/v1/trabajos/{trabajo}")
+    assert cancelado.status_code == 200 and cancelado.json()["estado"] == "cancelando"
+    dejar_seguir.set()
+    for _ in range(50):  # el hilo termina en la siguiente escena y olvida el trabajo
+        if api_client.delete(f"/api/v1/trabajos/{trabajo}").status_code == 404:
+            break
+        time.sleep(0.1)
+    else:
+        pytest.fail("la generación no se detuvo")
+    assert len(escenas_hechas) == 1  # no siguió con las demás escenas
+    assert not list(Path(settings.videos_dir).glob(trabajo.split("::", 1)[1]))  # nada en la caché
+
+    # Generar de nuevo empieza de cero (ahora sin cancelar)
+    escenas_hechas.clear()
+    r = api_client.get(url, params=params)
+    assert r.status_code == 202
+    for _ in range(100):
+        r = api_client.get(url, params=params)
+        if r.status_code != 202:
+            break
+        time.sleep(0.1)
+    assert r.status_code == 200
+
+
+def test_cancelar_un_trabajo_inexistente_da_404(api_client):
+    assert api_client.delete("/api/v1/trabajos/video::no-existe.mp4").status_code == 404

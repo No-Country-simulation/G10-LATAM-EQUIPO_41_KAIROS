@@ -60,7 +60,7 @@ def _sistema(texto, tipo, destino):
 
 
 def test_con_gemini_toda_la_narracion_usa_la_voz_natural(con_gemini, monkeypatch, tmp_path):
-    monkeypatch.setattr(narracion, "_narrar_gemini", lambda textos, tipo: [Path(f"{d}.gemini") for _, d in textos])
+    monkeypatch.setattr(narracion, "_narrar_gemini", lambda textos, tipo, cancelado=None: [Path(f"{d}.gemini") for _, d in textos])
     monkeypatch.setattr(narracion, "sintetizar", _sistema)
     audios, motor = narracion.narrar([("Hola.", tmp_path / "a"), ("Adiós.", tmp_path / "b")], "masculina")
     assert motor == "gemini" and all(a.suffix == ".gemini" for a in audios)
@@ -69,7 +69,7 @@ def test_con_gemini_toda_la_narracion_usa_la_voz_natural(con_gemini, monkeypatch
 
 def test_si_un_fragmento_falla_todo_se_narra_con_el_sistema(con_gemini, monkeypatch, tmp_path):
     """Un video nunca mezcla dos voces: si Gemini falla, se narran todas con el sistema."""
-    def gemini(textos, tipo):
+    def gemini(textos, tipo, cancelado=None):
         raise RuntimeError("429 RESOURCE_EXHAUSTED")
 
     monkeypatch.setattr(narracion, "_narrar_gemini", gemini)
@@ -86,14 +86,14 @@ def con_openai(con_gemini, monkeypatch):
     monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, openai_api_key="clave-de-prueba"))
 
 
-def _falla(textos, tipo):
+def _falla(textos, tipo, cancelado=None):
     raise RuntimeError("503 UNAVAILABLE")
 
 
 def test_si_gemini_falla_la_voz_natural_de_openai_toma_la_narracion(con_openai, monkeypatch, tmp_path):
     """Con Gemini saturado no se cae a la voz robótica del sistema si hay OpenAI TTS."""
     monkeypatch.setattr(narracion, "_narrar_gemini", _falla)
-    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo: [Path(f"{d}.openai") for _, d in textos])
+    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo, cancelado=None: [Path(f"{d}.openai") for _, d in textos])
     monkeypatch.setattr(narracion, "sintetizar", lambda *a: pytest.fail("no debe usar la voz del sistema"))
     audios, motor = narracion.narrar([("Hola.", tmp_path / "a"), ("Adiós.", tmp_path / "b")], "masculina")
     assert motor == "openai" and all(a.suffix == ".openai" for a in audios)
@@ -113,7 +113,7 @@ def test_si_openai_tambien_falla_se_narra_con_el_sistema(con_openai, monkeypatch
 def test_con_voces_openai_no_se_llama_a_gemini(con_openai, monkeypatch, tmp_path):
     monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, video_voces="openai"))
     monkeypatch.setattr(narracion, "_narrar_gemini", lambda *a, **k: pytest.fail("no debe usar Gemini"))
-    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo: [Path(f"{d}.openai") for _, d in textos])
+    monkeypatch.setattr(narracion, "_narrar_openai", lambda textos, tipo, cancelado=None: [Path(f"{d}.openai") for _, d in textos])
     _, motor = narracion.narrar([("Hola.", tmp_path / "a")], "masculina")
     assert motor == "openai"
 
@@ -125,19 +125,6 @@ def test_con_voces_del_sistema_no_se_llama_a_gemini(monkeypatch, tmp_path):
     monkeypatch.setattr(narracion, "sintetizar", _sistema)
     _, motor = narracion.narrar([("Hola.", tmp_path / "a")], "femenina")
     assert motor == "sistema"
-
-
-def test_los_cortes_caen_en_la_pausa_larga_y_no_entre_oraciones():
-    """Tres fragmentos de igual largo en 30 s: las pausas largas (2 s) están cerca de los
-    10 s y los 20 s; las cortas (0,6 s) son pausas entre oraciones y se ignoran."""
-    silencios = [(4.0, 4.6), (9.2, 11.2), (14.0, 14.6), (19.5, 21.5), (25.0, 25.6)]
-    cortes = narracion.cortes_por_silencio(silencios, 30.0, [100, 100, 100])
-    assert cortes == [10.2, 20.5]
-
-
-def test_sin_pausa_reconocible_no_se_corta_a_ciegas():
-    with pytest.raises(ValueError):
-        narracion.cortes_por_silencio([(1.0, 1.6)], 30.0, [100, 100])
 
 
 def test_si_un_modelo_tts_se_queda_sin_cuota_se_usa_el_siguiente(monkeypatch):
@@ -192,7 +179,7 @@ def test_video_sin_introduccion_hablada(monkeypatch, tmp_path):
 
     narrados: list[str] = []
 
-    def narrar_falso(textos, voz):
+    def narrar_falso(textos, voz, cancelado=None):
         narrados.extend(texto for texto, _ in textos)
         return [None] * len(textos), "sistema"
 
@@ -206,3 +193,48 @@ def test_video_sin_introduccion_hablada(monkeypatch, tmp_path):
     video.generar_video(guion, "Bioseguridad", tmp_path / "clase.mp4", "femenina")
     assert narrados == ["El lavado de manos elimina microorganismos.", "Los guantes se cambian entre pacientes."]
     assert (tmp_path / "clase.mp4").stat().st_size > 0
+
+
+def test_audio_de_gemini_en_wav_se_queda_solo_con_el_sonido():
+    """Gemini puede devolver un WAV completo: la cabecera y los metadatos del final
+    (marca SynthID) no deben sonar como ruido al empezar y terminar cada escena."""
+    pcm = b"\x01\x00\x02\x00\x03\x00"
+    meta = b"Created by Google Generative AI."
+    wav = (
+        b"RIFF" + (4 + 8 + 16 + 8 + len(pcm) + 8 + len(meta)).to_bytes(4, "little") + b"WAVE"
+        + b"fmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00\xc0\x5d\x00\x00\x80\xbb\x00\x00\x02\x00\x10\x00"
+        + b"data" + len(pcm).to_bytes(4, "little") + pcm
+        + b"c2pa" + len(meta).to_bytes(4, "little") + meta
+    )
+    assert narracion.solo_pcm(wav) == pcm
+    assert narracion.solo_pcm(pcm) == pcm  # PCM crudo: sin cambios
+
+
+def test_sin_voz_del_sistema_se_reintenta_la_voz_natural_en_pausa(con_gemini, monkeypatch):
+    """En Render (sin eSpeak), si Gemini quedó en pausa por un fallo, se vuelve a intentar
+    en lugar de entregar un video mudo."""
+    from nuevamente.llm import disponibilidad
+
+    monkeypatch.setattr(narracion, "hay_voz_del_sistema", lambda: False)
+    disponibilidad.pausar(narracion.SERVICIO_TTS, "429 RESOURCE_EXHAUSTED")
+    try:
+        assert narracion.motores_disponibles()[0] == "gemini"
+        monkeypatch.setattr(narracion, "hay_voz_del_sistema", lambda: True)
+        assert narracion.motores_disponibles()[0] != "gemini"  # con voz del sistema, se respeta la pausa
+    finally:
+        disponibilidad.reanudar(narracion.SERVICIO_TTS)
+
+
+def test_si_ninguna_voz_narra_el_video_avisa_en_lugar_de_salir_mudo(monkeypatch, tmp_path):
+    """En Render sin eSpeak y con Gemini y OpenAI caídos, el video no debe salir sin audio."""
+    from nuevamente.exports import video
+    from nuevamente.schemas.formatos import GuionDeClaseContenido
+
+    monkeypatch.setattr(video, "narrar", lambda textos, voz, cancelado=None: ([None] * len(textos), "sistema"))
+    monkeypatch.setattr(video, "settings", dataclasses.replace(video.settings, video_tts="auto"))
+    guion = GuionDeClaseContenido(duracion_total_min=1, escenas=[
+        {"orden": 1, "narracion": "El lavado de manos elimina microorganismos.", "duracion_seg": 5},
+    ])
+    with pytest.raises(video.VideoError, match="ninguna voz"):
+        video.generar_video(guion, "Prueba", tmp_path / "v.mp4")
+    assert not (tmp_path / "v.mp4").exists()
