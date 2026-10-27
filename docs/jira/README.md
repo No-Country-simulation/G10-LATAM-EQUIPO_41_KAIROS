@@ -13,7 +13,7 @@ Exportaciones y reportes del proyecto `SCRUM` en Jira, ordenados por sprint.
 
 | Documento | Contenido |
 |---|---|
-| [Actividades_SPRINT1.xlsx](sprint01/Actividades_SPRINT1.xlsx) | Actividades del sprint (exportación de Jira) |
+| [Actividades SPRINT1.xlsx](sprint01/Actividades_SPRINT1.xlsx) | Actividades del sprint (exportación de Jira) |
 | [Actividades_y_asignaciones_SPRINT01.docx](sprint01/Actividades_y_asignaciones_SPRINT01.docx) | Actividades y su asignación por integrante |
 
 ## Sprint 2
@@ -51,3 +51,25 @@ Exportaciones y reportes del proyecto `SCRUM` en Jira, ordenados por sprint.
 | [Pruebas_Sprint04_Ejecutivo_Archivo_Markdown.docx](sprint04/Pruebas_Sprint04_Ejecutivo_Archivo_Markdown.docx) | Perfil ejecutivo con un archivo Markdown |
 | [Pruebas_Sprint04_Ejecutivo_Archivo_PDF.docx](sprint04/Pruebas_Sprint04_Ejecutivo_Archivo_PDF.docx) | Perfil ejecutivo con un archivo PDF |
 | [Pruebas_Sprint04_Generacion_Podcast.docx](sprint04/Pruebas_Sprint04_Generacion_Podcast.docx) | Generación del podcast |
+
+
+## Sprint 5
+
+| Documento | Contenido |
+|---|---|
+| [Actividades_Sprint05.xlsx](sprint05/Actividades_Sprint05.xlsx) | Actividades del sprint (exportación de Jira) |
+| [Actividades_por_Sprint.xlsx](sprint05/Actividades_por_Sprint.xlsx) | Actividades y su asignación por integrante |
+| [HIstorias_de_Usuario_Casos_de_Prueba.xlsx](sprint05/HIstorias_de_Usuario_Casos_de_Prueba.xlsx) | Casos de prueba |
+
+
+### Pruebas funcionales del Sprint 5
+
+| Documento | Qué se probó |
+|---|---|
+| [Tratado_de_Inteligencia_Artificial_Tutorial.pdf](sprint05/Tratado_de_Inteligencia_Artificial_Tutorial.pdf) | Generación de material en formato Tutorial a partir de un archivo PDF |
+| [Tratado_de_Inteligencia_Artificial_Flascards.pdf](sprint05/Tratado_de_Inteligencia_Artificial_Flascards.pdf) | Generación de material en formato Flashcards a partir de un archivo PDF |
+| [Tratado_de_Inteligencia_Artificial_Flashcards.docx](sprint05/Tratado_de_Inteligencia_Artificial_Flashcards.docx) | Generación de material en formato Flashcards generado en Word |
+| [Tratado_de_Inteligencia_Artificial_Tutorial.pptx](sprint05/Tratado_de_Inteligencia_Artificial_Tutorial.pptx) | Generación de material en formato Tutorial generado en PPT |
+| [Tratado_de_Inteligencia_Artificial_podcast.mp3](sprint05/Tratado_de_Inteligencia_Artificial_podcast.mp3) | Generación de material en formato Podcast audio mp3 |
+
+
