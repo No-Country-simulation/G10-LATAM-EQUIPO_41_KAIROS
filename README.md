@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="src/nuevamente/web/logo-kairos.png" alt="Logo de Kairos" width="420">
+
 # NuevaMente 🎓 — Kairos G10
 
 **Sistema inteligente de adaptación y generación de contenido educativo**
