@@ -1,6 +1,6 @@
-# Speech del Demo Day — NuevaMente
+# Speech del Demo Day — Kairos
 
-*El conocimiento de su organización, al nivel de cada persona, sin inventar nada.*
+*Kairos: el conocimiento de su organización, al nivel de cada persona, sin inventar nada.*
 
 **Equipo Kairos G10** (G10-LATAM-equipo 41) · Hackathon ONE G10 (Oracle Next Education y Alura)
 **Duración:** 5 minutos exactos · **Nicho:** Salud · **Versión de la app:** 1.5
@@ -17,12 +17,12 @@
 
 | # | Bloque | Minuto | Duración | Orador |
 |---|---|---|---|---|
-| 1 | El gancho y el problema | 0:00 | 0:42 | Juan Pablo Calla |
-| 2 | La solución y el diferencial | 0:42 | 0:48 | Diana Dure |
-| 3 | Demo en vivo | 1:30 | 1:10 | Juan Pablo Calla |
-| 4 | Cómo funciona por dentro | 2:40 | 0:45 | Diana Dure |
-| 5 | Resultados | 3:25 | 0:42 | Diana Dure |
-| 6 | Equipo, impacto y cierre | 4:07 | 0:53 | Juan Pablo Calla |
+| 1 | El gancho y el problema | 0:00 | 0:40 | Juan Pablo Calla |
+| 2 | La solución y el diferencial | 0:40 | 0:49 | Diana Dure |
+| 3 | Demo en vivo | 1:29 | 1:15 | Juan Pablo Calla |
+| 4 | Cómo funciona por dentro | 2:44 | 0:44 | Diana Dure |
+| 5 | Resultados | 3:28 | 0:37 | Diana Dure |
+| 6 | Equipo, impacto y cierre | 4:05 | 0:55 | Juan Pablo Calla |
 
 ## Criterios del jurado y dónde se cubren
 
@@ -74,9 +74,9 @@ Darío deja todo abierto en este orden antes de empezar.
 
 ---
 
-## 1. El gancho y el problema · 0:00 a 0:42 · Juan Pablo
+## 1. El gancho y el problema · 0:00 a 0:40 · Juan Pablo
 
-[Pantalla: Portada de NuevaMente (pantalla quieta, sin animaciones)]
+[Pantalla: Pantalla de inicio de Kairos con el logo completo (quieta, sin animaciones)]
 
 *[Dos segundos de silencio. Mirar al jurado antes de hablar]*
 
@@ -88,11 +88,11 @@ En un hospital, ese manual es el protocolo de bioseguridad. La enfermera que aca
 
 **Mensaje clave:** Hay un dolor real y costoso, y la IA actual no es confiable para resolverlo.
 
-## 2. La solución y el diferencial · 0:42 a 1:30 · Diana
+## 2. La solución y el diferencial · 0:40 a 1:29 · Diana
 
 [Pantalla: Interfaz con perfiles y formatos]
 
-“Soy Diana Dure, QA Tester, y mi trabajo es desconfiar. Por eso les presento NuevaMente: una IA que no puede inventar sin que lo detectemos.
+“Soy Diana Dure, QA Tester, y mi trabajo es desconfiar. Por eso les presento Kairos, una plataforma de aprendizaje empresarial con una IA que no puede inventar sin que lo detectemos.
 
 Le das un documento, en PDF, Word o incluso escaneado, y en minutos lo convierte en material para cuatro perfiles, desde quien recién empieza hasta el gerente, y seis formatos: tutorial, flashcards, quiz, resumen ejecutivo, video narrado y podcast. Además se adapta al sector, al nivel de detalle y al idioma.
 
@@ -100,7 +100,7 @@ La diferencia es esta: cada afirmación se verifica contra el documento original
 
 **Mensaje clave:** No es otro generador con IA: es uno que demuestra de dónde sale cada dato.
 
-## 3. Demo en vivo · 1:30 a 2:40 · Juan Pablo
+## 3. Demo en vivo · 1:29 a 2:44 · Juan Pablo
 
 [Pantalla: Aplicación en línea en Render]
 
@@ -128,7 +128,7 @@ Y para quien aprende escuchando, un video con voz natural. Todo se descarga en W
 
 **Mensaje clave:** La promesa se cumple frente al jurado: mismo documento, distinta persona, cero datos inventados.
 
-## 4. Cómo funciona por dentro · 2:40 a 3:25 · Diana
+## 4. Cómo funciona por dentro · 2:44 a 3:28 · Diana
 
 [Pantalla: Diagrama del flujo de agentes]
 
@@ -140,7 +140,7 @@ Y si Gemini se cae, la aplicación no se cae: cambia a otro proveedor o a su mod
 
 **Mensaje clave:** La confianza está en la arquitectura, no en la suerte.
 
-## 5. Resultados · 3:25 a 4:07 · Diana
+## 5. Resultados · 3:28 a 4:05 · Diana
 
 [Pantalla: Evidencias de pruebas y escenarios de demo]
 
@@ -148,13 +148,11 @@ Y si Gemini se cae, la aplicación no se cae: cambia a otro proveedor o a su mod
 
 Tres casos reales de salud: inducción de personal clínico, capacitación regulatoria y auditoría de protocolos. Los tres aprobados, con fidelidad de 1,00, 1,00 y 0,92.
 
-Doscientas noventa y cinco pruebas automatizadas, todas en verde, incluidas pruebas con documentos maliciosos que intentan darle órdenes a la IA.
+Casi trescientas pruebas automatizadas, incluidas pruebas con documentos maliciosos que intentan darle órdenes a la IA. Cumplimos 17 de los 18 puntos del enunciado: la aplicación está en línea y cada material queda guardado en Oracle Cloud. Cada cifra que les doy tiene su evidencia en el repositorio.”
 
-Cumplimos 16 de los 18 puntos del enunciado. Y está en producción en un servidor gratuito de 512 megas: para que entrara, optimizamos el video de 78 a 9 segundos de procesamiento. Cada cifra que les doy tiene su evidencia en el repositorio.”
+**Mensaje clave:** Resultados medidos y comprobables: fidelidad, pruebas y la nube de Oracle funcionando.
 
-**Mensaje clave:** Resultados medidos y comprobables, no promesas.
-
-## 6. Equipo, impacto y cierre · 4:07 a 5:00 · Juan Pablo
+## 6. Equipo, impacto y cierre · 4:05 a 5:00 · Juan Pablo
 
 [Pantalla: Equipo, enlaces y lema final]
 
@@ -166,7 +164,7 @@ Cumplimos 16 de los 18 puntos del enunciado. Y está en producción en un servid
 
 La IA ya sabe escribir. Lo que faltaba era poder confiar en lo que escribe.
 
-NuevaMente: el conocimiento de su organización, al nivel de cada persona, sin inventar nada.
+Kairos: el conocimiento de su organización, al nivel de cada persona, sin inventar nada.
 
 Gracias. Somos Kairos G10.”
 
@@ -180,7 +178,7 @@ Respuestas cortas, de 15 a 20 segundos cada una.
 
 **¿En qué se diferencia de pedirle lo mismo a ChatGPT?** · *Diana*
 
-ChatGPT no demuestra de dónde sale cada dato. NuevaMente verifica cada afirmación contra el documento, rechaza lo que no tiene respaldo y entrega el material listo en seis formatos y para cuatro perfiles.
+ChatGPT no demuestra de dónde sale cada dato. Kairos verifica cada afirmación contra el documento, rechaza lo que no tiene respaldo y entrega el material listo en seis formatos y para cuatro perfiles.
 
 **¿Qué pasa si la IA inventa algo igual?** · *Darío*
 
@@ -188,11 +186,11 @@ El Crítico lo detecta y lo devuelve al Redactor. Si después de los reintentos 
 
 **¿Cuánto cuesta operarla?** · *Ethan*
 
-Hoy corre en el plan gratuito de Render y con la cuota gratuita de Gemini. Si Gemini no responde, usa otros proveedores o el modo local, así que no depende de un solo servicio.
+Hoy corre en el plan gratuito de Render, con la cuota gratuita de Gemini y la capa Always Free de Oracle Cloud. Si Gemini no responde, usa otros proveedores o el modo local, así que no depende de un solo servicio.
 
 **¿Usan Oracle Cloud?** · *Gaspar*
 
-Sí. La integración con OCI Object Storage está en el código y el despliegue en OCI Compute tiene script, systemd y nginx listos. Mientras se registra la llave de API en la cuenta, la app guarda en un respaldo local y lo indica en la respuesta.
+Sí. Cada documento original y cada material generado se guardan en un bucket privado de OCI Object Storage; la interfaz muestra dónde quedó guardado. El despliegue en OCI Compute tiene script, systemd y nginx listos, y es el siguiente paso.
 
 **¿Es segura con documentos sensibles?** · *Diana*
 
@@ -208,7 +206,7 @@ Con un grafo de LangGraph: cada agente es un nodo y el Crítico puede devolver e
 
 **¿Qué sigue después de la hackathon?** · *Juan Pablo*
 
-Completar la verificación en OCI, ampliar los sectores y llevar un piloto a una institución de salud real para medir las horas de capacitación ahorradas.
+Desplegar en OCI Compute, ampliar los sectores y llevar un piloto a una institución de salud real para medir las horas de capacitación ahorradas.
 
 ## Checklist del día
 
@@ -216,12 +214,14 @@ Completar la verificación en OCI, ampliar los sectores y llevar un piloto a una
 
 - [ ] Ensayo completo con los cinco, con cronómetro y compartiendo pantalla, al menos dos veces seguidas en 5:00.
 - [ ] Generar y dejar guardados el Resumen Ejecutivo y el video del Guion de Clase con el protocolo de bioseguridad.
+- [ ] No generar el video en vivo: el servidor gratuito tiene 512 MB y un video en vivo puede reiniciarlo. Mostrar el video ya generado.
 - [ ] Grabar un video de la demo (unos 70 segundos) como plan B.
 - [ ] Repasar las preguntas del jurado: cada integrante practica en voz alta las que le tocan.
 
 ### 30 minutos antes
 
 - [ ] Abrir la app en Render para que esté activa (la primera carga tarda cerca de un minuto).
+- [ ] Comprobar que el inicio muestre el logo de Kairos y que la barra diga «Guardando en OCI».
 - [ ] Darío deja las pestañas en el orden del guion de pantallas y cierra todo lo demás.
 - [ ] Silenciar notificaciones del sistema, correo y chats en la computadora que comparte pantalla.
 
@@ -250,7 +250,7 @@ Completar la verificación en OCI, ampliar los sectores y llevar un piloto a una
 * Plan B de la demo: tener el material ya generado en otra pestaña y un video grabado de la demo. Si algo tarda, cambiar sin comentarlo.
 * Abrir la aplicación 5 minutos antes para que Render esté activo; en el plan gratuito la primera carga tarda cerca de un minuto.
 * Cambio de orador sin silencio: quien termina mira a su compañera o compañero, y quien sigue empieza de inmediato.
-* Decir los números despacio y con pausa: 1,00 · 295 pruebas · de 78 a 9 segundos. Son lo que el jurado anota.
+* Decir los números despacio y con pausa: 1,00 · 0,92 · casi 300 pruebas · 17 de 18 puntos. Son lo que el jurado anota.
 * La frase final se dice lento, mirando al jurado, y se espera un segundo antes del “Gracias”.
 
 ## Enlaces
