@@ -23,7 +23,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from nuevamente.config import settings
-from nuevamente.exports.narracion import narrar
+from nuevamente.exports.narracion import narrar, revisar_cancelacion
 from nuevamente.schemas.formatos import GuionDeClaseContenido
 
 # Se incluye en la clave de caché de la API: al cambiar cómo se genera el video,
@@ -259,12 +259,13 @@ def _titulo_escena(seccion: str, indice: int) -> str:
     return titulo
 
 
-def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina") -> str:
+def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz: str = "femenina", cancelado=None) -> str:
     """Renderiza el guion completo a un MP4 en `destino` y devuelve el motor de voz que
     lo narró ("gemini" o "sistema").
 
     `voz` es "femenina" o "masculina"; si no hay ninguna voz de ese tipo disponible,
-    el video sale sin narración.
+    el video sale sin narración. `cancelado` (opcional) se consulta entre escenas: si
+    devuelve True, se lanza narracion.Cancelado y no queda ningún archivo.
     """
     ffmpeg = _ffmpeg()
     destino = Path(destino)
@@ -289,7 +290,7 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
 
         # Narrar TODO de una vez (respeta la cuota gratuita de Gemini), pero dibujar y
         # segmentar escena por escena.
-        audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz)
+        audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz, cancelado)
 
         # la portada solo muestra el título del documento, sin voz
         partes.insert(0, ("000", lambda ruta: _portada(titulo, ruta), "", DURACION_PORTADA_SEG))
@@ -297,6 +298,7 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
 
         segmentos: list[Path] = []
         for (nombre, dibujar, _, duracion_seg), audio in zip(partes, audios):
+            revisar_cancelacion(cancelado)
             imagen = carpeta / f"{nombre}.png"
             dibujar(imagen)
             segmento = carpeta / f"{nombre}.mp4"

@@ -1112,14 +1112,19 @@ function selectorVoz() {
 
 // Video y podcast tardan minutos: el servidor responde 202 mientras los genera en segundo
 // plano y se vuelve a pedir cada pocos segundos, sin dejar una conexión abierta (error 502).
-async function pedirArchivoGenerado(url) {
+// Con `signal` la espera se puede cancelar; `alIniciar` recibe el identificador del trabajo
+// que da el servidor, para pedirle que lo detenga (DELETE /api/v1/trabajos/…).
+async function pedirArchivoGenerado(url, { signal, alIniciar } = {}) {
   const limite = Date.now() + 20 * 60 * 1000;
   const separador = url.includes("?") ? "&" : "?";
   for (;;) {
-    const resp = await fetch(`${url}${separador}asincrono=1`);
+    const resp = await fetch(`${url}${separador}asincrono=1`, { signal });
     if (resp.status !== 202) return resp;
+    const datos = await resp.json().catch(() => ({}));
+    if (datos.trabajo) alIniciar?.(datos.trabajo);
     if (Date.now() > limite) throw new Error("la generación tardó demasiado; inténtalo de nuevo");
     await esperar(3000);
+    if (signal?.aborted) throw new DOMException("Cancelado", "AbortError");
   }
 }
 
@@ -1133,11 +1138,32 @@ function panelVideo(escenas) {
     "Una diapositiva por escena, narrada como en una clase: saludo, transiciones y cierre. Puede tardar un minuto.",
   );
   const boton = h("button", { type: "button", class: "btn-video" }, "🎬 Generar video");
+  const cancelar = h(
+    "button",
+    { type: "button", class: "btn-cancelar-video", hidden: true, title: "Detener la generación del video (Esc)" },
+    "✖ Cancelar",
+  );
+  let controlador = null;
+  let trabajo = null;
+
+  // Deja de esperar y le pide al servidor que detenga la generación (libera su memoria).
+  const cancelarVideo = () => {
+    if (!controlador) return;
+    controlador.abort();
+    cancelar.disabled = true;
+    if (trabajo) fetch(`/api/v1/trabajos/${encodeURIComponent(trabajo)}`, { method: "DELETE" }).catch(() => {});
+  };
+  cancelar.addEventListener("click", cancelarVideo);
 
   boton.addEventListener("click", async () => {
     audioMuestra?.pause();
     boton.disabled = true;
     boton.textContent = "⏳ Generando video…";
+    controlador = new AbortController();
+    trabajo = null;
+    cancelar.hidden = false;
+    cancelar.disabled = false;
+    estado.cancelarVideo = cancelarVideo;
     nota.textContent = "Preparando diapositivas y narración. No cierres la página.";
     const anterior = [...zona.childNodes]; // si falla, se vuelve a mostrar el video anterior
     const avance = avanceEstimado({
@@ -1150,7 +1176,10 @@ function panelVideo(escenas) {
     zona.replaceChildren(avance.el);
     try {
       const parametros = new URLSearchParams({ titulo, voz: estado.voz });
-      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/video?${parametros}`);
+      const resp = await pedirArchivoGenerado(`/api/v1/contenidos/${objetoId}/video?${parametros}`, {
+        signal: controlador.signal,
+        alIniciar: (id) => (trabajo = id),
+      });
       if (!resp.ok) throw new Error(await mensajeDeError(resp));
       const videoBlob = await resp.blob();
       await avance.terminar();
@@ -1165,17 +1194,30 @@ function panelVideo(escenas) {
     } catch (err) {
       avance.detener();
       zona.replaceChildren(...anterior);
-      boton.textContent = "🎬 Reintentar";
-      nota.textContent = `No se pudo generar el video: ${err.message}`;
+      if (controlador.signal.aborted) {
+        boton.textContent = "🎬 Generar video";
+        nota.textContent = "⛔ Video cancelado. Puedes elegir otra voz y volver a generarlo.";
+      } else {
+        boton.textContent = "🎬 Reintentar";
+        nota.textContent = `No se pudo generar el video: ${err.message}`;
+      }
     } finally {
       boton.disabled = false;
+      cancelar.hidden = true;
+      controlador = null;
+      if (estado.cancelarVideo === cancelarVideo) estado.cancelarVideo = null;
     }
   });
 
   return h(
     "div",
     { class: "panel-video" },
-    h("div", { class: "panel-video-cabecera" }, h("div", {}, h("h4", {}, "🎬 Video de la clase"), nota), boton),
+    h(
+      "div",
+      { class: "panel-video-cabecera" },
+      h("div", {}, h("h4", {}, "🎬 Video de la clase"), nota),
+      h("div", { class: "video-acciones" }, cancelar, boton),
+    ),
     selectorVoz(),
     zona,
   );
@@ -1667,7 +1709,11 @@ function atajoDeTeclado(e) {
   if (e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
   const desplegableAbierto = !$("#historial-menu").hidden || !$("#estado-menu").hidden;
   const accion = {
-    escape: () => estado.controlador && !desplegableAbierto && cancelarCreacion(),
+    escape: () => {
+      if (desplegableAbierto) return;
+      if (estado.controlador) cancelarCreacion();
+      else estado.cancelarVideo?.();
+    },
     m: () => !$("#btn-material").disabled && verMaterial(),
     h: () => !$("#btn-historial").disabled && abrirHistorial($("#historial-menu").hidden),
     "?": () => $("#btn-como").click(),

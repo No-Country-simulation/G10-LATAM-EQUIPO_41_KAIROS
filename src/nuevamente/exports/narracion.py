@@ -357,11 +357,22 @@ def _escribir_wav(pcm: bytes, destino: Path) -> Path:
     return destino
 
 
-def _narrar_gemini(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
+class Cancelado(Exception):
+    """El usuario canceló la generación (por ejemplo, con «Cancelar video»)."""
+
+
+def revisar_cancelacion(cancelado) -> None:
+    """Corta el trabajo si se pidió cancelar. `cancelado` es una función sin argumentos o None."""
+    if cancelado is not None and cancelado():
+        raise Cancelado()
+
+
+def _narrar_gemini(textos: list[tuple[str, Path]], tipo: str, cancelado=None) -> list[Path]:
     """Narra cada fragmento con Gemini, una solicitud por fragmento."""
     cliente = _cliente_gemini()
     audios: list[Path] = []
     for texto, destino in textos:
+        revisar_cancelacion(cancelado)
         destino = Path(destino)
         audios.append(_escribir_wav(_pcm_gemini(preparar_texto(texto), tipo, cliente), destino.with_suffix(".wav")))
     return audios
@@ -389,22 +400,28 @@ def _audio_openai(texto: str, tipo: str, destino: Path) -> Path:
     return audio
 
 
-def _narrar_openai(textos: list[tuple[str, Path]], tipo: str) -> list[Path]:
+def _narrar_openai(textos: list[tuple[str, Path]], tipo: str, cancelado=None) -> list[Path]:
     """Narra cada fragmento con OpenAI TTS (una petición por fragmento, varias a la vez)."""
     preparados = [(preparar_texto(texto), Path(destino)) for texto, destino in textos]
+
+    def narrar_uno(par: tuple[str, Path]) -> Path:
+        revisar_cancelacion(cancelado)
+        return _audio_openai(par[0], tipo, par[1])
+
     with ThreadPoolExecutor(max_workers=_HILOS_OPENAI) as hilos:
-        return list(hilos.map(lambda par: _audio_openai(par[0], tipo, par[1]), preparados))
+        return list(hilos.map(narrar_uno, preparados))
 
 
 _NARRADORES = {"gemini": ("_narrar_gemini", SERVICIO_TTS), "openai": ("_narrar_openai", SERVICIO_TTS_OPENAI)}
 
 
-def narrar(textos: list[tuple[str, Path]], tipo: str) -> tuple[list[Path | None], str]:
+def narrar(textos: list[tuple[str, Path]], tipo: str, cancelado=None) -> tuple[list[Path | None], str]:
     """Narra varios fragmentos (texto, destino sin extensión) con una sola voz.
 
     Devuelve los audios (None donde no hay voz) y el motor que de verdad se usó. Prueba
     los motores en orden (Gemini, OpenAI, sistema): si uno falla, se pausa ese servicio y
     TODA la narración se rehace con el siguiente, para que no se mezclen dos voces.
+    `cancelado` (opcional) se consulta entre fragmentos: si devuelve True, se lanza Cancelado.
     """
     from nuevamente.llm import disponibilidad
 
@@ -413,13 +430,19 @@ def narrar(textos: list[tuple[str, Path]], tipo: str) -> tuple[list[Path | None]
     for motor in motores_disponibles()[:-1]:
         funcion, servicio = _NARRADORES[motor]
         try:
-            audios = globals()[funcion](textos, tipo)
+            audios = globals()[funcion](textos, tipo, cancelado)
             disponibilidad.reanudar(servicio)
             return audios, motor
+        except Cancelado:
+            raise  # cancelar no es una falla del servicio: no se pausa ni se prueba otra voz
         except Exception as exc:  # cuota, red, modelo o pausas irreconocibles: sale igual, con otra voz
             logger.warning("%s TTS no disponible, se prueba la siguiente voz: %s", motor.capitalize(), exc)
             disponibilidad.pausar(servicio, str(exc))
-    return [sintetizar(texto, tipo, destino) for texto, destino in textos], "sistema"
+    audios = []
+    for texto, destino in textos:
+        revisar_cancelacion(cancelado)
+        audios.append(sintetizar(texto, tipo, destino))
+    return audios, "sistema"
 
 
 # ---------- Síntesis con las voces del sistema ----------
