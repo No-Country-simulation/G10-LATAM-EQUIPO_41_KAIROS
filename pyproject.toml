@@ -25,6 +25,8 @@ dependencies = [
     # Cliente HTTP de los proveedores con API compatible con OpenAI: Groq, Cerebras,
     # OpenRouter, Cohere y OpenAI (llm/openai_compat_llm.py). No necesitan SDK propio.
     "httpx",
+    # Voces neuronales gratuitas de Microsoft Edge: respaldo de la voz del video y del podcast
+    "edge-tts>=7",
 ]
 
 [project.optional-dependencies]

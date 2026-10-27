@@ -15,6 +15,7 @@ os.environ["ESTADISTICAS_DIR"] = os.path.join(os.environ["FALLBACK_DIR"], "estad
 os.environ["VIDEO_TTS"] = "off"  # videos en silencio: rápidos y sin depender de las voces del sistema
 os.environ["VIDEO_VOCES"] = "sistema"  # sin llamadas a Gemini TTS en los tests
 os.environ["PODCAST_VOCES"] = "sistema"  # sin llamadas a Gemini TTS en los tests
+os.environ["EDGE_TTS"] = "off"  # sin llamadas a Edge TTS: cada test que lo necesita lo simula
 os.environ["LLM_PROVIDER"] = "template"  # sin llamadas a Gemini aunque el .env lo active
 os.environ["EMBEDDINGS_PROVIDER"] = "local"  # TF-IDF: sin red y determinista
 os.environ["JUEZ_IA"] = "off"  # el juez de IA se prueba aparte, con dobles (tests/test_juez.py)

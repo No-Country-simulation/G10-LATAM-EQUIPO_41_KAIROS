@@ -238,3 +238,55 @@ def test_si_ninguna_voz_narra_el_video_avisa_en_lugar_de_salir_mudo(monkeypatch,
     with pytest.raises(video.VideoError, match="ninguna voz"):
         video.generar_video(guion, "Prueba", tmp_path / "v.mp4")
     assert not (tmp_path / "v.mp4").exists()
+
+
+def test_sin_voz_instalada_el_respaldo_usa_edge_tts(monkeypatch, tmp_path):
+    """Render sin Docker no trae say ni eSpeak: el motor "sistema" narra con Edge TTS."""
+    import dataclasses
+
+    from nuevamente.exports import narracion
+
+    monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, edge_tts="auto", video_tts="auto"))
+    monkeypatch.setattr(narracion, "_voz_macos", lambda tipo: None)
+    monkeypatch.setattr(narracion, "_voces_macos", lambda: ())
+    monkeypatch.setattr(narracion, "_espeak", lambda: None)
+    monkeypatch.setattr(narracion, "_edge_instalado", lambda: True)
+    pedidos = []
+
+    def edge_falso(texto, tipo, destino):
+        pedidos.append((texto, narracion._voz_edge(tipo)))
+        audio = Path(destino).with_suffix(".mp3")
+        audio.write_bytes(b"ID3")
+        return audio
+
+    monkeypatch.setattr(narracion, "_audio_edge", edge_falso)
+    assert narracion.hay_voz_del_sistema()
+    assert narracion.nombre_voz("femenina", "sistema") == "Dalia (México, voz natural de Microsoft)"
+    assert narracion.nombre_voz("masculina", "sistema") == "Jorge (México, voz natural de Microsoft)"
+    audio = narracion.sintetizar("Hola a todos.", "masculina", tmp_path / "escena")
+    assert audio is not None and audio.suffix == ".mp3"
+    assert pedidos == [("Hola a todos.", "es-MX-JorgeNeural")]
+
+
+def test_si_edge_falla_se_pausa_y_pasa_a_espeak(monkeypatch, tmp_path):
+    import dataclasses
+
+    from nuevamente.exports import narracion
+    from nuevamente.llm import disponibilidad
+
+    monkeypatch.setattr(narracion, "settings", dataclasses.replace(narracion.settings, edge_tts="auto", video_tts="auto"))
+    monkeypatch.setattr(narracion, "_voz_macos", lambda tipo: None)
+    monkeypatch.setattr(narracion, "_voces_macos", lambda: ())
+    monkeypatch.setattr(narracion, "_espeak", lambda: None)
+    monkeypatch.setattr(narracion, "_edge_instalado", lambda: True)
+
+    def sin_red(texto, tipo, destino):
+        raise OSError("sin conexión")
+
+    monkeypatch.setattr(narracion, "_audio_edge", sin_red)
+    try:
+        assert narracion.sintetizar("Hola.", "femenina", tmp_path / "escena") is None
+        assert disponibilidad.en_pausa(narracion.SERVICIO_TTS_EDGE)
+        assert not narracion.hay_voz_del_sistema()  # en pausa: ya no cuenta como respaldo
+    finally:
+        disponibilidad.reanudar(narracion.SERVICIO_TTS_EDGE)

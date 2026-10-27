@@ -1199,7 +1199,8 @@ function panelVideo(escenas) {
         nota.textContent = "⛔ Video cancelado. Puedes elegir otra voz y volver a generarlo.";
       } else {
         boton.textContent = "🎬 Reintentar";
-        nota.textContent = `No se pudo generar el video: ${err.message}`;
+        // la API ya explica el error con «No se pudo generar el video: …»: no se repite
+        nota.textContent = /^No se pudo/i.test(err.message) ? err.message : `No se pudo generar el video: ${err.message}`;
       }
     } finally {
       boton.disabled = false;
@@ -1352,7 +1353,7 @@ function renderPodcast(c) {
     } catch (err) {
       avance.detener();
       zona.replaceChildren();
-      nota.textContent = `No se pudo grabar el episodio: ${err.message}`;
+      nota.textContent = /^No se pudo/i.test(err.message) ? err.message : `No se pudo grabar el episodio: ${err.message}`;
       reintentar.hidden = false;
     }
   }
