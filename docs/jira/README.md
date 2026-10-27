@@ -13,7 +13,7 @@ Exportaciones y reportes del proyecto `SCRUM` en Jira, ordenados por sprint.
 
 | Documento | Contenido |
 |---|---|
-| [Actividades SPRINT1.xlsx](sprint01/Actividades_SPRINT1.xlsx) | Actividades del sprint (exportación de Jira) |
+| [Actividades_SPRINT1.xlsx](sprint01/Actividades_SPRINT1.xlsx) | Actividades del sprint (exportación de Jira) |
 | [Actividades_y_asignaciones_SPRINT01.docx](sprint01/Actividades_y_asignaciones_SPRINT01.docx) | Actividades y su asignación por integrante |
 
 ## Sprint 2
