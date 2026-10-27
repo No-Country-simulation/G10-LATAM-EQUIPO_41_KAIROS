@@ -288,9 +288,16 @@ def generar_video(guion: GuionDeClaseContenido, titulo: str, destino: Path, voz:
                 escena.duracion_seg,
             )
 
-        # Narrar TODO de una vez (respeta la cuota gratuita de Gemini), pero dibujar y
-        # segmentar escena por escena.
+        # Narrar todas las escenas primero (una sola voz para todo el video), y después
+        # dibujar y segmentar escena por escena.
         audios, motor = narrar([(texto, carpeta / nombre) for nombre, _, texto, _ in partes], voz, cancelado)
+        if settings.video_tts != "off" and partes and all(a is None for a in audios):
+            # Ninguna voz pudo narrar (cuota de Gemini agotada, OpenAI sin respuesta y el
+            # servidor sin voz del sistema): mejor avisar que entregar un video mudo.
+            raise VideoError(
+                "ninguna voz está disponible en este momento (la cuota gratuita de voz puede estar "
+                "agotada). Vuelve a intentarlo en unos minutos."
+            )
 
         # la portada solo muestra el título del documento, sin voz
         partes.insert(0, ("000", lambda ruta: _portada(titulo, ruta), "", DURACION_PORTADA_SEG))

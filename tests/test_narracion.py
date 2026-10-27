@@ -223,3 +223,18 @@ def test_sin_voz_del_sistema_se_reintenta_la_voz_natural_en_pausa(con_gemini, mo
         assert narracion.motores_disponibles()[0] != "gemini"  # con voz del sistema, se respeta la pausa
     finally:
         disponibilidad.reanudar(narracion.SERVICIO_TTS)
+
+
+def test_si_ninguna_voz_narra_el_video_avisa_en_lugar_de_salir_mudo(monkeypatch, tmp_path):
+    """En Render sin eSpeak y con Gemini y OpenAI caídos, el video no debe salir sin audio."""
+    from nuevamente.exports import video
+    from nuevamente.schemas.formatos import GuionDeClaseContenido
+
+    monkeypatch.setattr(video, "narrar", lambda textos, voz, cancelado=None: ([None] * len(textos), "sistema"))
+    monkeypatch.setattr(video, "settings", dataclasses.replace(video.settings, video_tts="auto"))
+    guion = GuionDeClaseContenido(duracion_total_min=1, escenas=[
+        {"orden": 1, "narracion": "El lavado de manos elimina microorganismos.", "duracion_seg": 5},
+    ])
+    with pytest.raises(video.VideoError, match="ninguna voz"):
+        video.generar_video(guion, "Prueba", tmp_path / "v.mp4")
+    assert not (tmp_path / "v.mp4").exists()
