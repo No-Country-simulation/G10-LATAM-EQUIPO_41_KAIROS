@@ -12,7 +12,7 @@ quizzes, resúmenes, videos y podcasts) y verifica cada afirmación contra la fu
 [![LangGraph](https://img.shields.io/badge/Orquestación-LangGraph-FF6F00)](src/nuevamente/agents/graph.py)
 [![Oracle Cloud](https://img.shields.io/badge/Cloud-Oracle_OCI-F80000?logo=oracle&logoColor=white)](docs/SETUP_OCI.md)
 [![Docker](https://img.shields.io/badge/Docker-listo-2496ED?logo=docker&logoColor=white)](Dockerfile)
-[![Tests](https://img.shields.io/badge/Tests-295%20passed-success?logo=pytest&logoColor=white)](#7-pruebas)
+[![Tests](https://img.shields.io/badge/Tests-301%20passed-success?logo=pytest&logoColor=white)](#7-pruebas)
 [![Deploy](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)](https://g10-latam-equipo-41-kairos.onrender.com/)
 [![Versión](https://img.shields.io/badge/Versión-1.5-blueviolet)](src/nuevamente/__init__.py)
 
@@ -239,11 +239,13 @@ Los comandos habituales están en el `Makefile` (ejecutar desde la raíz del rep
 | Comando        | Qué hace                                                                 |
 |----------------|--------------------------------------------------------------------------|
 | `make install` | Instala el paquete en modo editable con extras `dev`, `ui` y `gemini`     |
-| `make test`    | Corre los tests (295 pruebas, deben pasar todas; ver [sección 7](#7-pruebas))           |
+| `make test`    | Corre los tests (301 pruebas, deben pasar todas; ver [sección 7](#7-pruebas))           |
 | `make run-api` | Levanta la API y la interfaz web en http://localhost:8000/                |
 | `make run-ui`  | (Opcional) Levanta la interfaz Streamlit anterior                         |
 | `make demo`    | Ejecuta los 3 escenarios de demo (Salud, B2B) y guarda evidencia          |
 | `make requirements` | Regenera `requirements.txt` con las versiones instaladas en el `.venv` |
+
+Antes del primer commit, instala la revisión de secretos: `python scripts/revisar_secretos.py --instalar`. Bloquea el commit si encuentra llaves o archivos `.pem`/`.env`; GitHub Actions corre la misma revisión y las pruebas en cada push y pull request.
 
 Equivalentes sin `make`:
 
@@ -495,7 +497,7 @@ evidencia; con `python scripts/run_demo.py --permitir-respaldo` se acepta igual.
 
 ## 7. Pruebas
 
-El proyecto tiene **295 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
+El proyecto tiene **301 pruebas automatizadas** (pytest). Corren sin red ni credenciales:
 usan el generador local (`LLM_PROVIDER=template`), el respaldo local de almacenamiento y
 voces simuladas, así que dan el mismo resultado en cualquier máquina.
 
@@ -508,18 +510,18 @@ pytest tests/test_api.py -q        # un archivo
 pytest -q -k enunciado             # solo las que contienen "enunciado" en el nombre
 ```
 
-Resultado esperado: `295 passed`.
+Resultado esperado: `301 passed`.
 
 ![Pruebas automatizadas por archivo: 295 de 295 aprobadas](docs/pruebas/evidencias/graficos/grafico_pruebas_por_archivo.svg)
 
 ### 7.2 Qué cubre cada archivo
 
 <details>
-<summary>Ver las 295 pruebas por archivo</summary>
+<summary>Ver las 301 pruebas por archivo</summary>
 
 | Archivo | Pruebas | Qué verifica |
 |---|---:|---|
-| `tests/test_api.py` | 69 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion (también en segundo plano), podcast MP3, nombres de formato del enunciado, archivo original, versión, namespace de OCI y tipo de documento de origen |
+| `tests/test_api.py` | 71 | Endpoints REST: los 6 formatos con distintos perfiles, la **solicitud exacta del enunciado** (con `"Didactico"` sin tilde), que la respuesta tenga **exactamente** las claves del ejemplo, guardar y recuperar un material, validación de entrada (422), subida de archivo .docx, formato no compatible, archivo demasiado grande (413), exportación a Markdown, Anki, Word, PDF y PowerPoint, video MP4 del Guion (también en segundo plano), podcast MP3, **cancelar un video en generación**, nombres de formato del enunciado, archivo original, versión, namespace de OCI y tipo de documento de origen |
 | `tests/test_llm_rotacion.py` | 45 | Rotación de modelos y de claves de Gemini, y la cadena de proveedores (Gemini → Groq → Cerebras → OpenRouter) cuando uno se queda sin cuota |
 | `tests/test_llm_salud.py` | 28 | Enrutado por salud de los proveedores: circuit breaker, orden por latencia y carrera entre proveedores |
 | `tests/test_generacion.py` | 15 | Flujo completo de agentes: fidelidad de los formatos de síntesis, reintento del Crítico, nivel de detalle, agrupación por sección, la portada no llega al Redactor y la evidencia cubre todo el documento |
@@ -532,12 +534,14 @@ Resultado esperado: `295 passed`.
 | `tests/test_cache_contenido.py` | 7 | Caché de contenido aprobado (Ethan): acierto en la segunda generación, alcance Resumen Ejecutivo + Salud, la clave cambia con la evidencia y las opciones, y el endpoint de estadísticas |
 | `tests/test_juez.py` | 5 | Juez de IA: solo aprueba con citas que existen en el documento, una síntesis necesita que todas sus citas existan, y la coherencia didáctica |
 | `tests/test_fidelity.py` | 5 | Verificador de fidelidad: afirmaciones sustentadas, parciales e inventadas |
-| `tests/test_narracion.py` | 16 | Narración: lectura natural, voz de Gemini con respaldo del sistema sin mezclar voces, cortes por pausa, rotación de modelos TTS y **video sin introducción hablada** (la voz solo lee las escenas) |
+| `tests/test_narracion.py` | 17 | Narración: lectura natural, voz de Gemini con respaldo del sistema sin mezclar voces, audio de Gemini sin cabecera ni metadatos (sin ruido entre diapositivas), reintento de la voz natural en pausa, aviso si ninguna voz narra, rotación de modelos TTS y **video sin introducción hablada** (la voz solo lee las escenas) |
 | `tests/test_titulos.py` | 15 | **Títulos, subtítulos y texto en Markdown y PDF**: niveles `#` a `######`, títulos subrayados, comentarios dentro de bloques de código; en PDF, títulos por tamaño de letra, negrita, marcadores y títulos en dos renglones; y los documentos reales de `docs/pruebas/documentos/` |
 | `tests/test_depuracion.py` | 4 | Eliminación de partes duplicadas en el material generado |
 | `tests/test_disponibilidad.py` | 4 | Pausa de un servicio que acaba de fallar, para no esperarlo en cada solicitud |
 | `tests/test_vectorstore.py` | 5 | Indexación y búsqueda por similitud en el vector store, y ChromaDB con los mismos resultados |
 | `tests/test_resumen.py` | 2 | Partes del Resumen Ejecutivo (idea central, puntos clave, riesgos y recomendaciones) para exportarlo |
+| `tests/test_env_example.py` | 2 | Toda variable de entorno que lee el código está documentada en `.env.example`, y las llaves van vacías |
+| `tests/test_revisar_secretos.py` | 1 | El revisor de secretos detecta llaves y archivos de credenciales sin imprimirlas |
 | `tests/test_security.py` | 3 | Resistencia a instrucciones inyectadas en el documento y que todo lo generado cite un chunk real, y que el módulo de OCI no desactive la verificación TLS del proceso |
 
 </details>
@@ -691,7 +695,7 @@ nuevamente/
 │   ├── test_oci_conexion.py  # prueba una subida real al bucket (Gaspar)
 │   ├── generar_requirements.py
 │   └── run_demo.py        # corre los 3 escenarios de Salud
-├── tests/                  # 295 pruebas (Diana)
+├── tests/                  # 301 pruebas (Diana)
 ├── deploy/                 # instalación en OCI Compute: script, systemd y nginx
 ├── docs/
 │   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
