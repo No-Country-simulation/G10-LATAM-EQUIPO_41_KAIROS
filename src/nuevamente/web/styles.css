@@ -1043,8 +1043,9 @@ ul.lista { margin: 0; padding: 0; list-style: none; }
   box-shadow: var(--sombra);
 }
 .btn-video:disabled { cursor: progress; opacity: 0.8; }
-.video-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.video-acciones { gap: 12px; }
+/* Cancelar y Generar juntos, a la derecha del título, con la misma altura */
+.video-acciones { display: flex; align-items: stretch; gap: 12px; margin-left: auto; flex: 0 0 auto; }
+.panel-video-cabecera > div:first-child { flex: 1 1 240px; min-width: 0; }
 .btn-cancelar-video {
   padding: 9px 18px;
   border: 2px solid var(--rojo);
