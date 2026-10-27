@@ -117,6 +117,7 @@ def opciones():
         "perfiles": [p.value for p in PerfilDestinatario],
         "formatos": [f.value for f in FormatoSalida],
         "nichos": [n.value for n in NichoSector],
+        "sectores": [n.value for n in NichoSector],
         "niveles": [n.value for n in NivelDetalle],
         "umbral_por_nicho": {n.value: settings.fidelity_min_for(n.value) for n in NichoSector},
         "max_upload_mb": settings.max_upload_mb,

@@ -5,7 +5,7 @@ integracion con la API) y Gaspar Martinez Paiva (Data Engineer, cliente OCI).
 
 Decision de diseno (igual que en el plan de trabajo del PM): si OCI falla o no
 esta configurado, la app NO se cae. Guarda en data/fallback/ y marca
-fallido_local el fallo queda visible en la respuesta, nunca
+status_upload="fallido_local" — el fallo queda visible en la respuesta, nunca
 oculto.
 """
 
@@ -30,10 +30,12 @@ _REINTENTO_CONEXION_SEG = 300
 class ResultadoSubida:
     bucket: str
     objeto_id: str
-    status_upload: str
+    status_upload: str  # "completado" | "fallido_local"
 
 
 class StorageService:
+    """Interfaz unica que usa el resto de la app (api/, agents/)."""
+
     def __init__(self) -> None:
         self._namespace_oci: str | None = None
         self._motivo_oci = ""
@@ -78,6 +80,8 @@ class StorageService:
             self._registrar_fallo(exc)
 
     def _namespace(self) -> str:
+        """El namespace de OCI se consulta una sola vez y se reutiliza: cada consulta es una
+        solicitud que cuenta contra el cupo gratuito mensual."""
         if self._namespace_oci is None:
             if self._cliente_oci is None:
                 raise RuntimeError("Cliente OCI no disponible")
@@ -85,6 +89,10 @@ class StorageService:
         return self._namespace_oci
 
     def disponible_oci(self) -> bool:
+        """OCI acepta de verdad las credenciales. No basta con que exista el config: una llave
+        de API que no esta registrada en la cuenta da 401 en cada subida. La conexion se
+        comprueba una vez (pidiendo el namespace) y se vuelve a probar cada pocos minutos si
+        fallo; cada subida actualiza el resultado."""
         if self._cliente_oci is None:
             return False
         if self._namespace_oci is not None:
@@ -99,13 +107,17 @@ class StorageService:
             return False
 
     def motivo_oci(self) -> str:
+        """Por que no se esta guardando en OCI, en palabras para el usuario ("" si funciona)."""
         return "" if self.disponible_oci() else self._motivo_oci
 
     def _registrar_fallo(self, exc: Exception) -> None:
         self._error_hasta = time.monotonic() + _REINTENTO_CONEXION_SEG
         estado = getattr(exc, "status", None)
         if estado == 401:
-            self._motivo_oci = "OCI rechazo las credenciales (401): la llave de API del config no esta registrada en la cuenta."
+            self._motivo_oci = (
+                "OCI rechazo las credenciales (401): la llave de API del config no esta registrada "
+                "en la cuenta. Subela en la consola de OCI (Mi perfil -> Claves de API)."
+            )
         elif estado == 404:
             self._motivo_oci = f"No se encontro el bucket {settings.oci_bucket} o el namespace (404)."
         elif estado == 403:
@@ -154,6 +166,8 @@ class StorageService:
         return None if datos is None else datos.decode("utf-8")
 
     def listar(self, prefijo: str) -> Iterator[tuple[str, datetime]]:
+        """(objeto_id, fecha de creacion) de cada objeto guardado bajo `prefijo`, en OCI y
+        en el respaldo local (un material puede estar en cualquiera de los dos)."""
         vistos: set[str] = set()
         if self._cliente_oci is not None:
             try:

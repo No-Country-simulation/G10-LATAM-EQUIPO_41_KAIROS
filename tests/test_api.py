@@ -3,9 +3,50 @@ import pytest
 
 
 def test_health_ok(api_client):
+    """HU-72: GET /health responde el estado del servicio y si OCI está disponible."""
     r = api_client.get("/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    data = r.json()
+    assert data["status"] == "ok" and data["version"]
+    assert isinstance(data["oci_disponible"], bool)
+    assert isinstance(data["oci_motivo"], str)  # "" si OCI funciona; si no, la causa
+    assert set(data) == {"status", "version", "oci_disponible", "oci_motivo"}
+
+
+def test_docs_muestra_los_endpoints_con_sus_esquemas(api_client):
+    """HU-73: /docs muestra todos los endpoints con sus esquemas, y su openapi.json
+    declara cada operación (método, cuerpo y respuestas) — es lo que Swagger UI usa
+    para el botón «Try it out» con el que se prueban las solicitudes."""
+    docs = api_client.get("/docs")
+    assert docs.status_code == 200
+    assert "swagger-ui" in docs.text and "openapi.json" in docs.text
+
+    spec = api_client.get("/openapi.json").json()
+    assert {
+        "/health",
+        "/api/v1/opciones",
+        "/api/v1/adaptar",
+        "/api/v1/adaptar/archivo",
+        "/api/v1/calificaciones",
+        "/api/v1/estadisticas",
+        "/api/v1/contenidos/{objeto_id}",
+        "/api/v1/contenidos/{objeto_id}/exportar",
+        "/api/v1/contenidos/{objeto_id}/video",
+        "/api/v1/contenidos/{objeto_id}/podcast",
+        "/api/v1/contenidos/{objeto_id}/original",
+    } <= set(spec["paths"])
+
+    esquemas = spec["components"]["schemas"]
+    assert {"SolicitudAdaptacion", "RespuestaAdaptacion", "SolicitudCalificacion"} <= set(esquemas)
+    # los 6 formatos documentados como variantes de contenido_adaptado
+    assert {f"{n}ContenidoPublico" for n in ("Flashcards", "Quiz", "Tutorial", "ResumenEjecutivo", "GuionDeClase", "Podcast")} <= set(esquemas)
+
+    # POST /adaptar declara su cuerpo con el esquema (Swagger lo renderiza como formulario)
+    cuerpo = spec["paths"]["/api/v1/adaptar"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert cuerpo.get("$ref", "").endswith("SolicitudAdaptacion")
+    # y su respuesta con el esquema de la estructura fija (HU-70)
+    respuesta = spec["paths"]["/api/v1/adaptar"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert respuesta.get("$ref", "").endswith("RespuestaAdaptacion")
 
 
 def test_adaptar_flashcards_salud(api_client, documento_salud):
@@ -79,6 +120,36 @@ def test_adaptar_todos_los_formatos(api_client, documento_salud, formato, perfil
     assert r.status_code == 200, r.text
     assert r.json()["metadatos"]["formato_generado"] == formato
     assert not _claves_internas(r.json()["contenido_adaptado"])
+
+
+def test_hu70_respuesta_estructurada_incluye_los_cinco_bloques(api_client, documento_salud):
+    """HU-70: la respuesta estructurada (registro completo, /detalle) incluye request_id,
+    metadatos, contenido_adaptado, evaluacion_calidad y almacenamiento_oci."""
+    objeto_id = _crear(api_client, documento_salud, "Quiz")
+    detalle = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()
+    assert {"request_id", "metadatos", "contenido_adaptado", "evaluacion_calidad", "almacenamiento_oci"} <= set(detalle)
+    assert detalle["request_id"]
+
+
+_FORMAS_POR_FORMATO = {
+    "Flashcards": {"items"},
+    "Quiz": {"preguntas"},
+    "Tutorial": {"pasos", "objetivo"},
+    "Resumen Ejecutivo": {"resumen", "puntos_clave"},
+    "Guion de Clase": {"escenas", "duracion_total_min"},
+    "Podcast": {"intervenciones"},
+}
+
+
+@pytest.mark.parametrize("formato", list(_FORMAS_POR_FORMATO))
+def test_hu70_contenido_adaptado_cambia_de_forma_segun_el_formato(api_client, documento_salud, formato):
+    """HU-70: contenido_adaptado cambia de forma según el formato, indicado en el campo formato."""
+    objeto_id = _crear(api_client, documento_salud, formato)
+    detalle = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()
+    contenido = detalle["contenido_adaptado"]
+    assert contenido["formato"] == formato  # el campo formato indica cuál es
+    assert detalle["metadatos"]["formato_generado"] == formato
+    assert _FORMAS_POR_FORMATO[formato] <= set(contenido)  # la forma propia de cada formato
 
 
 def test_adaptar_valida_campos_faltantes(api_client):
@@ -165,12 +236,27 @@ def test_front_end_se_sirve_en_la_raiz(api_client):
 
 
 def test_opciones_coinciden_con_los_enums(api_client):
-    from nuevamente.schemas.enums import FormatoSalida, PerfilDestinatario
+    """HU-71: GET /api/v1/opciones devuelve las listas de perfiles, formatos, sectores,
+    nichos y niveles, las voces disponibles y el tamaño máximo de archivo, coincidiendo
+    exactamente con los valores definidos en el código."""
+    from nuevamente.config import settings
+    from nuevamente.exports.narracion import TIPOS_VOZ, nombre_voz
+    from nuevamente.schemas.enums import FormatoSalida, NichoSector, NivelDetalle, PerfilDestinatario
 
-    op = api_client.get("/api/v1/opciones").json()
+    r = api_client.get("/api/v1/opciones")
+    assert r.status_code == 200
+    op = r.json()
     assert op["perfiles"] == [p.value for p in PerfilDestinatario]
     assert op["formatos"] == [f.value for f in FormatoSalida]
-    assert op["umbral_por_nicho"]["Salud"] == 0.9
+    assert op["sectores"] == [s.value for s in NichoSector]
+    assert op["nichos"] == [n.value for n in NichoSector]
+    assert op["niveles"] == [n.value for n in NivelDetalle]
+    assert op["max_upload_mb"] == settings.max_upload_mb
+    assert isinstance(op["voces"], dict)
+    assert set(op["voces"].keys()) == {"femenina", "masculina"}
+    assert op["voces"] == {tipo: nombre_voz(tipo) for tipo in TIPOS_VOZ}  # misma fuente que el código
+    assert op["umbral_por_nicho"] == {n.value: settings.fidelity_min_for(n.value) for n in NichoSector}
+    assert op["umbral_por_nicho"]["Salud"] == 0.9  # el nicho de foco no baja de su umbral
 
 
 def _crear(api_client, documento, formato):
@@ -476,8 +562,35 @@ def test_adaptar_archivo_danado_nombra_el_archivo_del_usuario(api_client):
     assert "protocolo.docx" in r.json()["detail"] and "tmp" not in r.json()["detail"]
 
 
+def test_adaptar_archivo_vacio_da_400(api_client):
+    """HU-69: la interfaz rechaza el archivo vacío (app.js problemaDelArchivo);
+    la API aplica la misma validación."""
+    files = {"archivo": ("vacio.txt", b"", "text/plain")}
+    data = {"perfil_destinatario": "Principiante", "formato_salida": "Flashcards"}
+    r = api_client.post("/api/v1/adaptar/archivo", files=files, data=data)
+    assert r.status_code == 400
+    assert "vac" in r.json()["detail"].lower()
+
+
+def test_adaptar_archivo_opcion_invalida_da_422(api_client, documento_salud):
+    """HU-69: las opciones del multipart se validan igual que en el endpoint JSON
+    (los mismos valores que la interfaz toma de /api/v1/opciones)."""
+    files = {"archivo": ("protocolo.txt", documento_salud.encode("utf-8"), "text/plain")}
+    data = {"perfil_destinatario": "Doctorado en Medicina", "formato_salida": "Flashcards"}
+    r = api_client.post("/api/v1/adaptar/archivo", files=files, data=data)
+    assert r.status_code == 422
+    assert r.json()["codigo"] == "VALIDACION_ENTRADA"
+
+
 def test_opciones_informa_las_extensiones_aceptadas(api_client):
-    assert ".docx" in api_client.get("/api/v1/opciones").json()["extensiones"]
+    """HU-69: la interfaz toma de /opciones las extensiones y el tamaño máximo que la
+    API también valida en POST /adaptar/archivo (misma fuente para ambos)."""
+    from nuevamente.config import settings
+    from nuevamente.ingest.readers import EXTENSIONES_SOPORTADAS
+
+    op = api_client.get("/api/v1/opciones").json()
+    assert op["extensiones"] == sorted(EXTENSIONES_SOPORTADAS)
+    assert op["max_upload_mb"] == settings.max_upload_mb
 
 
 
@@ -580,9 +693,53 @@ def test_una_subida_correcta_limpia_el_fallo_anterior():
     assert storage.disponible_oci() and storage.motivo_oci() == ""
 
 
-def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path):
-    """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario."""
+def test_adaptar_si_oci_falla_a_mitad_de_subida_guarda_en_respaldolocal(api_client, documento_salud):
+    """HU-54: si OCI conecta bien pero falla al subir, la app no se cae: guarda en
+    data/fallback/ y la respuesta indica status_upload="fallido_local"."""
+    from types import SimpleNamespace
+
+    from nuevamente.storage import oci_client
+
+    class _Error500(Exception):
+        status = 500
+
+    class _Cliente:
+        def get_namespace(self):
+            return SimpleNamespace(data="mi-namespace")
+
+        def put_object(self, *args, **kwargs):
+            raise _Error500("InternalError")
+
+    storage = oci_client.get_storage_service()
+    cliente_antes = storage._cliente_oci
+    try:
+        storage._cliente_oci = _Cliente()
+        storage._namespace_oci, storage._error_hasta = None, 0.0
+        assert storage.disponible_oci()  # la conexión parece buena hasta que llega la subida
+        body = {
+            "documento_titulo": "Protocolo de Bioseguridad",
+            "documento_contenido": documento_salud,
+            "perfil_destinatario": "Principiante",
+            "formato_salida": "Flashcards",
+            "nicho_sector": "Salud",
+        }
+        r = api_client.post("/api/v1/adaptar", json=body)
+        assert r.status_code == 200, r.text
+        al = r.json()["almacenamiento_oci"]
+        assert al["status_upload"] == "fallido_local"
+        # el material no se perdió: quedó en data/fallback/ y se puede recuperar
+        assert api_client.get(f"/api/v1/contenidos/{al['objeto_id']}").status_code == 200
+    finally:
+        storage._cliente_oci, storage._namespace_oci, storage._error_hasta = cliente_antes, None, 0.0
+        storage._motivo_oci = ""
+
+
+def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path, monkeypatch):
+    """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario,
+    con su tipo de contenido, y la respuesta incluye el identificador de ese objeto."""
     from docx import Document
+
+    from nuevamente.storage.oci_client import get_storage_service
 
     doc = Document()
     for parrafo in documento_salud.split("\n\n"):
@@ -590,14 +747,32 @@ def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client,
     ruta = tmp_path / "Protocolo final.docx"
     doc.save(str(ruta))
     original = ruta.read_bytes()
-    files = {"archivo": (ruta.name, original, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    files = {"archivo": (ruta.name, original, mime)}
     data = {"perfil_destinatario": "Principiante", "formato_salida": "Flashcards"}
+
+    subidas = []  # (objeto_id, content_type) de cada subida al bucket/respaldo
+    storage = get_storage_service()
+    subir_original = storage.subir_bytes
+
+    def subir_espia(objeto_id, datos, content_type="application/octet-stream"):
+        subidas.append((objeto_id, content_type))
+        return subir_original(objeto_id, datos, content_type)
+
+    monkeypatch.setattr(storage, "subir_bytes", subir_espia)
     objeto_id = api_client.post("/api/v1/adaptar/archivo", files=files, data=data).json()["almacenamiento_oci"]["objeto_id"]
 
+    # el archivo se guardó tal cual y con su tipo de contenido (criterio 1)
+    assert [(o, t) for o, t in subidas if o.endswith("/Protocolo final.docx")] == [
+        (f"originals/{objeto_id.split('/')[1]}/Protocolo final.docx", mime)
+    ]
+
+    # la respuesta incluye el identificador de ese objeto (criterio 2)
     al = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()["almacenamiento_oci"]
     assert al["objeto_archivo_original"].endswith("/Protocolo final.docx")
     r = api_client.get(f"/api/v1/contenidos/{objeto_id}/original")
     assert r.status_code == 200 and r.content == original  # byte a byte
+    assert r.headers["content-type"].startswith("application/vnd.openxmlformats")
     assert "Protocolo%20final.docx" in r.headers["content-disposition"]
 
 
