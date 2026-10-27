@@ -863,7 +863,7 @@ Contiene **89 historias** organizadas en **14 épicas**: 72 están hechas, 6 est
 | HU-52 | Guardar original y material en OCI Object Storage | Debe | Parcial |
 | HU-53 | Crear y verificar el bucket automáticamente | Debe | Hecho |
 | HU-54 | Respaldo local visible | Debe | Hecho |
-| HU-55 | Guardar el archivo original tal cual | Debería | Pendiente |
+| HU-55 | Guardar el archivo original tal cual | Debería | Hecho |
 | HU-56 | Ahorrar solicitudes a OCI | Podría | Pendiente |
 | HU-57 | Recuperar un material guardado | Debe | Hecho |
 | HU-58 | Historial de materiales recientes | Debería | Hecho |
@@ -1629,7 +1629,7 @@ Contiene **89 historias** organizadas en **14 épicas**: 72 están hechas, 6 est
 - Además del texto extraído, se guarda el archivo original con su tipo de contenido.
 - La respuesta incluye el identificador de ese objeto.
 
-**Prioridad:** Debería · **Estado:** Pendiente · **Responsable:** Ethan Espinoza Acosta (Backend Developer)
+**Prioridad:** Debería · **Estado:** Hecho · **Responsable:** Ethan Espinoza Acosta (Backend Developer)
 
 #### HU-56 · Ahorrar solicitudes a OCI
 
@@ -2039,7 +2039,7 @@ Contiene **89 historias** organizadas en **14 épicas**: 72 están hechas, 6 est
 
 ## Backlog pendiente
 
-Estas 17 historias no están terminadas. Están ordenadas por prioridad: primero las imprescindibles para el MVP.
+Estas 16 historias no están terminadas. Están ordenadas por prioridad: primero las imprescindibles para el MVP.
 
 | ID | Historia | Prioridad | Estado |
 |---|---|---|---|
@@ -2048,7 +2048,6 @@ Estas 17 historias no están terminadas. Están ordenadas por prioridad: primero
 | HU-83 | Mantenerse en la capa Always Free | Debe | Parcial |
 | HU-88 | Entregables semanales | Debe | Parcial |
 | HU-31 | Modelo principal de Gemini estable | Debería | Parcial |
-| HU-55 | Guardar el archivo original tal cual | Debería | Pendiente |
 | HU-87 | Repetir la demo con Gemini | Debería | Pendiente |
 | HU-08 | Reconocimiento de texto (OCR) en PDF escaneados | Podría | Pendiente |
 | HU-12 | Embeddings semánticos con Gemini | Podría | Pendiente |

@@ -580,9 +580,53 @@ def test_una_subida_correcta_limpia_el_fallo_anterior():
     assert storage.disponible_oci() and storage.motivo_oci() == ""
 
 
-def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path):
-    """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario."""
+def test_adaptar_si_oci_falla_a_mitad_de_subida_guarda_en_respaldolocal(api_client, documento_salud):
+    """HU-54: si OCI conecta bien pero falla al subir, la app no se cae: guarda en
+    data/fallback/ y la respuesta indica status_upload="fallido_local"."""
+    from types import SimpleNamespace
+
+    from nuevamente.storage import oci_client
+
+    class _Error500(Exception):
+        status = 500
+
+    class _Cliente:
+        def get_namespace(self):
+            return SimpleNamespace(data="mi-namespace")
+
+        def put_object(self, *args, **kwargs):
+            raise _Error500("InternalError")
+
+    storage = oci_client.get_storage_service()
+    cliente_antes = storage._cliente_oci
+    try:
+        storage._cliente_oci = _Cliente()
+        storage._namespace_oci, storage._error_hasta = None, 0.0
+        assert storage.disponible_oci()  # la conexión parece buena hasta que llega la subida
+        body = {
+            "documento_titulo": "Protocolo de Bioseguridad",
+            "documento_contenido": documento_salud,
+            "perfil_destinatario": "Principiante",
+            "formato_salida": "Flashcards",
+            "nicho_sector": "Salud",
+        }
+        r = api_client.post("/api/v1/adaptar", json=body)
+        assert r.status_code == 200, r.text
+        al = r.json()["almacenamiento_oci"]
+        assert al["status_upload"] == "fallido_local"
+        # el material no se perdió: quedó en data/fallback/ y se puede recuperar
+        assert api_client.get(f"/api/v1/contenidos/{al['objeto_id']}").status_code == 200
+    finally:
+        storage._cliente_oci, storage._namespace_oci, storage._error_hasta = cliente_antes, None, 0.0
+        storage._motivo_oci = ""
+
+
+def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client, documento_salud, tmp_path, monkeypatch):
+    """HU-55: además del texto extraído, el bucket guarda el archivo que subió el usuario,
+    con su tipo de contenido, y la respuesta incluye el identificador de ese objeto."""
     from docx import Document
+
+    from nuevamente.storage.oci_client import get_storage_service
 
     doc = Document()
     for parrafo in documento_salud.split("\n\n"):
@@ -590,14 +634,32 @@ def test_se_guarda_el_archivo_original_tal_cual_y_se_puede_descargar(api_client,
     ruta = tmp_path / "Protocolo final.docx"
     doc.save(str(ruta))
     original = ruta.read_bytes()
-    files = {"archivo": (ruta.name, original, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    files = {"archivo": (ruta.name, original, mime)}
     data = {"perfil_destinatario": "Principiante", "formato_salida": "Flashcards"}
+
+    subidas = []  # (objeto_id, content_type) de cada subida al bucket/respaldo
+    storage = get_storage_service()
+    subir_original = storage.subir_bytes
+
+    def subir_espia(objeto_id, datos, content_type="application/octet-stream"):
+        subidas.append((objeto_id, content_type))
+        return subir_original(objeto_id, datos, content_type)
+
+    monkeypatch.setattr(storage, "subir_bytes", subir_espia)
     objeto_id = api_client.post("/api/v1/adaptar/archivo", files=files, data=data).json()["almacenamiento_oci"]["objeto_id"]
 
+    # el archivo se guardó tal cual y con su tipo de contenido (criterio 1)
+    assert [(o, t) for o, t in subidas if o.endswith("/Protocolo final.docx")] == [
+        (f"originals/{objeto_id.split('/')[1]}/Protocolo final.docx", mime)
+    ]
+
+    # la respuesta incluye el identificador de ese objeto (criterio 2)
     al = api_client.get(f"/api/v1/contenidos/{objeto_id}/detalle").json()["almacenamiento_oci"]
     assert al["objeto_archivo_original"].endswith("/Protocolo final.docx")
     r = api_client.get(f"/api/v1/contenidos/{objeto_id}/original")
     assert r.status_code == 200 and r.content == original  # byte a byte
+    assert r.headers["content-type"].startswith("application/vnd.openxmlformats")
     assert "Protocolo%20final.docx" in r.headers["content-disposition"]
 
 
