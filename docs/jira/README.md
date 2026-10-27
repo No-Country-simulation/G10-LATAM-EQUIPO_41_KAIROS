@@ -60,6 +60,7 @@ Exportaciones y reportes del proyecto `SCRUM` en Jira, ordenados por sprint.
 | [Actividades_Sprint05.xlsx](sprint05/Actividades_Sprint05.xlsx) | Actividades del sprint (exportación de Jira) |
 | [Actividades_por_Sprint.xlsx](sprint05/Actividades_por_Sprint.xlsx) | Actividades y su asignación por integrante |
 | [HIstorias_de_Usuario_Casos_de_Prueba.xlsx](sprint05/HIstorias_de_Usuario_Casos_de_Prueba.xlsx) | Casos de prueba |
+| [Estadisticas_Sprint05.pdf](sprint05/Estadisticas_Sprint05.pdf) | Estadísticas del sprint |
 
 
 ### Pruebas funcionales del Sprint 5
