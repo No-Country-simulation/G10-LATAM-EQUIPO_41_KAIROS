@@ -395,6 +395,14 @@ button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(
   margin: 0 auto 16px;
   border-radius: 18px;
 }
+/* El src del HTML es el logo de modo claro; en modo oscuro el elemento se
+   reemplaza por la versión oscura, con el mismo criterio que los colores. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-completo,
+  :root:not([data-theme="light"]) .vacio-logo { content: url("/static/kairos-logo-modoOscuro.png"); }
+}
+:root[data-theme="dark"] .logo-completo,
+:root[data-theme="dark"] .vacio-logo { content: url("/static/kairos-logo-modoOscuro.png"); }
 .dialogo {
   width: min(560px, calc(100vw - 32px));
   padding: 28px;
