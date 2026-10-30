@@ -372,8 +372,8 @@ del código del repo y de sus actualizaciones. Se probó en local y responde a l
 | Archivo | Para qué sirve |
 |---|---|
 | [`compose.yaml`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose.yaml) | Define el servicio (API + interfaz web), el volumen de datos y la configuración de OCI |
-| [`compose_comandos_kairos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_comandos_kairos.md) | Lista de comandos para manejar Docker Compose (levantar, ver logs, actualizar, detener) |
-| [`compose_checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_checklist.md) | Comprobaciones para verificar que el contenedor quedó bien montado y sano |
+| [`docs/compose-comandos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/docs/compose-comandos.md) | Lista de comandos para manejar Docker Compose (levantar, ver logs, actualizar, detener) |
+| [`docs/compose-checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/docs/compose-checklist.md) | Cómo levantarlo la primera vez y comprobar que el contenedor quedó sano |
 
 ```bash
 docker compose up -d --build   # construir y levantar → http://localhost:8000/
@@ -697,6 +697,10 @@ nuevamente/
 │   ├── SETUP_OCI.md       # cuenta, bucket y claves de OCI
 │   ├── DEPLOY_OCI.md      # despliegue en una VM Always Free de OCI
 │   ├── DEPLOY_RENDER.md   # despliegue con Docker en Render (u otro servidor)
+│   ├── compose-comandos.md # referencia rápida de Docker Compose
+│   ├── compose-checklist.md # primera vez y verificación del contenedor
+│   ├── tarea-01.md        # descripción de la tarea del hackathon
+│   ├── presentaciones/    # speech y presentación del Demo Day
 │   ├── entregables/       # informes e historias de usuario (v2.0)
 │   ├── jira/              # documentación de Jira por sprint: actividades, casos de prueba, estadísticas y pruebas
 │   ├── pruebas/
@@ -710,8 +714,6 @@ nuevamente/
 ├── Makefile               # install / test / run-api / run-ui / demo
 ├── Dockerfile             # imagen para Render, Railway, Fly.io o cualquier VM
 ├── compose.yaml           # Docker Compose para levantar la app en local
-├── compose_comandos_kairos.md  # comandos para manejar Docker Compose
-├── compose_checklist.md   # comprobaciones del contenedor
 ├── render.yaml            # blueprint de Render (plan gratuito)
 ├── .env.example
 └── README.md
@@ -889,7 +891,7 @@ Enlaces del proyecto (deploy, repositorio y Jira) en la [sección 2](#2-demo-y-e
 | Gráficos de las pruebas | [`docs/pruebas/evidencias/graficos/`](docs/pruebas/evidencias/graficos/) |
 | Capturas por perfil (24 materiales) | [`docs/pruebas/evidencias/perfiles/`](docs/pruebas/evidencias/perfiles/) |
 | Capturas de las pantallas | [`docs/pruebas/evidencias/pantallas/`](docs/pruebas/evidencias/pantallas/) |
-| Docker Compose (archivo y guías) | [`compose.yaml`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose.yaml) · [`compose_comandos_kairos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_comandos_kairos.md) · [`compose_checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose_checklist.md) |
+| Docker Compose (archivo y guías) | [`compose.yaml`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/compose.yaml) · [`docs/compose-comandos.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/docs/compose-comandos.md) · [`docs/compose-checklist.md`](https://github.com/No-Country-simulation/G10-LATAM-EQUIPO_41_KAIROS/blob/main/docs/compose-checklist.md) |
 | Resultados de los escenarios de demo | [`docs/demo/resultados/`](docs/demo/resultados/) |
 
 ### 12.5 Proceso de generación de contenido por perfil
