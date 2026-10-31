@@ -58,3 +58,7 @@ docs/pruebas/bitacoras_ia/
 docs/pruebas/**/*bitacora*
 docs/pruebas/**/*bitácora*
 
+
+# Llaves privadas: nunca al repositorio
+*.pem
+*.p12

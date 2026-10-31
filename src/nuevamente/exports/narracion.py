@@ -8,8 +8,11 @@ Tres motores de voz, en este orden:
   - "openai": voces naturales de OpenAI TTS (VIDEO_VOZ_OPENAI_FEMENINA y
     VIDEO_VOZ_OPENAI_MASCULINA), si hay OPENAI_API_KEY. Es el respaldo cuando Gemini está
     saturado o sin cuota, para no caer a una voz robótica; con VIDEO_VOCES=openai va primero.
-  - "sistema": `say` en macOS o `espeak-ng` en Linux. Es el último respaldo, o el motor
-    fijo con VIDEO_VOCES=sistema.
+  - "sistema": `say` en macOS; si no está, las voces neuronales gratuitas de Microsoft
+    Edge (edge-tts, sin API key ni cuota diaria: VIDEO_VOZ_EDGE_FEMENINA y
+    VIDEO_VOZ_EDGE_MASCULINA); y si Edge no responde, `espeak-ng` en Linux. Es el último
+    respaldo, o el motor fijo con VIDEO_VOCES=sistema. Gracias a Edge, un servidor sin
+    voces instaladas (Render sin Docker) no entrega videos ni podcasts mudos.
     Si un fragmento falla con un motor, TODA la narración se rehace con el siguiente: un
     video nunca mezcla dos voces.
 
@@ -82,6 +85,64 @@ def _espeak() -> str | None:
     return shutil.which("espeak-ng") or shutil.which("espeak")
 
 
+SERVICIO_TTS_EDGE = "tts:edge"
+_TIMEOUT_EDGE_SEG = 60
+_REINTENTOS_EDGE = 4  # esperas de 2, 4, 8 y 16 s
+_ESPERA_EDGE_SEG = 2.0
+
+
+@functools.lru_cache(maxsize=1)
+def _edge_instalado() -> bool:
+    import importlib.util
+
+    return importlib.util.find_spec("edge_tts") is not None
+
+
+def _edge_disponible() -> bool:
+    """Edge TTS está permitido, instalado y no falló hace poco."""
+    from nuevamente.llm import disponibilidad
+
+    return settings.edge_tts != "off" and _edge_instalado() and not disponibilidad.en_pausa(SERVICIO_TTS_EDGE)
+
+
+def _voz_edge(tipo: str) -> str:
+    return settings.video_voz_edge_femenina if tipo == "femenina" else settings.video_voz_edge_masculina
+
+
+def _nombre_voz_edge(tipo: str) -> str:
+    """"es-MX-DaliaNeural" -> "Dalia (México, voz natural de Microsoft)"."""
+    partes = _voz_edge(tipo).split("-")
+    nombre = partes[-1].removesuffix("Neural") if partes else _voz_edge(tipo)
+    pais = _PAISES.get("_".join(partes[:2])) if len(partes) >= 3 else None
+    return f"{nombre} ({pais}, voz natural de Microsoft)" if pais else f"{nombre} (voz natural de Microsoft)"
+
+
+def _audio_edge(texto: str, tipo: str, destino: Path) -> Path:
+    """Un fragmento narrado con Edge TTS, guardado como MP3 (ffmpeg lo lee igual que un WAV)."""
+    import asyncio
+
+    import edge_tts
+
+    audio = Path(destino).with_suffix(".mp3")
+
+    async def generar() -> None:
+        await asyncio.wait_for(edge_tts.Communicate(texto, _voz_edge(tipo)).save(str(audio)), _TIMEOUT_EDGE_SEG)
+
+    # Edge limita las solicitudes seguidas (429): se reintenta con espera creciente antes de
+    # dar la voz por caída, para que un video no quede mudo desde la mitad.
+    for intento in range(_REINTENTOS_EDGE + 1):
+        try:
+            asyncio.run(generar())  # cada hilo de trabajo crea su propio bucle
+            if audio.is_file() and audio.stat().st_size > 0:
+                return audio
+            raise RuntimeError("Edge TTS no devolvió audio")
+        except Exception:
+            if intento == _REINTENTOS_EDGE:
+                raise
+            time.sleep(_ESPERA_EDGE_SEG * 2**intento)
+    raise RuntimeError("Edge TTS no devolvió audio")
+
+
 @functools.lru_cache(maxsize=4)
 def _voz_macos(tipo: str) -> tuple[str, str] | None:
     preferidas = _VOCES_MACOS[tipo]
@@ -118,8 +179,8 @@ def openai_configurado() -> bool:
 
 
 def hay_voz_del_sistema() -> bool:
-    """El servidor tiene `say` (macOS) o eSpeak: el respaldo que no depende de la red."""
-    return bool(_voces_macos()) or bool(_espeak())
+    """Hay un respaldo para el motor "sistema": `say` (macOS), Edge TTS o eSpeak."""
+    return bool(_voces_macos()) or _edge_disponible() or bool(_espeak())
 
 
 def motores_disponibles() -> list[str]:
@@ -158,6 +219,8 @@ def nombre_voz(tipo: str, motor: str | None = None) -> str | None:
         base = nombre.split(" (")[0]
         pais = _PAISES.get(locale)
         return f"{base} ({pais})" if pais else base
+    if _edge_disponible():
+        return _nombre_voz_edge(tipo)
     if _espeak():
         return f"eSpeak {tipo}"
     return None
@@ -474,6 +537,14 @@ def sintetizar(texto: str, tipo: str, destino: Path) -> Path | None:
                 check=True, capture_output=True, timeout=180,
             )
             return audio
+        if _edge_disponible():
+            try:
+                return _audio_edge(texto, tipo, destino)
+            except Exception as exc:  # red, servicio o voz: se pasa a eSpeak y se pausa Edge
+                from nuevamente.llm import disponibilidad
+
+                logger.warning("Edge TTS no disponible, se prueba eSpeak: %s", exc)
+                disponibilidad.pausar(SERVICIO_TTS_EDGE, str(exc))
         if espeak := _espeak():
             guion_txt.write_text(texto, encoding="utf-8")
             audio = destino.with_suffix(".wav")

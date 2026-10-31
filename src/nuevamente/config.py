@@ -213,6 +213,12 @@ class Settings:
     openai_tts_model: str = os.getenv("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
     video_voz_openai_femenina: str = os.getenv("VIDEO_VOZ_OPENAI_FEMENINA", "coral")
     video_voz_openai_masculina: str = os.getenv("VIDEO_VOZ_OPENAI_MASCULINA", "ash")
+    # Voces neuronales de Microsoft Edge (edge-tts): gratuitas, sin API key ni cuota diaria.
+    # Respaldo de las voces del sistema, para que el video y el podcast tengan audio en un
+    # servidor sin eSpeak (Render sin Docker). auto | off
+    edge_tts: str = os.getenv("EDGE_TTS", "auto").strip().lower()
+    video_voz_edge_femenina: str = os.getenv("VIDEO_VOZ_EDGE_FEMENINA", "es-MX-DaliaNeural")
+    video_voz_edge_masculina: str = os.getenv("VIDEO_VOZ_EDGE_MASCULINA", "es-MX-JorgeNeural")
     videos_dir: str = os.getenv("VIDEOS_DIR", "data/videos")
     # hilos de ffmpeg al codificar el video: 1 usa mucha menos memoria (servidores de 512 MB)
     video_hilos: int = _env_int("VIDEO_HILOS", 1)
