@@ -1628,6 +1628,7 @@ async function abrirDelHistorial(item) {
 // ---------- Menú superior ----------
 
 const TEMA_KEY = "nuevamente.tema";
+const LOGOS = { light: "/static/logo-kairos-modoClaro.png", dark: "/static/kairos-logo-modoOscuro.png" };
 
 function temaActual() {
   const elegido = document.documentElement.dataset.theme;
@@ -1635,11 +1636,19 @@ function temaActual() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function pintarLogos() {
+  const src = LOGOS[temaActual() === "dark" ? "dark" : "light"];
+  document.querySelectorAll(".logo-completo, .vacio-logo").forEach((img) => {
+    if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+  });
+}
+
 function pintarBotonTema() {
   const oscuro = temaActual() === "dark";
   const boton = $("#btn-tema");
   boton.textContent = oscuro ? "☀️" : "🌙";
   boton.setAttribute("aria-label", oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+  pintarLogos();
 }
 
 function alternarTema() {
