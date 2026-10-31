@@ -399,10 +399,10 @@ button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(
    reemplaza por la versión oscura, con el mismo criterio que los colores. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .logo-completo,
-  :root:not([data-theme="light"]) .vacio-logo { content: url("/static/kairos-logo-modoOscuro.png"); }
+  :root:not([data-theme="light"]) .vacio-logo { content: url("/static/img/kairos-logo-modoOscuro.png"); }
 }
 :root[data-theme="dark"] .logo-completo,
-:root[data-theme="dark"] .vacio-logo { content: url("/static/kairos-logo-modoOscuro.png"); }
+:root[data-theme="dark"] .vacio-logo { content: url("/static/img/kairos-logo-modoOscuro.png"); }
 .dialogo {
   width: min(560px, calc(100vw - 32px));
   padding: 28px;
@@ -471,6 +471,22 @@ button.estado:hover { filter: brightness(0.97); box-shadow: inset 0 0 0 1px var(
 }
 .alerta-icono { font-size: 1.4rem; line-height: 1.4; }
 .alerta-idioma strong { display: block; color: var(--primario); font-size: 1.02rem; }
+.alerta-cerrar {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--primario);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.alerta-cerrar:hover { background: color-mix(in srgb, var(--primario) 16%, transparent); }
+.alerta-cerrar:focus-visible { outline: 2px solid var(--primario); outline-offset: 1px; }
 
 .layout {
   display: grid;
