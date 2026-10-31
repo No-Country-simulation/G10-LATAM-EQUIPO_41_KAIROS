@@ -44,4 +44,4 @@ chroma = ["chromadb>=1.5"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-nuevamente = ["web/*"]
+ nuevamente = ["web/*", "web/img/*"]

@@ -1,8 +1,15 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="src/nuevamente/web/img/kairos-logo-modoOscuro.png">
+  <img src="src/nuevamente/web/img/logo-kairos-modoClaro.png" alt="Kairos — NuevaMente" width="420">
+</picture>
+
 # NuevaMente 🎓 — Kairos G10
 
 **Sistema inteligente de adaptación y generación de contenido educativo**
+
+### **(3ER LUGAR🥉 - Hackathon ONE de Oracle y Alura LATAM)**
 
 Convierte un documento técnico en material de estudio personalizado (tutoriales, flashcards,
 quizzes, resúmenes, videos y podcasts) y verifica cada afirmación contra la fuente.

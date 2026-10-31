@@ -447,6 +447,7 @@ async function generar(evento) {
   const vistaAnterior = estado.respuesta ? "resultado" : "vacio";
   const controlador = new AbortController();
   estado.controlador = controlador;
+  $("#li-cancelar").hidden = false;
   habilitarBoton($("#btn-cancelar"), true);
   const llamada = fetch(peticion.url, { ...peticion.opciones, signal: controlador.signal }).then(async (resp) => {
     if (!resp.ok) throw Object.assign(new Error(await mensajeDeError(resp)), { status: resp.status });
@@ -484,6 +485,7 @@ async function generar(evento) {
     }
   } finally {
     estado.controlador = null;
+    $("#li-cancelar").hidden = true;
     habilitarBoton($("#btn-cancelar"), false, "No hay ninguna creación en curso");
     boton.disabled = false;
     $(".btn-texto").textContent = "Crear mi material";
@@ -1627,7 +1629,7 @@ async function abrirDelHistorial(item) {
 // ---------- Menú superior ----------
 
 const TEMA_KEY = "nuevamente.tema";
-const LOGOS = { light: "/static/logo-kairos-modoClaro.png", dark: "/static/kairos-logo-modoOscuro.png" };
+const LOGOS = { light: "/static/img/logo-kairos-modoClaro.png", dark: "/static/img/kairos-logo-modoOscuro.png" };
 
 function temaActual() {
   const elegido = document.documentElement.dataset.theme;
@@ -1750,6 +1752,13 @@ function iniciarMenu() {
   $("#btn-cancelar").addEventListener("click", () => {
     abrirMenu(false);
     cancelarCreacion();
+  });
+  // El aviso "solo se acepta texto en español" se puede cerrar con la ✕;
+  // si el visitante lo cerró antes, no vuelve a aparecer.
+  if (localStorage.getItem("nuevamente.aviso-idioma") === "oculto") $("#alerta-idioma").hidden = true;
+  $("#alerta-idioma-cerrar").addEventListener("click", () => {
+    $("#alerta-idioma").hidden = true;
+    localStorage.setItem("nuevamente.aviso-idioma", "oculto");
   });
   $("#buscar-historial").addEventListener("input", renderHistorial);
   document.addEventListener("keydown", atajoDeTeclado);

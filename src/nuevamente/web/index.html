@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kairos</title>
   <meta name="description" content="Convierte documentos técnicos en material de estudio adaptado a cada persona.">
-  <link rel="icon" type="image/png" href="/static/favicon.png">
-  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@
   <header class="navbar">
     <nav class="navbar-interior" aria-label="Principal">
       <a class="marca" href="#inicio" aria-label="Kairos, ir al inicio">
-        <img class="marca-logo" src="/static/logo-kairos-emblema.png" alt="" width="48" height="48">
+        <img class="marca-logo" src="/static/img/logo-kairos-emblema.png" alt="" width="48" height="48">
         <span class="marca-texto">
           <strong>Kairos</strong>
           <small>Plataforma de aprendizaje empresarial</small>
@@ -36,7 +36,7 @@
 
       <div id="menu" class="menu">
         <ul class="menu-enlaces">
-          <li><button type="button" id="btn-cancelar" class="btn-cancelar" aria-keyshortcuts="Escape" data-titulo="Detener la creación del material en curso (Esc)" disabled title="No hay ninguna creación en curso"><span aria-hidden="true">⛔</span> Cancelar</button></li>
+          <li id="li-cancelar" hidden><button type="button" id="btn-cancelar" class="btn-cancelar" aria-keyshortcuts="Escape" data-titulo="Detener la creación del material en curso (Esc)" disabled title="No hay ninguna creación en curso"><span aria-hidden="true">⛔</span> Cancelar</button></li>
           <li><button type="button" id="btn-material" data-seccion="material" aria-keyshortcuts="M" data-titulo="Ver el material abierto (M)" disabled title="Aún no has creado ningún material"><span aria-hidden="true">📖</span> <span class="menu-etiqueta">Mi material<small id="material-actual" class="menu-sub" hidden></small></span></button></li>
           <li class="menu-desplegable">
             <button type="button" id="btn-historial" aria-haspopup="true" aria-expanded="false" aria-controls="historial-menu" aria-keyshortcuts="H" data-titulo="Historial de materiales (H)" disabled title="Aún no hay materiales en el historial">
@@ -76,7 +76,7 @@
     <form method="dialog">
       <button class="dialogo-cerrar" aria-label="Cerrar">✕</button>
     </form>
-    <img class="logo-completo" src="/static/logo-kairos-modoClaro.png" alt="Kairos, plataforma de aprendizaje empresarial" width="1756" height="792">
+    <img class="logo-completo" src="/static/img/logo-kairos-modoClaro.png" alt="Kairos, plataforma de aprendizaje empresarial" width="1756" height="792">
     <h2 id="como-titulo">💡 Cómo funciona Kairos</h2>
     <p class="como-intro">Kairos convierte un documento técnico en material de estudio hecho a tu medida, usando solo lo que dice ese documento.</p>
 
@@ -139,10 +139,11 @@
   <main id="inicio" class="layout">
     <!-- ===== Panel de configuración ===== -->
     <form id="form" class="panel" novalidate>
-      <div class="alerta-idioma" role="note">
+      <div id="alerta-idioma" class="alerta-idioma" role="note">
         <span class="alerta-icono" aria-hidden="true">⚠️</span>
         <p><strong>Importante: solo se acepta texto en español.</strong>
           Pega o sube documentos escritos en español; otros idiomas no se procesan correctamente.</p>
+        <button type="button" id="alerta-idioma-cerrar" class="alerta-cerrar" aria-label="Cerrar aviso de idioma">✕</button>
       </div>
 
       <section class="paso">
@@ -222,7 +223,7 @@
     <!-- ===== Resultados ===== -->
     <section class="resultados" aria-live="polite">
       <div id="vacio" class="vacio">
-        <img class="vacio-logo" src="/static/logo-kairos-modoClaro.png" alt="Kairos, plataforma de aprendizaje empresarial" width="1756" height="792">
+        <img class="vacio-logo" src="/static/img/logo-kairos-modoClaro.png" alt="Kairos, plataforma de aprendizaje empresarial" width="1756" height="792">
         <h2>Aquí aparecerá tu material</h2>
         <p>Elige un documento, para quién es y el formato. Kairos lo adapta y
           comprueba cada afirmación contra el texto original.</p>
